@@ -42,10 +42,20 @@ public enum AnalyticsEngine {
         public let cachedSleep: [CachedSleepSession]
         /// Detected workout/exercise sessions.
         public let workouts: [ExerciseSession]
-        /// Recovery score [0,100] or nil (cold-start / no HRV baseline).
+        /// Recovery / "Charge" score [0,100] or nil (cold-start / no HRV baseline).
         public let recovery: Double?
-        /// Day strain [0,21] or nil (insufficient HR samples / invalid HRR).
+        /// Day strain / "Effort" [0,100] or nil (insufficient HR samples / invalid HRR).
         public let strain: Double?
+        /// Rest composite [0,100] or nil (no in-bed data). This is the value the
+        /// `sleep_performance` metric key carries (duration-vs-need 0.50 + efficiency
+        /// 0.20 + restorative share 0.20 + consistency 0.10). The downstream metric-series
+        /// builder reads it from here; the Charge "Rest quality" term reads it ÷100.
+        public let restScore: Double?
+        /// Per-score confidence tiers (Charge / Effort / Rest) for the small label under
+        /// each score. Always present (worst case `.calibrating`).
+        public let chargeConfidence: ScoreConfidence
+        public let effortConfidence: ScoreConfidence
+        public let restConfidence: ScoreConfidence
         /// Wear-gated mean in-bed skin temperature (°C) for this night, or nil when no worn
         /// in-bed samples were available. Baseline-INDEPENDENT (like avgHrv): the caller seeds
         /// a personal skin-temp baseline from these nightly means and re-derives
@@ -54,11 +64,19 @@ public enum AnalyticsEngine {
 
         public init(daily: DailyMetric, sleepSessions: [SleepSession],
                     cachedSleep: [CachedSleepSession], workouts: [ExerciseSession],
-                    recovery: Double?, strain: Double?, nightlySkinTempC: Double? = nil) {
+                    recovery: Double?, strain: Double?, nightlySkinTempC: Double? = nil,
+                    restScore: Double? = nil,
+                    chargeConfidence: ScoreConfidence = .calibrating,
+                    effortConfidence: ScoreConfidence = .calibrating,
+                    restConfidence: ScoreConfidence = .calibrating) {
             self.daily = daily; self.sleepSessions = sleepSessions
             self.cachedSleep = cachedSleep; self.workouts = workouts
             self.recovery = recovery; self.strain = strain
             self.nightlySkinTempC = nightlySkinTempC
+            self.restScore = restScore
+            self.chargeConfidence = chargeConfidence
+            self.effortConfidence = effortConfidence
+            self.restConfidence = restConfidence
         }
     }
 
@@ -120,7 +138,17 @@ public enum AnalyticsEngine {
                                   // Wall-clock UTC offset (seconds) for the sleep detector's daytime
                                   // false-sleep guard (#90). Default 0 keeps pure-function callers/tests
                                   // on UTC; IntelligenceEngine passes the device's real offset.
-                                  tzOffsetSeconds: Int = 0) -> DayResult {
+                                  tzOffsetSeconds: Int = 0,
+                                  // Rest composite (Charge/Effort/Rest) personalization. Both default to
+                                  // their neutral form so pure-function callers/tests get a well-defined
+                                  // Rest from a single night; IntelligenceEngine refines them from history.
+                                  //   sleepNeedHours: personal sleep need (h). Default 8 h; the caller
+                                  //     refines it toward the recent average. Drives the 0.50 duration term.
+                                  //   sleepConsistency: sleep/wake regularity in [0,1] (1 = perfectly
+                                  //     regular). nil → the consistency term is neutral (0.5) since a single
+                                  //     day carries no regularity signal — the caller supplies it from history.
+                                  sleepNeedHours: Double = Rest.defaultNeedHours,
+                                  sleepConsistency: Double? = nil) -> DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
         let allSessions = SleepStager.detectSleep(hr: hr, rr: rr, resp: resp, gravity: gravity,
@@ -144,6 +172,20 @@ public enum AnalyticsEngine {
             disturbances += m.disturbances
         }
         let efficiency = inBedS > 0 ? effWeighted / inBedS : 0.0
+
+        // ── Rest composite (Charge/Effort/Rest) ───────────────────────────────
+        // The 0–100 sleep score the `sleep_performance` metric key now carries:
+        //   duration-vs-personal-need 0.50 + efficiency 0.20 + restorative share 0.20
+        //   + consistency 0.10. nil when there is no in-bed data. The Charge "Rest
+        //   quality" term reads it ÷100 (replacing raw efficiency).
+        let hasStagedSleep = (deepS + remS) > 0
+        let restScore: Double? = matched.isEmpty ? nil : Rest.composite(
+            tstSeconds: tstS,
+            inBedSeconds: inBedS,
+            efficiency: efficiency,
+            restorativeSeconds: deepS + remS,
+            needHours: sleepNeedHours,
+            consistency: sleepConsistency)
 
         // Daily resting HR = lowest per-session resting HR across matched sessions.
         let restingHRDaily = matched.compactMap { $0.restingHR }.min()
@@ -173,11 +215,23 @@ public enum AnalyticsEngine {
         let sleepStart = matched.map { $0.start }.min()
         let sleepEnd = matched.map { $0.end }.max()
 
-        // ── Recovery ──────────────────────────────────────────────────────────
+        // ── Skin-temperature deviation (offline) ──────────────────────────────
+        // Computed BEFORE recovery so Charge can fold it in. Wear-gated in-bed mean
+        // (baseline-independent, harvested every pass) + the deviation against the
+        // personal baseline. In pass 1 baselines.skinTemp is nil so the deviation is nil
+        // and the mean is harvested; IntelligenceEngine seeds the baseline from those means
+        // and re-derives the deviation in pass 2 (mirrors avgHrv→recovery). APPROXIMATE.
+        let nightlySkinTempC = wornNightlySkinTempC(matched, hr: hr, skinTemp: skinTemp)
+        let skinTempDevC: Double? = nightlySkinTempC.flatMap { (v: Double) -> Double? in
+            guard let b = baselines.skinTemp, b.usable else { return nil }
+            return round2(Baselines.deviation(v, state: b).delta)
+        }
+
+        // ── Recovery / "Charge" ───────────────────────────────────────────────
         var recovery: Double? = nil
         if let hrvVal = avgHRVDaily, let rhrVal = restingHRDaily, let hrvBase = baselines.hrv {
-            // Sleep-performance proxy = in-bed-weighted efficiency (0..1).
-            let sleepPerf = matched.isEmpty ? nil : efficiency
+            // Rest-quality term = the Rest composite ÷100 (replaces raw efficiency).
+            let sleepPerf = restScore.map { $0 / 100.0 }
             recovery = RecoveryScorer.recovery(
                 hrv: hrvVal,
                 rhr: Double(rhrVal),
@@ -185,10 +239,11 @@ public enum AnalyticsEngine {
                 hrvBaseline: hrvBase,
                 rhrBaseline: baselines.restingHR,
                 respBaseline: baselines.resp,
-                sleepPerf: sleepPerf)
+                sleepPerf: sleepPerf,
+                skinTempDev: skinTempDevC)  // symmetric penalty; drops + renormalizes when nil
         }
 
-        // ── Strain (day cardiovascular load over the full HR window) ──────────
+        // ── Strain / "Effort" (day cardiovascular load over the full HR window) ──
         let effMaxHR: Double? = maxHROverride ?? (profile.age > 0 ? StrainScorer.tanakaHRmax(age: profile.age) : nil)
         let restForStrain = restingHRDaily.map(Double.init) ?? StrainScorer.defaultRestingHR
         let strain = StrainScorer.strain(hr, maxHR: effMaxHR, restingHR: restForStrain,
@@ -248,17 +303,6 @@ public enum AnalyticsEngine {
             dayHrFiltered, profile: profile, hrmax: effMaxHR,
             restingHR: restingHRDaily.map(Double.init))
 
-        // ── Skin-temperature deviation (offline) ──────────────────────────────
-        // Wear-gated in-bed mean (baseline-independent, harvested every pass) + the deviation
-        // against the personal baseline. In pass 1 baselines.skinTemp is nil so the deviation is
-        // nil and the mean is harvested; IntelligenceEngine seeds the baseline from those means
-        // and re-derives the deviation in pass 2 (mirrors avgHrv→recovery). APPROXIMATE.
-        let nightlySkinTempC = wornNightlySkinTempC(matched, hr: hr, skinTemp: skinTemp)
-        let skinTempDevC: Double? = nightlySkinTempC.flatMap { (v: Double) -> Double? in
-            guard let b = baselines.skinTemp, b.usable else { return nil }
-            return round2(Baselines.deviation(v, state: b).delta)
-        }
-
         // ── Assemble DailyMetric ──────────────────────────────────────────────
         let daily = DailyMetric(
             day: day,
@@ -290,9 +334,84 @@ public enum AnalyticsEngine {
                 stagesJSON: encodeStages(s.stages))
         }
 
+        // ── Per-score confidence tiers ────────────────────────────────────────
+        let chargeConfidence = ScoreConfidence.charge(recovery: recovery, hrvBaseline: baselines.hrv)
+        let effortConfidence = ScoreConfidence.effort(strain: strain, hrSampleCount: hr.count)
+        let restConfidence = ScoreConfidence.rest(hasSession: !matched.isEmpty,
+                                                  hasStagedSleep: hasStagedSleep)
+
         return DayResult(daily: daily, sleepSessions: matched, cachedSleep: cachedSleep,
                          workouts: workouts, recovery: recovery, strain: strain,
-                         nightlySkinTempC: nightlySkinTempC)
+                         nightlySkinTempC: nightlySkinTempC,
+                         restScore: restScore,
+                         chargeConfidence: chargeConfidence,
+                         effortConfidence: effortConfidence,
+                         restConfidence: restConfidence)
+    }
+
+    // MARK: - Rest composite (Charge/Effort/Rest)
+
+    /// The 0–100 Rest score. Composite of four published-sleep-quality components:
+    ///   - duration vs personal need (0.50): hours asleep ÷ need, clamped to 1.0.
+    ///   - efficiency (0.20): asleep / in-bed, already in [0,1].
+    ///   - restorative share (0.20): (deep + REM) ÷ asleep, clamped to a 0.50 target
+    ///     (≈50% deep+REM is "full marks"; healthy adults sit ~40–50%).
+    ///   - consistency (0.10): sleep/wake regularity in [0,1]; a single day carries no
+    ///     regularity signal, so the caller supplies it from history — nil → neutral 0.5.
+    /// All sub-scores clamp to [0,1]; the weighted sum scales to [0,100]. Kept
+    /// dependency-free + constant-explicit so the Kotlin mirror is byte-identical.
+    public enum Rest {
+        /// Default personal sleep need (hours) before the caller refines it.
+        public static let defaultNeedHours: Double = 8.0
+        /// "Full marks" restorative (deep+REM) share of asleep time.
+        public static let restorativeTarget: Double = 0.50
+        /// Neutral consistency when the caller supplies no regularity signal.
+        public static let neutralConsistency: Double = 0.5
+
+        public static let wDuration: Double = 0.50
+        public static let wEfficiency: Double = 0.20
+        public static let wRestorative: Double = 0.20
+        public static let wConsistency: Double = 0.10
+
+        /// Build the composite. `tstSeconds` = total sleep time, `restorativeSeconds` =
+        /// deep+REM seconds. Returns a value in [0,100].
+        public static func composite(tstSeconds: Double,
+                                     inBedSeconds: Double,
+                                     efficiency: Double,
+                                     restorativeSeconds: Double,
+                                     needHours: Double,
+                                     consistency: Double?) -> Double {
+            func clamp01(_ x: Double) -> Double { max(0.0, min(1.0, x)) }
+
+            let needSeconds = max(needHours, 0.1) * 3600.0
+            let durationScore = clamp01(tstSeconds / needSeconds)
+            let efficiencyScore = clamp01(efficiency)
+            let restorativeScore = tstSeconds > 0
+                ? clamp01((restorativeSeconds / tstSeconds) / restorativeTarget)
+                : 0.0
+            let consistencyScore = clamp01(consistency ?? neutralConsistency)
+
+            let weighted = wDuration * durationScore
+                + wEfficiency * efficiencyScore
+                + wRestorative * restorativeScore
+                + wConsistency * consistencyScore
+            // weighted is in [0,1] (weights sum to 1). Scale to [0,100] and round to 2dp.
+            return (weighted * 10000.0).rounded() / 100.0
+        }
+
+        /// Rest composite [0,100] derived from a persisted `DailyMetric` (the pass-2 / display path —
+        /// the raw streams are gone, but the night's totals remain). nil when there's no sleep.
+        /// Single source of truth so the persisted `sleep_performance` series and the Charge
+        /// "Rest quality" term agree. `consistency` is the caller's regularity signal (nil → neutral).
+        public static func composite(daily d: DailyMetric, needHours: Double = defaultNeedHours,
+                                     consistency: Double? = nil) -> Double? {
+            guard let tstMin = d.totalSleepMin, tstMin > 0, let eff = d.efficiency else { return nil }
+            let tstSec = tstMin * 60.0
+            let restorativeSec = ((d.deepMin ?? 0) + (d.remMin ?? 0)) * 60.0
+            return composite(tstSeconds: tstSec, inBedSeconds: tstSec / max(eff, 0.01),
+                             efficiency: eff, restorativeSeconds: restorativeSec,
+                             needHours: needHours, consistency: consistency)
+        }
     }
 
     /// Round to 2 decimal places (matches the imported/demo skin-temp deviation precision).

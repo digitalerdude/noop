@@ -3,7 +3,9 @@
 NOOP is a standalone, fully **offline** companion app for WHOOP straps (4.0 and 5.0). It pairs
 directly with the strap over Bluetooth Low Energy — **no WHOOP account, no
 cloud** — stores everything on-device in SQLite, imports your WHOOP and Apple Health exports,
-and computes recovery, strain, HRV and sleep locally. The macOS app (in `Strand/`) is the
+and computes its own daily scores locally — **Charge** (recovery), **Effort** (strain) and **Rest**
+(sleep), an energy economy you wake with, spend, and rebuild — alongside HRV and the raw signals.
+These are honest approximations from published methods, **not WHOOP's scores**. The macOS app (in `Strand/`) is the
 reference implementation (installable via the Homebrew cask); Android (in `android/`) is a full,
 shipped app (sideload the `.apk`); and iOS ships as an **unsigned `.ipa` you sideload** with
 AltStore/SideStore — signed on your own iPhone with your own free Apple ID, so there's no App
@@ -14,7 +16,7 @@ validated.
 
 > **Not affiliated with WHOOP.** NOOP is independent interoperability software for *your own*
 > device and *your own* data. "WHOOP" is used only to identify the hardware NOOP talks to.
-> **NOOP is not a medical device** — every metric (HR, HRV, recovery, strain, sleep, SpO₂,
+> **NOOP is not a medical device** — every metric (HR, HRV, Charge, Effort, Rest, SpO₂,
 > respiration, skin temperature) is an approximation, not a clinical reading, and must not be
 > used to diagnose, treat or make health decisions.
 
@@ -70,14 +72,14 @@ The onboarding wizard (`OnboardingWizard.swift`) appears on first launch and run
 "thread" along the bottom and a Back button always available:
 
 1. **Welcome** — "all your data, none of the cloud".
-2. **What NOOP does** — three value slides: the recovery ring, live heart, offline ownership.
+2. **What NOOP does** — three value slides: the Charge ring, live heart, offline ownership.
 3. **Bluetooth priming** — explains *before* the macOS Bluetooth prompt that nothing leaves
    your Mac; the connection is local BLE with no server in the middle.
 4. **Wear & wake** — put the strap on (snug, sensor on skin), charge it, keep it within ~1 m.
 5. **Scan** — a radar sweep; tapping **Scan** calls the BLE engine. If it hasn't bonded after
    ~12 seconds, a reassurance card appears explaining the strap won't show in System Settings,
    that only one host can hold it at a time (close the WHOOP phone app), etc.
-6. **Bonded celebration** — a recovery ring blooms in when the strap bonds, with battery %.
+6. **Bonded celebration** — a Charge ring blooms in when the strap bonds, with battery %.
 7. **Profile** — age, sex, weight, height (feeds zones, calories and baselines). Shows your
    estimated max heart rate.
 8. **Import (optional)** — points you to Data Sources; fully skippable.
@@ -95,11 +97,12 @@ The home dashboard (`TodayView.swift`, titled "Control Center"). A tight, gaples
 
 - **Health alert banner** — the illness early-warning banner appears here when triggered (see
   [Illness early-warning](#illness-early-warning)).
-- **Today's Synthesis** — the signature **Recovery Ring** (HRV and resting HR underneath) beside
-  a plain-English read-out ("Recovery is strong and sleep was consistent.") and a recovery state
-  word (Depleted / Low / Steady / Primed / Peak).
-- **Key Metrics** — a uniform tile grid, each with a 14-day sparkline: Recovery, Day Strain
-  (of 21), Sleep (hours + efficiency), HRV, Resting HR, Blood Oxygen, Respiratory,
+- **Today's Synthesis** — the signature **Charge Ring** (HRV and resting HR underneath) beside
+  a plain-English read-out ("Charge is strong and sleep was consistent.") and a state
+  word (Depleted / Low / Steady / Primed / Peak). NOOP frames the day as an energy economy: you
+  **wake with Charge**, **spend it as Effort**, and **rebuild it with Rest**.
+- **Key Metrics** — a uniform tile grid, each with a 14-day sparkline: Charge, Effort
+  (of 100), Rest (hours + efficiency), HRV, Resting HR, Blood Oxygen, Respiratory,
   Steps (on-device only for WHOOP 5/MG; on a 4.0, NOOP shows your imported Apple Health /
   Health Connect steps, because it can't yet read steps off the 4.0 strap over Bluetooth —
   the 4.0 itself does count steps in the official WHOOP app — and approximate),
@@ -213,7 +216,7 @@ and flag that they did, so you always see real data instead of an empty state.
   units share an axis. Hovering shows a crosshair and a tooltip with every series' **real** value
   on the nearest day; the legend lists each series' true min–max range.
 - **How They Move Together** — every selected pair gets a live **Pearson r** with a plain-English
-  conclusion ("When weight rises, recovery tends to fall — a moderate negative link.").
+  conclusion ("When weight rises, Charge tends to fall — a moderate negative link.").
 
 Sparse series auto-widen so they still overlay against dense ones.
 
@@ -227,13 +230,13 @@ Sparse series auto-widen so they still overlay against dense ones.
 
 1. **Behaviour Effects** — splits your logged WHOOP **journal** answers (Alcohol, Caffeine, Late
    meal, Meditation…) into days each behaviour *was* vs *was not* logged, then compares a chosen
-   outcome (Recovery / HRV / Sleep / RHR) between the two groups. Each effect card shows a
+   outcome (Charge / HRV / Rest / RHR) between the two groups. Each effect card shows a
    plain-English sentence, the with/without means and group counts, a **SIGNIFICANT / EXPLORATORY**
    pill, and an effect size (**Cohen's d**) with a magnitude word. Tint is sign-aware: a behaviour
    that moves the outcome the "good" way reads positive/green, the "bad" way reads red. Without
    journal data, NOOP explains how to start logging.
-2. **Metric Relationships** — a curated set of **Pearson** correlations: Sleep performance ↔
-   Recovery, HRV ↔ Recovery, Resting HR ↔ Recovery, and Recovery → next-day recovery (1-day lag).
+2. **Metric Relationships** — a curated set of **Pearson** correlations: Rest ↔
+   Charge, HRV ↔ Charge, Resting HR ↔ Charge, and Charge → next-day Charge (1-day lag).
    Each is a one-line insight with r, a significance pill, an r-bar, and a strength/direction reading.
 
 ---
@@ -266,10 +269,10 @@ If no sleep sessions are imported, NOOP points you to Data Sources.
 `TrendsView.swift` — the longitudinal view ("the thread of you over time"):
 
 - A **W / M / 3M / 6M / 1Y / ALL** range control (default 3M).
-- A hero **Recovery** chart with avg / peak / low / day-count.
-- **Daily signals** — small multiples for **HRV**, **Resting HR** and **Day Strain**, each with
+- A hero **Charge** chart with avg / peak / low / day-count.
+- **Daily signals** — small multiples for **HRV**, **Resting HR** and **Effort**, each with
   mean / min / max.
-- A **recovery year heat-strip** — a calendar of recovery scores across the past year (or all
+- A **Charge year heat-strip** — a calendar of Charge scores across the past year (or all
   history on ALL), with a depleted→peaked legend.
 
 Windows are taken relative to your latest recorded day and auto-widen on sparse data.
@@ -319,10 +322,10 @@ band and one plain-English line on *why*:
   it transparently — comparing today's resting HR and HRV to your own 30-day baseline (higher RHR
   and lower HRV both push stress up), combining two z-scores and squashing onto 0–3 with a logistic
   curve (0 calm · 1.5 baseline · 3 high).
-- A semicircular **gauge** (its own blue → mint → amber ramp, deliberately not the recovery traffic
+- A semicircular **gauge** (its own blue → mint → amber ramp, deliberately not the Charge traffic
   light), the band, and an explanation tuned to your RHR/HRV shifts.
 - **Today's markers** — the stress value (with sparkline), Resting HR and HRV vs baseline (tinted
-  toward stress or recovery), and "Calm time" (share of recent days in the LOW band).
+  toward stress or Charge), and "Calm time" (share of recent days in the LOW band).
 - A multi-range **trend** chart.
 - A **"How this is computed"** card laying out the exact method and band legend.
 
@@ -338,7 +341,7 @@ time:
 - **Daily mood check-in** — log how you feel each day in a few taps. Stored on-device alongside
   the rest of your history.
 - **Correlations** — once you've logged enough days, NOOP lines your mood up against your own
-  **recovery, sleep, HRV** and other metrics, so you can see what actually moves it (e.g. "lower
+  **Charge, Rest, HRV** and other metrics, so you can see what actually moves it (e.g. "lower
   HRV days tend to read lower mood").
 - **Non-clinical by design** — this is a personal self-reflection log, **not** a mental-health
   assessment, diagnosis or therapy. It never leaves your device.
@@ -382,7 +385,7 @@ composition and more. Large exports take a minute or two.
 
 ### Nutrition (CSV)
 Import a daily-nutrition CSV exported from **Cronometer** or **MacroFactor** to bring calories and
-macros onto the same timeline as your recovery, sleep and HRV — so you can explore and correlate
+macros onto the same timeline as your Charge, Rest and HRV — so you can explore and correlate
 food against how you feel. Parsed locally; nothing is uploaded.
 
 ### WHOOP Strap (Live BLE)
@@ -487,7 +490,7 @@ of history. On-device and approximate — informational only, **not** a diagnosi
 `SettingsView.swift`:
 
 - **Profile** — age, sex, weight, height, and max heart rate (auto-estimated via Tanaka, or a
-  manual override). These power your zones, calorie estimates and recovery baselines.
+  manual override). These power your zones, calorie estimates and Charge baselines.
 - **Step calibration** — tune the stride/step estimate to your own walking so step and distance
   figures read closer to reality.
 - **Units** — choose your preferred measurement units (metric / imperial) across the app.
@@ -503,7 +506,7 @@ of history. On-device and approximate — informational only, **not** a diagnosi
 ## Menu-bar item
 
 NOOP lives in the macOS menu bar (`MenuBarContent.swift`). The label is a zone-tinted heart dot
-plus the live HR (or "—" when not streaming). Clicking it opens a compact popover: a recovery
+plus the live HR (or "—" when not streaming). Clicking it opens a compact popover: a Charge
 ring, the live heart rate, battery / resting HR / HRV, and quick actions to start/stop the live
 feed, refresh battery, scan/reconnect, or disconnect.
 

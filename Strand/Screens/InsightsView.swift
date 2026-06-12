@@ -39,9 +39,9 @@ struct InsightsView: View {
         /// Short segment label.
         var label: String {
             switch self {
-            case .recovery: return "Recovery"
+            case .recovery: return "Charge"
             case .hrv:      return "HRV"
-            case .sleep:    return "Sleep"
+            case .sleep:    return "Rest"
             case .rhr:      return "RHR"
             }
         }
@@ -57,9 +57,9 @@ struct InsightsView: View {
         /// The human outcome name used by BehaviorInsights.sentence.
         var outcomeName: String {
             switch self {
-            case .recovery: return "Recovery"
+            case .recovery: return "Charge"
             case .hrv:      return "HRV"
-            case .sleep:    return "Sleep performance"
+            case .sleep:    return "Rest"
             case .rhr:      return "Resting HR"
             }
         }
@@ -128,7 +128,7 @@ struct InsightsView: View {
                     if behaviours.isEmpty {
                         // No journal yet — explain, without dead-ending on a paid export.
                         NoopCard {
-                            Text("Log behaviours above — after a few days of answers, NOOP ranks how each one moves your recovery, HRV and sleep. Importing a WHOOP export (which includes its journal) backfills history instantly.")
+                            Text("Log behaviours above — after a few days of answers, NOOP ranks how each one moves your charge, HRV and rest. Importing a WHOOP export (which includes its journal) backfills history instantly.")
                                 .font(StrandFont.subhead)
                                 .foregroundStyle(StrandPalette.textSecondary)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -404,24 +404,24 @@ struct InsightsView: View {
         if let c = CorrelationEngine.pearson(
             CorrelationEngine.alignByDay(series("sleep_performance"), series("recovery"))) {
             out.append(.init(id: "sleep-rec",
-                             title: "Sleep performance ↔ Recovery",
-                             blurb: "How closely a good night tracks next-morning recovery.",
+                             title: "Rest ↔ Charge",
+                             blurb: "How closely a good night tracks next-morning charge.",
                              corr: c))
         }
         // HRV ↔ recovery (same day).
         if let c = CorrelationEngine.pearson(
             CorrelationEngine.alignByDay(series("hrv"), series("recovery"))) {
             out.append(.init(id: "hrv-rec",
-                             title: "HRV ↔ Recovery",
-                             blurb: "Heart-rate variability as the engine behind your recovery score.",
+                             title: "HRV ↔ Charge",
+                             blurb: "Heart-rate variability as the engine behind your charge score.",
                              corr: c))
         }
         // Resting HR ↔ recovery (same day) — expected to be negative.
         if let c = CorrelationEngine.pearson(
             CorrelationEngine.alignByDay(series("rhr"), series("recovery"))) {
             out.append(.init(id: "rhr-rec",
-                             title: "Resting HR ↔ Recovery",
-                             blurb: "A lower resting heart rate usually means a higher recovery.",
+                             title: "Resting HR ↔ Charge",
+                             blurb: "A lower resting heart rate usually means a higher charge.",
                              corr: c))
         }
         // Today's recovery ↔ NEXT-day recovery (1-day lag) as a strain/carry-over proxy.
@@ -429,8 +429,8 @@ struct InsightsView: View {
         //  how much yesterday carries into today.)
         if let c = CorrelationEngine.lagged(x: series("recovery"), y: series("recovery"), lagDays: 1) {
             out.append(.init(id: "rec-lag",
-                             title: "Recovery → Next-day recovery",
-                             blurb: "How much one day's recovery carries into the next.",
+                             title: "Charge → Next-day charge",
+                             blurb: "How much one day's charge carries into the next.",
                              corr: c))
         }
 

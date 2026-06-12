@@ -223,7 +223,7 @@ fun TodayScreen(viewModel: AppViewModel, onSupport: () -> Unit = {}) {
             }
             InsightCard(
                 modifier = Modifier.weight(1f),
-                category = "Recovery",
+                category = "Charge",
                 status = if (recoveryCalibration != null) "Calibrating" else synthesisWord(displayMetric?.recovery),
                 detail = if (recoveryCalibration != null) {
                     "Learning your baseline — $recoveryCalibration of ${Baselines.minNightsSeed} nights."
@@ -313,7 +313,7 @@ internal fun recoveryCalibrationNights(
 
 /**
  * The full 14-day metric grid, mirroring the macOS LazyVGrid order:
- * Recovery, Day Strain, Sleep, HRV, Resting HR, Blood Oxygen, Respiratory,
+ * Charge, Effort, Rest, HRV, Resting HR, Blood Oxygen, Respiratory,
  * Steps, Weight, Calories. Each tile is a fixed-height [SparkStatTile] so the
  * grid tiles perfectly with no empty cells.
  */
@@ -331,7 +331,7 @@ private fun MetricGrid(
         { m ->
             SparkStatTile(
                 modifier = m,
-                label = "Recovery",
+                label = "Charge",
                 value = d?.recovery?.let { "${it.roundToInt()}%" }
                     ?: recoveryCalibration?.let { "$it/${Baselines.minNightsSeed}" } ?: NO_DATA,
                 caption = d?.recovery?.let {
@@ -345,9 +345,9 @@ private fun MetricGrid(
         { m ->
             SparkStatTile(
                 modifier = m,
-                label = "Day Strain",
+                label = "Effort",
                 value = d?.strain?.let { String.format(Locale.US, "%.1f", it) } ?: NO_DATA,
-                caption = d?.strain?.let { "of 21" },
+                caption = d?.strain?.let { "of 100" },
                 accent = d?.strain?.let { Palette.strainColor(it) } ?: Palette.textTertiary,
                 spark = w.strain,
                 sparkColor = Palette.strain066,
@@ -356,7 +356,7 @@ private fun MetricGrid(
         { m ->
             SparkStatTile(
                 modifier = m,
-                label = "Sleep",
+                label = "Rest",
                 value = sleepValue(d),
                 caption = d?.efficiency?.let { String.format(Locale.US, "%.0f%% eff", it) },
                 accent = d?.totalSleepMin?.let { Palette.textPrimary } ?: Palette.textTertiary,
@@ -899,9 +899,9 @@ private fun synthesisDetail(d: DailyMetric?): String {
     val rec = d?.recovery
         ?: return "No metrics yet. Import your WHOOP export or wear the strap to begin."
     val recPart = when {
-        rec < 50 -> "Recovery is low"
-        rec < 70 -> "Recovery is steady"
-        else -> "Recovery is strong"
+        rec < 50 -> "Charge is low"
+        rec < 70 -> "Charge is steady"
+        else -> "Charge is strong"
     }
     val sleepPart = d.totalSleepMin?.let { mins ->
         if (mins / 60.0 >= 7) " and sleep was consistent" else " but sleep ran short"

@@ -181,6 +181,9 @@ final class IntelligenceEngine: ObservableObject {
         var dailies: [DailyMetric] = []
         var cachedSleep: [CachedSleepSession] = []
         var workoutRows: [WorkoutRow] = []
+        // Rest composite (0–100) per computed night, persisted as the `sleep_performance` metric
+        // series so the dashboard's Rest score reflects the new composite, not raw efficiency.
+        var restPoints: [MetricPoint] = []
         for night in scoredNights {
             let recovery = recomputeRecovery(night.daily, baselines2)
             let skinDev = recomputeSkinTempDev(night.nightlySkin, baselines2.skinTemp)
@@ -188,6 +191,9 @@ final class IntelligenceEngine: ObservableObject {
                                 sleepMin: night.daily.totalSleepMin, hrv: night.daily.avgHrv,
                                 rhr: night.daily.restingHr))
             dailies.append(night.daily.with(recovery: recovery, skinTempDevC: skinDev))
+            if let rest = AnalyticsEngine.Rest.composite(daily: night.daily) {
+                restPoints.append(MetricPoint(day: night.daily.day, key: "sleep_performance", value: rest))
+            }
             cachedSleep.append(contentsOf: night.cachedSleep)
             // Persist the detected workouts the pipeline already computes (previously discarded).
             // Skip any bout overlapping a real imported workout so import+wear users don't
@@ -208,6 +214,7 @@ final class IntelligenceEngine: ObservableObject {
         // Repository merges these UNDER any imported "my-whoop" rows, so a real WHOOP import
         // always wins; this only fills the days the strap collected but no import covered.
         if !dailies.isEmpty { _ = try? await store.upsertDailyMetrics(dailies, deviceId: computedId) }
+        if !restPoints.isEmpty { _ = try? await store.upsertMetricSeries(restPoints, deviceId: computedId) }
         if !cachedSleep.isEmpty { _ = try? await store.upsertSleepSessions(cachedSleep, deviceId: computedId) }
         // Make re-detection idempotent across runs: clear the prior computed detected workouts in the
         // scored window (a bout's startTs can drift as more HR arrives, which would otherwise orphan
@@ -223,7 +230,7 @@ final class IntelligenceEngine: ObservableObject {
 
         results = out
         note = out.isEmpty
-            ? "No scored nights yet. Wear the strap with NOOP connected overnight and the engine will score your recovery, strain and sleep itself, no WHOOP cloud required."
+            ? "No scored nights yet. Wear the strap with NOOP connected overnight and the engine will score your charge, effort and rest itself, no WHOOP cloud required."
             : nil
 
         // Reload the dashboard caches so the freshly computed scores show up immediately.
@@ -265,9 +272,14 @@ final class IntelligenceEngine: ObservableObject {
     /// recovery call + Android IntelligenceEngine.recomputeRecovery. (#78)
     private func recomputeRecovery(_ daily: DailyMetric, _ baselines: AnalyticsEngine.ProfileBaselines) -> Double? {
         guard let hrvVal = daily.avgHrv, let rhrVal = daily.restingHr, let hrvBase = baselines.hrv else { return nil }
+        // Charge enrichment: feed the Rest COMPOSITE (÷100) as the sleep-quality term instead of raw
+        // efficiency, and fold in the night's skin-temp deviation. Both come from the persisted daily
+        // fields (the raw streams are gone in pass 2). (Charge/Effort/Rest scoring redesign.)
+        let restQuality = AnalyticsEngine.Rest.composite(daily: daily).map { $0 / 100.0 } ?? daily.efficiency
         return RecoveryScorer.recovery(hrv: hrvVal, rhr: Double(rhrVal), resp: daily.respRateBpm,
                                        hrvBaseline: hrvBase, rhrBaseline: baselines.restingHR,
-                                       respBaseline: baselines.resp, sleepPerf: daily.efficiency)
+                                       respBaseline: baselines.resp, sleepPerf: restQuality,
+                                       skinTempDev: daily.skinTempDevC)
     }
 
     /// Re-derive the skin-temperature deviation (°C) for a night against the freshly-seeded personal

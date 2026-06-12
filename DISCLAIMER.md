@@ -68,8 +68,9 @@ own agreements and local laws before use; you are responsible for your own compl
 
 ## 5. Not a medical device
 
-Outputs such as heart rate, HRV, recovery, strain, sleep stages, SpO₂, respiratory rate, and skin
-temperature are **approximations** computed from published methods. They are **not** clinically
+Outputs such as heart rate, HRV, Charge, Effort, Rest, sleep stages, SpO₂, respiratory rate, and skin
+temperature (Charge/Effort/Rest are NOOP's own recovery/strain/sleep scores, not WHOOP's) are
+**approximations** computed from published methods. They are **not** clinically
 validated, are **not** a medical device, and are **not** medical advice. Do not use them to
 diagnose, treat, or make health decisions. Consult a qualified professional.
 

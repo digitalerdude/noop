@@ -74,7 +74,7 @@ struct TodayView: View {
                     if live.backfilling { SyncingHistoryNote(chunks: live.syncChunksThisSession) }
                     DataPendingNote(
                         title: "Live now. Your scores are building.",
-                        message: "Your live heart rate is working from the strap, and recovery, strain and sleep build from it over your next few nights of wear, sharpening as it learns your baseline. Want your full history instantly? Import your WHOOP export in Data Sources and it backfills in about a minute."
+                        message: "Your live heart rate is working from the strap, and charge, effort and rest build from it over your next few nights of wear, sharpening as it learns your baseline. Want your full history instantly? Import your WHOOP export in Data Sources and it backfills in about a minute."
                     )
                 }
                 heroSection
@@ -223,7 +223,7 @@ struct TodayView: View {
 
                 // Right: the plain-English read-out, equal width.
                 InsightCard(
-                    category: "Recovery",
+                    category: "Charge",
                     status: calibrationStatus ?? "\(synthesisWord(score))",
                     detail: calibrationDetail ?? "\(synthesisDetail(d))",
                     statusColor: score.map { StrandPalette.recoveryColor($0) } ?? StrandPalette.textTertiary
@@ -288,7 +288,7 @@ struct TodayView: View {
             SectionHeader("Key Metrics", overline: "Today", trailing: "14-day trend")
             LazyVGrid(columns: grid, alignment: .leading, spacing: NoopMetrics.gap) {
                 StatTile(
-                    label: "Recovery",
+                    label: "Charge",
                     value: d?.recovery.map { "\(Int($0.rounded()))%" }
                         ?? recoveryCalibration.map { "\($0)/\(Baselines.minNightsSeed)" } ?? "—",
                     caption: d?.recovery.map { StrandPalette.recoveryState($0).capitalized }
@@ -298,15 +298,15 @@ struct TodayView: View {
                     sparkColor: StrandPalette.accent
                 )
                 StatTile(
-                    label: "Day Strain",
+                    label: "Effort",
                     value: d?.strain.map { String(format: "%.1f", $0) } ?? "—",
-                    caption: "of 21",
+                    caption: "of 100",
                     accent: d?.strain.map { StrandPalette.strainColor($0) } ?? StrandPalette.textPrimary,
                     sparkline: sparks["strain"],
                     sparkColor: StrandPalette.strain066
                 )
                 StatTile(
-                    label: "Sleep",
+                    label: "Rest",
                     value: sleepValue(d),
                     caption: d?.efficiency.map { String(format: "%.0f%% eff", $0) },
                     accent: StrandPalette.textPrimary,
@@ -625,9 +625,9 @@ struct TodayView: View {
         }
         let recPart: String
         switch rec {
-        case ..<50:  recPart = "Recovery is low"
-        case ..<70:  recPart = "Recovery is steady"
-        default:     recPart = "Recovery is strong"
+        case ..<50:  recPart = "Charge is low"
+        case ..<70:  recPart = "Charge is steady"
+        default:     recPart = "Charge is strong"
         }
         let sleepPart: String
         if let mins = d.totalSleepMin {

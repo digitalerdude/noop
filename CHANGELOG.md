@@ -17,6 +17,17 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 2.6.0 — Charge, Effort & Rest: NOOP's own scores, out of 100
+
+- **New (Mac, iOS and Android):** NOOP now has its **own daily scores, all out of 100** — **Charge** (how
+  recovered and ready you are), **Effort** (the day's cardiovascular + movement load), and **Rest** (last
+  night's sleep quality). Computed on-device across WHOOP 4.0 and 5.0/MG from published sports-science
+  methods, no WHOOP cloud. **Charge** folds HRV, resting heart rate, respiration, your **skin-temperature
+  deviation** and **Rest** into one readiness number; **Effort** is your cardiovascular load curve (rescaled
+  from the old 0–21 to 0–100); **Rest** weighs duration-vs-need, efficiency, restorative (deep + REM) share
+  and consistency. Renamed from Recovery / Strain / Sleep and put on one consistent 0–100 axis; imported
+  WHOOP history is rescaled to match. Honest approximations, **not** WHOOP's scores.
+
 ## 2.5.0 — Experimental: unlocking WHOOP 5.0/MG deep data
 
 - **New (Mac, iOS and Android — experimental, opt-in):** a **WHOOP 5.0/MG "deep data" unlock** under

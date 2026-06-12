@@ -249,7 +249,7 @@ struct SleepView: View {
             LazyVGrid(columns: tileColumns, alignment: .leading, spacing: NoopMetrics.gap) {
 
                 StatTile(
-                    label: "Sleep Performance",
+                    label: "Rest",
                     value: pctValue(perf.latest),
                     caption: vsTypical(perf.latest, perf.typical, suffix: "%"),
                     accent: perf.latest.map { StrandPalette.recoveryColor($0) } ?? StrandPalette.textPrimary,

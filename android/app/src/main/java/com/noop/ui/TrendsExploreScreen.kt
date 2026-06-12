@@ -98,35 +98,35 @@ private data class MetricSpec(
     }
 }
 
-/** The built-in DailyMetric-backed metrics, in the macOS ordering (Recovery first). */
+/** The built-in DailyMetric-backed metrics, in the macOS ordering (Charge first). */
 private val builtInMetrics: List<MetricSpec> = listOf(
     MetricSpec(
-        key = "recovery", title = "Recovery", unit = "%", category = "Recovery",
+        key = "recovery", title = "Charge", unit = "%", category = "Charge",
         accent = Palette.accent, higherIsBetter = true, decimals = 0,
         dailyPick = { it.recovery },
     ),
     MetricSpec(
-        key = "strain", title = "Day Strain", unit = "", category = "Strain",
+        key = "strain", title = "Effort", unit = "/100", category = "Effort",
         accent = Palette.strain066, higherIsBetter = null, decimals = 1,
         dailyPick = { it.strain },
     ),
     MetricSpec(
-        key = "hrv", title = "HRV", unit = "ms", category = "Recovery",
+        key = "hrv", title = "HRV", unit = "ms", category = "Charge",
         accent = Palette.metricPurple, higherIsBetter = true, decimals = 0,
         dailyPick = { it.avgHrv },
     ),
     MetricSpec(
-        key = "rhr", title = "Resting HR", unit = "bpm", category = "Recovery",
+        key = "rhr", title = "Resting HR", unit = "bpm", category = "Charge",
         accent = Palette.metricRose, higherIsBetter = false, decimals = 0,
         dailyPick = { it.restingHr?.toDouble() },
     ),
     MetricSpec(
-        key = "sleep", title = "Sleep", unit = "h", category = "Sleep",
+        key = "sleep", title = "Sleep", unit = "h", category = "Rest",
         accent = Palette.metricPurple, higherIsBetter = true, decimals = 1,
         dailyPick = { it.totalSleepMin?.let { m -> m / 60.0 } },
     ),
     MetricSpec(
-        key = "efficiency", title = "Sleep Efficiency", unit = "%", category = "Sleep",
+        key = "efficiency", title = "Sleep Efficiency", unit = "%", category = "Rest",
         accent = Palette.accent, higherIsBetter = true, decimals = 0,
         dailyPick = { it.efficiency },
     ),

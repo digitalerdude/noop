@@ -9,7 +9,8 @@ be checked.
 > unofficial, local-first companion app. It interoperates with a WHOOP strap that
 > **you own**, reading **your own** biometric data from **your own** device. It is
 > not affiliated with, endorsed by, or connected to WHOOP, Inc. All computed
-> outputs (recovery, strain, HRV, sleep, SpO₂, skin temperature, respiratory rate)
+> outputs (Charge, Effort, Rest, HRV, SpO₂, skin temperature, respiratory rate — Charge/Effort/Rest
+> being NOOP's own recovery/strain/sleep scores, not WHOOP's)
 > are approximations and are not clinically validated. Self-tracking features such
 > as the Mind / mood check-in and nutrition import are **informational only** and are
 > **not** a diagnosis, treatment, or dietary/medical advice. Use at your own risk;
@@ -74,7 +75,7 @@ feature that uses the network, and only on your terms:
   (Anthropic, OpenAI, or a local / self-hosted OpenAI-compatible LLM such as Ollama or
   LM Studio). No key, no network calls, ever.
 - **What is sent.** When you ask a question, NOOP builds a compact **text** summary of
-  your recent metrics (recovery, strain, sleep, HRV, resting HR over ~14 days, plus
+  your recent metrics (Charge, Effort, Rest, HRV, resting HR over ~14 days, plus
   30-day averages and recent workouts) and sends it, with your question, directly to
   your chosen endpoint (e.g. `api.anthropic.com` / `api.openai.com` for the hosted
   providers). If you point the Coach at a local / self-hosted LLM, that endpoint is on

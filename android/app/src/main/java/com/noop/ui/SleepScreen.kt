@@ -64,7 +64,7 @@ import kotlin.math.roundToInt
  *      light / awake reconstructed end-to-end), with a footer of REM / Deep / Light /
  *      Awake each "Xh Ym · NN%".
  *   2. A uniform grid of fixed StatTiles, each with a sparkline + "vs typical" caption:
- *      Sleep Performance, Efficiency, Consistency, Hours vs Needed, Restorative,
+ *      Rest, Efficiency, Consistency, Hours vs Needed, Restorative,
  *      Respiratory, Sleep Debt.
  *   3. "Stages vs typical" — Deep / REM / Light horizontal bars showing last-night
  *      minutes with a marker at the personal typical (mean).
@@ -312,7 +312,7 @@ private fun MetricGrid(m: SleepModel) {
     val tiles = listOf<@Composable (Modifier) -> Unit>(
         { mod ->
             SparkTile(
-                mod, "Sleep Performance",
+                mod, "Rest",
                 value = pctValue(m.performance.latest),
                 caption = vsTypical(m.performance.latest, m.performance.typical, "%"),
                 accent = m.performance.latest?.let { Palette.recoveryColor(it) } ?: Palette.textPrimary,
