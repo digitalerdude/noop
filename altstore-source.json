@@ -18,6 +18,15 @@
       "screenshotURLs": [],
       "versions": [
         {
+          "version": "2.11.0",
+          "buildVersion": "55",
+          "date": "2026-06-13",
+          "localizedDescription": "Smart wake alarm, live workout mode, editable Today, Effort 0-21 toggle, smoother hypnogram, and Hevy/Liftosaur lifting import.",
+          "downloadURL": "https://github.com/NoopApp/noop/releases/download/v2.11.0/NOOP-v2.11.0-ios.ipa",
+          "size": 6107528,
+          "minOSVersion": "17.0"
+        },
+        {
           "version": "2.10.0",
           "buildVersion": "54",
           "date": "2026-06-13",
@@ -217,12 +226,12 @@
           "NSHealthUpdateUsageDescription": "NOOP writes the metrics it computes from your strap back into Apple Health, on-device and only when you allow it."
         }
       },
-      "version": "2.10.0",
-      "buildVersion": "54",
+      "version": "2.11.0",
+      "buildVersion": "55",
       "versionDate": "2026-06-13",
-      "versionDescription": "Sleep-debt ledger, daytime stress timeline, recovery forecast, day-by-day Today navigation, battery+streak strip, and a smoother Live tab.",
-      "downloadURL": "https://github.com/NoopApp/noop/releases/download/v2.10.0/NOOP-v2.10.0-ios.ipa",
-      "size": 6008653,
+      "versionDescription": "Smart wake alarm, live workout mode, editable Today, Effort 0-21 toggle, smoother hypnogram, and Hevy/Liftosaur lifting import.",
+      "downloadURL": "https://github.com/NoopApp/noop/releases/download/v2.11.0/NOOP-v2.11.0-ios.ipa",
+      "size": 6107528,
       "minOSVersion": "17.0"
     }
   ],
