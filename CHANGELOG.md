@@ -17,6 +17,16 @@ approximate; downloads are on the [Releases](https://noop.fans/NoopApp/noop/rele
 
 ---
 
+## 5.1.2 — design polish & cross-platform parity (all platforms)
+
+A refinement release focused on making iPhone, Mac and Android look and behave the same.
+
+- **A more consistent app across all three platforms.** The More page, the Updates inbox, the home cards and the menus now match — same layout, same styling, in light and dark.
+- **A tidier More page.** Everything's grouped under **Insights · Body · Data · App** in clean cards, one tap from the More tab. On iPhone the section headers are the app's tracked uppercase overlines (not a stock list); on Android the old pull-up sheet became a proper navigated page with the same grouping.
+- **A sharper Updates inbox.** White cards that stand out from a tinted sheet background (Android was white-on-white and looked flat), a filled-pill **Mark all read**, and the bell's unread badge no longer clips.
+- **Today vitals card** uses a real neutral card surface on Android instead of a faint wash.
+- **Mac:** the Support heart moved to the leading edge and the Updates bell to the trailing top-right of the window toolbar, separated.
+
 ## 5.1.1 — Android design parity with iPhone & Mac (Android)
 
 An Android-only polish release that brings the Android app up to the iPhone/Mac design from 5.1.0 (iOS/macOS are unchanged and stay on 5.1.0).

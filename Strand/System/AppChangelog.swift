@@ -7,7 +7,7 @@ enum AppChangelog {
 
     /// Bump this when you add a release below. The "What's New" sheet shows automatically when the
     /// stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
-    static let currentVersion = "5.1.0"
+    static let currentVersion = "5.1.2"
 
     struct Release: Identifiable {
         let version: String
@@ -19,6 +19,16 @@ enum AppChangelog {
 
     /// Newest first.
     static let releases: [Release] = [
+        Release(
+            version: "5.1.2",
+            title: "Design polish & cross-platform parity",
+            date: "June 2026",
+            items: [
+                "**A more consistent app across iPhone, Mac and Android.** The More page, the Updates inbox, the home cards and the menus now match on every device — same layout, same styling, in light and dark.",
+                "**A tidier More page.** Everything's grouped under **Insights · Body · Data · App** in clean cards, one tap from the More tab.",
+                "**A sharper Updates inbox.** Crisper cards that stand out from the background, a clearer **Mark all read** button, and a tidy notification badge.",
+                "**Mac:** the Support heart and the Updates bell now sit at opposite ends of the window toolbar.",
+            ]),
         Release(
             version: "5.1.0",
             title: "A cleaner home — refreshed design, a new inbox, your photo",

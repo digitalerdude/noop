@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "5.1.1"
+    const val CURRENT_VERSION = "5.1.2"
 
     data class Release(
         val version: String,
@@ -36,6 +36,16 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "5.1.2",
+            title = "Design polish & cross-platform parity",
+            date = "June 2026",
+            items = listOf(
+                "**A more consistent app across iPhone, Mac and Android.** The More page, the Updates inbox, the home cards and the menus now match on every device — same layout, same styling, in light and dark.",
+                "**A tidier More page.** Everything's grouped under **Insights · Body · Data · App** in clean cards, one tap from the More tab.",
+                "**A sharper Updates inbox.** Crisper cards that stand out from the background, a clearer **Mark all read** button, and a tidy notification badge.",
+                "**Mac:** the Support heart and the Updates bell now sit at opposite ends of the window toolbar.",
+            )),
         Release(
             version = "5.1.1",
             title = "Polish — matched to the iPhone & Mac design",
