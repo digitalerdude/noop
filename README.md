@@ -258,10 +258,10 @@ with the strap and **score recovery, strain and sleep on your own device** — n
 import required.
 
 <p>
-  <a href="https://noop.fans/NoopApp/noop/releases/latest"><img alt="Latest across all platforms" src="https://img.shields.io/github/v/release/NoopApp/noop?style=flat-square&label=all%20platforms&color=E8B84B"></a>
-  <img alt="Commits per month" src="https://img.shields.io/github/commit-activity/m/NoopApp/noop?style=flat-square&label=commits%2Fmo&color=C8902F">
-  <img alt="Top language" src="https://img.shields.io/github/languages/top/NoopApp/noop?style=flat-square&color=E8B84B">
-  <img alt="Code size" src="https://img.shields.io/github/languages/code-size/NoopApp/noop?style=flat-square&label=code&color=6B737B">
+  <a href="https://noop.fans/NoopApp/noop/releases/latest"><img alt="Latest across all platforms" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fnoop.fans%2FNoopApp%2Fnoop%2Fraw%2Fbranch%2Fmain%2Fdocs%2Fstats%2Frelease.json&style=flat-square"></a>
+  <img alt="Commits per month" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fnoop.fans%2FNoopApp%2Fnoop%2Fraw%2Fbranch%2Fmain%2Fdocs%2Fstats%2Flastcommit.json&style=flat-square">
+  <img alt="Top language" src="https://img.shields.io/badge/languages-Swift%20%C2%B7%20Kotlin-E8B84B?style=flat-square">
+  <img alt="Code size" src="https://img.shields.io/badge/build-from%20source-6B737B?style=flat-square">
 </p>
 
 | Platform | Status |
@@ -596,12 +596,12 @@ forward. Huge thanks to everyone filing reports, sharing strap logs, and reverse
 protocol alongside us — this project is built on it.
 
 <p>
-  <img alt="Open issues" src="https://img.shields.io/github/issues/NoopApp/noop?style=flat-square&label=open&color=E8B84B">
-  <img alt="Issues resolved" src="https://img.shields.io/github/issues-closed/NoopApp/noop?style=flat-square&label=resolved&color=C8902F">
-  <a href="https://noop.fans/NoopApp/noop/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/NoopApp/noop?style=flat-square&color=E8B84B"></a>
-  <img alt="Forks" src="https://img.shields.io/github/forks/NoopApp/noop?style=flat-square&color=6B737B">
-  <img alt="Commits per month" src="https://img.shields.io/github/commit-activity/m/NoopApp/noop?style=flat-square&label=commits%2Fmo&color=C8902F">
-  <img alt="Last commit" src="https://img.shields.io/github/last-commit/NoopApp/noop?style=flat-square&label=last%20commit&color=6B737B">
+  <img alt="Open issues" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fnoop.fans%2FNoopApp%2Fnoop%2Fraw%2Fbranch%2Fmain%2Fdocs%2Fstats%2Fopen.json&style=flat-square">
+  <img alt="Issues resolved" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fnoop.fans%2FNoopApp%2Fnoop%2Fraw%2Fbranch%2Fmain%2Fdocs%2Fstats%2Fresolved.json&style=flat-square">
+  <a href="https://noop.fans/NoopApp/noop/stargazers"><img alt="Stars" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fnoop.fans%2FNoopApp%2Fnoop%2Fraw%2Fbranch%2Fmain%2Fdocs%2Fstats%2Fstars.json&style=flat-square"></a>
+  <img alt="Forks" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fnoop.fans%2FNoopApp%2Fnoop%2Fraw%2Fbranch%2Fmain%2Fdocs%2Fstats%2Fforks.json&style=flat-square">
+  <img alt="Commits per month" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fnoop.fans%2FNoopApp%2Fnoop%2Fraw%2Fbranch%2Fmain%2Fdocs%2Fstats%2Flastcommit.json&style=flat-square">
+  <img alt="Last commit" src="https://img.shields.io/endpoint?url=https%3A%2F%2Fnoop.fans%2FNoopApp%2Fnoop%2Fraw%2Fbranch%2Fmain%2Fdocs%2Fstats%2Flastcommit.json&style=flat-square">
 </p>
 
 ![Repobeats analytics image](https://repobeats.axiom.co/api/embed/97acba228c083adca8453a1ebf15f18dad2894be.svg "Repobeats analytics image")
