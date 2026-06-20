@@ -245,16 +245,18 @@ fun TodayScreen(
     }
 
     // The day-count seen on the previous observation, so a refresh/import that brings in NEW days can
-    // post ONE honest `.reading` update ("N new days of history landed", deep-linking to Trends). Null
-    // until the first observation establishes a baseline, so the very first load never posts — we only
-    // announce genuine growth. The count comes straight from the merged history (no fabricated numbers).
-    var lastSeenDayCount by remember { mutableStateOf<Int?>(null) }
+    // post ONE honest `.reading` update ("N new days of history landed", deep-linking to Trends). PERSISTED
+    // (#521): a `remember`/@State baseline reset on process death / leaving the screen, and `days` fills
+    // async FROM EMPTY — so the baseline got captured at a transient 0 and the next (full) load false-posted
+    // "N new days" on every reopen. -1 = no baseline yet; first real load sets it silently, only growth posts.
+    val todayPrefs = remember { context.getSharedPreferences("noop_today", android.content.Context.MODE_PRIVATE) }
     LaunchedEffect(days.size, updateStore) {
         val store = updateStore ?: return@LaunchedEffect
         val now = days.size
-        val previous = lastSeenDayCount
-        lastSeenDayCount = now
-        if (previous != null && now > previous) {
+        if (now <= 0) return@LaunchedEffect                          // not loaded yet, not "zero days"
+        val previous = todayPrefs.getInt("lastSeenDayCount", -1)     // -1 = no baseline yet
+        if (previous != now) todayPrefs.edit().putInt("lastSeenDayCount", now).apply()
+        if (previous >= 0 && now > previous) {
             val added = now - previous
             val daysWord = if (added == 1) "day" else "days"
             store.post(

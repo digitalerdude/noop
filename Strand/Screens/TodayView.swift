@@ -94,9 +94,11 @@ struct TodayView: View {
     @State private var showUpdatesInbox = false
 
     /// The day-count seen on the previous load, so a refresh that brings in NEW days can post a single
-    /// honest `.reading` update ("New data — N days added") to the inbox. nil until the first load
-    /// establishes a baseline (so the very first load never posts — we only announce genuine growth).
-    @State private var lastSeenDayCount: Int?
+    /// honest `.reading` update ("New data — N days added") to the inbox. PERSISTED (#521): as `@State`
+    /// this reset on every relaunch / view re-create, and since `repo.days` fills async FROM EMPTY the
+    /// baseline got captured at a transient 0 — so the next (full) load false-posted "N new days" on
+    /// every reopen. -1 = no baseline yet; the first real load sets it silently, only genuine growth posts.
+    @AppStorage("today.lastSeenDayCount") private var lastSeenDayCount = -1
 
     // Per-card "dismissed into the inbox" flags for the two Today info-cards. A small × on each card
     // sets these (and posts a `.dismissedCard` update); "Restore to Today" in the inbox flips them back
@@ -1660,13 +1662,16 @@ struct TodayView: View {
 
     /// Post a single honest `.reading` update to the inbox when a refresh brought in NEW days (a WHOOP
     /// import or an overnight backfill). The count is real — the growth in `repo.days` since the last
-    /// load — never fabricated. Only announces genuine growth: the FIRST load (nil baseline) just sets
+    /// load — never fabricated. Only announces genuine growth: the FIRST load (no baseline yet) just sets
     /// the baseline silently, and a navigated past day is ignored. Links to Trends.
     private func announceNewDaysIfNeeded() {
         let count = repo.days.count
-        defer { lastSeenDayCount = count }
-        guard selectedDayOffset == 0, let previous = lastSeenDayCount else { return }
-        let added = count - previous
+        // #521: never baseline or compare against the transient-empty async load — `repo.days` starts []
+        // and fills later, so a count of 0 here means "not loaded yet", not "zero days of history".
+        guard count > 0 else { return }
+        defer { if lastSeenDayCount != count { lastSeenDayCount = count } }
+        guard selectedDayOffset == 0, lastSeenDayCount >= 0 else { return }
+        let added = count - lastSeenDayCount
         guard added > 0 else { return }
         updateStore.post(UpdateItem(
             kind: .reading,
