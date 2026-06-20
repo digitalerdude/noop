@@ -1362,14 +1362,14 @@ struct SettingsView: View {
                         )
                     }
 
-                    Text("Checks the project's home (noop.fans) for the latest version when you tap — nothing else is sent.")
+                    Text("Checks the project's home (GitHub) for the latest version when you tap — nothing else is sent.")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
 
-                // Project home — NOOP's code, releases, issues and wiki now live on its own
-                // independent forge at noop.fans (after the project's GitHub was suspended).
-                Link(destination: URL(string: "https://noop.fans/NoopApp/noop")!) {
+                // Project home — NOOP's code, releases, issues and wiki live on GitHub
+                // (canonical; noop.fans is kept as a mirror).
+                Link(destination: URL(string: "https://github.com/NoopApp/noop")!) {
                     HStack(spacing: 10) {
                         Image(systemName: "chevron.left.forwardslash.chevron.right")
                             .foregroundStyle(StrandPalette.accent)
@@ -1378,7 +1378,7 @@ struct SettingsView: View {
                             Text("Project home & source")
                                 .font(StrandFont.body)
                                 .foregroundStyle(StrandPalette.textPrimary)
-                            Text("noop.fans — code, releases, issues and the wiki.")
+                            Text("GitHub — code, releases, issues and the wiki.")
                                 .font(StrandFont.footnote)
                                 .foregroundStyle(StrandPalette.textTertiary)
                                 .fixedSize(horizontal: false, vertical: true)

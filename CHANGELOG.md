@@ -17,6 +17,13 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 5.2.6 — updates check GitHub again (all platforms)
+
+NOOP's repo is back on **GitHub** (it's the canonical home again; noop.fans stays as a mirror). This points the app back at it.
+
+- **"Check for updates" reads from GitHub again.** During the GitHub outage the in-app update check was temporarily pointed at the self-hosted home; it now reads `api.github.com/repos/NoopApp/noop/releases/latest` again — where releases live. Still on-device, still only when you tap, nothing about you is sent.
+- **Settings → About "project home & source"** links to github.com/NoopApp/noop again. (AltStore and Homebrew already pull updates from GitHub releases.)
+
 ## 5.2.5 — WHOOP 5/MG re-pairing fix (iPhone & Mac)
 
 Diagnosed from a community strap log (#78): a 5/MG that's bonded to the official WHOOP app refuses NOOP's encrypted bond, and NOOP was holding the strap connected so it could never enter pairing mode to be re-paired — a deadlock.

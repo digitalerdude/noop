@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "5.2.4"
+    const val CURRENT_VERSION = "5.2.6"
 
     data class Release(
         val version: String,
@@ -36,6 +36,13 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "5.2.6",
+            title = "Updates check GitHub again",
+            date = "June 2026",
+            items = listOf(
+                "**NOOP is back on GitHub** — and so is **Check for updates**. The in-app update check and the **Settings → About** \"project home\" link now point at github.com/NoopApp/noop again, where releases live (noop.fans stays as a mirror). It's still on-device and only runs when you tap — nothing about you is ever sent.",
+            )),
         Release(
             version = "5.2.4",
             title = "OnePlus pairing fix",
