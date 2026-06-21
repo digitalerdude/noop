@@ -11,6 +11,13 @@ import XCTest
 /// NOTE: numeric tolerances below are PROVISIONAL — set by reasoning about the 24 Hz grid + parabolic
 /// refinement, not yet confirmed against a `swift test` run in this environment. Treat a failure as
 /// "tighten/loosen the tolerance or the detector," not necessarily "the idea is wrong."
+///
+/// ⚠️ THIS HARNESS IS OPTIMISTIC — a green run measures the 24 Hz QUANTISATION FLOOR under IDEAL
+/// morphology only, NOT real-world feasibility. The synthetic beat is a single, symmetric, UPWARD
+/// Gaussian, so it silently encodes the detector's two unverified assumptions (see `PpgBeats.detectPeaks`):
+/// it cannot catch a wrong POLARITY (no downward pulse case) nor DOUBLE-COUNTING of a dicrotic notch
+/// (no notch in the signal), and parabolic interpolation flatters itself on a symmetric peak. Passing
+/// here is necessary, not sufficient; the real arbiter remains the v18-strap-R-R cross-check (Phase 0.5).
 final class PpgBeatsTests: XCTestCase {
     private let fs = PpgBeats.sampleRateHz   // 24
 

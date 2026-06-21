@@ -46,6 +46,7 @@ The harness is the deliverable, not a feature. Decisive tests, in order of stren
 
 ## 6. Honest limitations
 
+- **Two unverified detector assumptions (must settle on a real fixture first).** `PpgBeats` assumes the systolic event is a local **maximum** (a wrong **polarity** → confident garbage R-R; `PpgHr` dodges this via sign-agnostic autocorrelation, peak detection cannot) and that a **300 ms refractory** suppresses the **dicrotic notch** (a notch at ~250–400 ms risks **double-counting** → halved R-R). The robust cure for both is a **systolic-foot / first-derivative fiducial** instead of peak-picking — the Phase-0.5 step once polarity is known. The synthetic harness *encodes* both assumptions (upward, notch-free, symmetric beat), so a green run measures only the quantisation floor under ideal morphology, not real-world readiness.
 - **PPG HRV ≠ ECG HRV** — pulse-rate variability carries extra variance (pulse-transit-time); label any output *pulse-derived* (as WHOOP's own app effectively is).
 - **Motion** — gate bursts by `PpgHr` autocorrelation confidence (≥0.3); only clean (typically still/sleep) bursts qualify, which is the overnight-HRV use case anyway.
 - **Sparsity** — ~one burst / 19 min → spot HRV, best in sleep windows.

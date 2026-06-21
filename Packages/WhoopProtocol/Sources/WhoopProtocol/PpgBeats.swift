@@ -52,6 +52,19 @@ public enum PpgBeats {
     /// only the linear detrend. A moving threshold + a proper cardiac band-pass are the obvious refinements
     /// once the synthetic harness says the approach is worth pursuing; deliberately omitted here so the
     /// first measurement is of the *simplest* detector, not a tuned one.
+    ///
+    /// ⚠️ TWO UNVERIFIED ASSUMPTIONS this detector bakes in — both must be settled against a REAL v26
+    /// fixture before any feasibility verdict, because the synthetic harness encodes them and so cannot
+    /// catch them:
+    ///   1. POLARITY — it assumes the systolic event is a local MAXIMUM. `PpgHr` sidesteps this entirely
+    ///      (autocorrelation is sign-agnostic); peak detection is NOT. If the v26 cardiac deflection is a
+    ///      trough, this returns confident garbage R-R. The robust fix is a polarity-agnostic fiducial —
+    ///      the systolic FOOT (max of the first derivative), or detect on both ±x and keep the polarity
+    ///      whose R-R is more regular (lower CV).
+    ///   2. MORPHOLOGY — real PPG has a dicrotic notch + diastolic bump ~250–400 ms after systole; a
+    ///      300 ms refractory may not suppress it, risking DOUBLE-COUNTING (halved R-R). Foot/derivative
+    ///      detection is also the standard cure here. The synthetic single-Gaussian beat omits the notch,
+    ///      so a green harness does NOT prove notch-rejection.
     public static func detectPeaks(_ samples: [Int], fs: Int = sampleRateHz) -> [Double] {
         let n = samples.count
         guard n >= fs, fs > 1 else { return [] }
