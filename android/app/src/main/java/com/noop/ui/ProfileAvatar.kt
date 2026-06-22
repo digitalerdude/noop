@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
+import android.media.ExifInterface
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -120,6 +121,17 @@ object ProfileAvatarStore {
     private fun decodeDownscaled(ctx: Context, uri: Uri): Bitmap? {
         val resolver = ctx.contentResolver
 
+        // EXIF orientation: phone photos store landscape pixels + a rotation TAG, and the BitmapFactory
+        // decode below DROPS that tag — so without re-applying it a portrait pick renders sideways (the
+        // avatar-rotation bug). minSdk 26 → framework ExifInterface(InputStream) is available, no extra
+        // dependency. Read from its OWN stream (the decode streams below are independent).
+        val orientation = runCatching {
+            resolver.openInputStream(uri)?.use {
+                ExifInterface(it).getAttributeInt(
+                    ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL)
+            }
+        }.getOrNull() ?: ExifInterface.ORIENTATION_NORMAL
+
         // Pass 1: bounds only — read the source dimensions without allocating the full bitmap.
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
@@ -139,12 +151,49 @@ object ProfileAvatarStore {
 
         // Exact down-fit: scale the longest edge to MAX_DIMEN (never upscale a small source).
         val longest = maxOf(decoded.width, decoded.height)
-        if (longest <= MAX_DIMEN) return decoded
-        val factor = MAX_DIMEN.toFloat() / longest.toFloat()
-        val matrix = Matrix().apply { postScale(factor, factor) }
-        val scaled = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
-        if (scaled !== decoded) decoded.recycle()
-        return scaled
+        val fitted = if (longest <= MAX_DIMEN) {
+            decoded
+        } else {
+            val factor = MAX_DIMEN.toFloat() / longest.toFloat()
+            val matrix = Matrix().apply { postScale(factor, factor) }
+            val scaled = Bitmap.createBitmap(decoded, 0, 0, decoded.width, decoded.height, matrix, true)
+            if (scaled !== decoded) decoded.recycle()
+            scaled
+        }
+        // Re-apply the EXIF orientation the decode dropped, so the stored + displayed avatar is upright.
+        // (Rotation/flip commute with the uniform down-fit scale, so applying it last is equivalent.)
+        return applyExifOrientation(fitted, orientation)
+    }
+
+    /**
+     * EXIF orientation tag → (clockwise rotation degrees, horizontal flip) needed to display upright.
+     * Pure + unit-tested. The rotate cases (90/180/270) are the common phone-camera ones; flip/transpose
+     * are rare. NORMAL / UNDEFINED / unknown → no transform.
+     */
+    internal fun exifTransform(orientation: Int): Pair<Float, Boolean> = when (orientation) {
+        ExifInterface.ORIENTATION_ROTATE_90 -> 90f to false
+        ExifInterface.ORIENTATION_ROTATE_180 -> 180f to false
+        ExifInterface.ORIENTATION_ROTATE_270 -> 270f to false
+        ExifInterface.ORIENTATION_FLIP_HORIZONTAL -> 0f to true
+        ExifInterface.ORIENTATION_FLIP_VERTICAL -> 180f to true   // = rotate180 + flipH
+        ExifInterface.ORIENTATION_TRANSPOSE -> 90f to true
+        ExifInterface.ORIENTATION_TRANSVERSE -> 270f to true
+        else -> 0f to false
+    }
+
+    /** Apply [orientation] to [bmp], recycling the source when a new (rotated/flipped) bitmap is made. */
+    private fun applyExifOrientation(bmp: Bitmap, orientation: Int): Bitmap {
+        val (deg, flipX) = exifTransform(orientation)
+        if (deg == 0f && !flipX) return bmp
+        val m = Matrix().apply {
+            if (deg != 0f) postRotate(deg)
+            if (flipX) postScale(-1f, 1f)
+        }
+        val out = runCatching {
+            Bitmap.createBitmap(bmp, 0, 0, bmp.width, bmp.height, m, true)
+        }.getOrNull() ?: return bmp
+        if (out !== bmp) bmp.recycle()
+        return out
     }
 }
 
