@@ -134,4 +134,28 @@ class SpotHrvReadingTest {
             assertTrue("no em-dash in caveat", !c.contains("—"))
         }
     }
+
+    @Test
+    fun spotRejectionFractionGateRefusesNoisyCapture() {
+        // 24 clean ~800 ms intervals (survive range + ectopic) + 16 out-of-range 100 ms beats (dropped by
+        // the range filter) -> nInput 40, nClean 24, rejected 16/40 = 0.40 > SPOT_MAX_REJECTED_FRACTION (0.35).
+        val rr = ArrayList<Double>()
+        for (i in 0 until 24) rr.add(800 + ((i % 5) - 2) * 8.0)
+        repeat(16) { rr.add(100.0) }
+
+        // Default (no gate): a value IS produced — the nightly/windowed path is byte-identical.
+        val ungated = HrvAnalyzer.analyzeRaw(rr)
+        assertNotNull(ungated.rmssd)
+        assertEquals(24, ungated.nClean)
+
+        // Spot gate: refused as too noisy — rmssd null, nClean preserved for the honest UI message.
+        val gated = HrvAnalyzer.analyzeRaw(rr, maxRejectedFraction = HrvAnalyzer.SPOT_MAX_REJECTED_FRACTION)
+        assertNull(gated.rmssd)
+        assertEquals(40, gated.nInput)
+        assertEquals(24, gated.nClean)
+
+        // A clean capture (no rejects) still passes the gate.
+        val clean = (0 until 30).map { 800.0 + (it % 3) }
+        assertNotNull(HrvAnalyzer.analyzeRaw(clean, maxRejectedFraction = HrvAnalyzer.SPOT_MAX_REJECTED_FRACTION).rmssd)
+    }
 }

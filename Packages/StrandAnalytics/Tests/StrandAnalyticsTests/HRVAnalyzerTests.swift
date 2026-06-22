@@ -77,4 +77,28 @@ final class HRVAnalyzerTests: XCTestCase {
         XCTAssertEqual(result.nClean, 31)
         XCTAssertEqual(result.rmssd!, 0.0, accuracy: 1e-9)  // all 800 → no successive diffs
     }
+
+    func testSpotRejectionFractionGateRefusesNoisyCapture() {
+        // 24 clean ~800 ms intervals (survive range + ectopic) + 16 out-of-range 100 ms beats (dropped by
+        // the range filter) → nInput 40, nClean 24, rejected 16/40 = 0.40 > spotMaxRejectedFraction (0.35).
+        var rr: [Double] = []
+        for i in 0..<24 { rr.append(800 + Double((i % 5) - 2) * 8) }   // 784…816, all within 20% of median
+        rr.append(contentsOf: Array(repeating: 100.0, count: 16))      // out of range → dropped
+
+        // Default (no gate): a value IS produced — the nightly/windowed path is byte-identical.
+        let ungated = HRVAnalyzer.analyze(rawRR: rr)
+        XCTAssertNotNil(ungated.rmssd)
+        XCTAssertEqual(ungated.nClean, 24)
+
+        // Spot gate: refused as too noisy — rmssd nil, but nClean preserved for the honest UI message.
+        let gated = HRVAnalyzer.analyze(rawRR: rr, maxRejectedFraction: HRVAnalyzer.spotMaxRejectedFraction)
+        XCTAssertNil(gated.rmssd)
+        XCTAssertEqual(gated.nInput, 40)
+        XCTAssertEqual(gated.nClean, 24)
+
+        // A clean capture (no rejects) still passes the gate.
+        let clean = (0..<30).map { 800.0 + Double($0 % 3) }
+        XCTAssertNotNil(HRVAnalyzer.analyze(rawRR: clean,
+                                            maxRejectedFraction: HRVAnalyzer.spotMaxRejectedFraction).rmssd)
+    }
 }

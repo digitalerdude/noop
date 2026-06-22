@@ -133,7 +133,8 @@ fun HrvSnapshotScreen(
             secondsRemaining -= 1
         }
         // End the capture and run the full cleaning analysis over everything collected.
-        result = HrvAnalyzer.analyzeRaw(captureBuffer.value.map { it.toDouble() })
+        result = HrvAnalyzer.analyzeRaw(captureBuffer.value.map { it.toDouble() },
+            maxRejectedFraction = HrvAnalyzer.SPOT_MAX_REJECTED_FRACTION)
         phase = HrvPhase.Done
     }
 
@@ -375,8 +376,8 @@ private fun ResultCard(result: HrvAnalyzer.HrvResult) {
                 ) {
                     Icon(Icons.Filled.WarningAmber, contentDescription = null, tint = Palette.statusWarning)
                     Text(
-                        "Not enough clean beats — sit still and try again. ${result.nClean} of " +
-                            "${result.nInput} beats survived filtering (need ${HrvAnalyzer.MIN_BEATS}).",
+                        "Couldn't get a clean reading. Sit still and try again. Only ${result.nClean} of " +
+                            "${result.nInput} beats survived filtering.",
                         style = NoopType.footnote, color = Palette.textSecondary,
                     )
                 }

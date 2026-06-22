@@ -67,7 +67,8 @@ object SpotHrvReading {
      *   analyzer's range filter bounds-checks each to [HrvAnalyzer.RR_MIN_MS]..[HrvAnalyzer.RR_MAX_MS]).
      */
     fun compute(rrMs: List<Int>): Outcome {
-        val result = HrvAnalyzer.analyzeRaw(rrMs.map { it.toDouble() })
+        val result = HrvAnalyzer.analyzeRaw(rrMs.map { it.toDouble() },
+            maxRejectedFraction = HrvAnalyzer.SPOT_MAX_REJECTED_FRACTION)
         val rmssd = result.rmssd
         return if (rmssd == null) {
             Outcome.Insufficient(clean = result.nClean, needed = HrvAnalyzer.MIN_BEATS, input = result.nInput)

@@ -299,7 +299,7 @@ struct HRVSnapshotView: View {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(StrandPalette.statusWarning)
                             .accessibilityHidden(true)
-                        Text("Not enough clean beats — sit still and try again. \(result.nClean) of \(result.nInput) beats survived filtering (need \(HRVAnalyzer.minBeats)).")
+                        Text("Couldn't get a clean reading. Sit still and try again. Only \(result.nClean) of \(result.nInput) beats survived filtering.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -411,7 +411,8 @@ struct HRVSnapshotView: View {
     /// End the capture and run the full cleaning analysis over everything collected.
     private func finish() {
         ScreenIdle.keepAwake(false)
-        result = HRVAnalyzer.analyze(rawRR: captureBuffer.map(Double.init))
+        result = HRVAnalyzer.analyze(rawRR: captureBuffer.map(Double.init),
+                                     maxRejectedFraction: HRVAnalyzer.spotMaxRejectedFraction)
         phase = .done
     }
 

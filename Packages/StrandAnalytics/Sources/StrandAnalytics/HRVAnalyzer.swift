@@ -39,6 +39,13 @@ public enum HRVAnalyzer {
     /// Malik moving-window implementations.
     public static let ectopicWindowRadius: Int = 2
 
+    /// Spot-reading quality gate: refuse a single on-demand reading when MORE than this fraction of the
+    /// input beats were dropped by cleaning (range + ectopic). Even with ≥ `minBeats` survivors, a high
+    /// reject fraction means they're sparse / non-consecutive, so RMSSD over them (successive differences
+    /// that now span the dropped beats) isn't trustworthy — worst on noisy optical PPG. OPT-IN: only the
+    /// live spot path passes it; the nightly/windowed path leaves it nil, so its behaviour is unchanged.
+    public static let spotMaxRejectedFraction: Double = 0.35
+
     /// Result of an HRV computation over a window.
     public struct HRVResult: Equatable, Sendable {
         /// RMSSD in milliseconds, or nil when too few valid beats.
@@ -156,11 +163,20 @@ public enum HRVAnalyzer {
 
     /// Compute HRV from raw RR-interval values (ms), applying the full cleaning
     /// pipeline. Returns an empty result when fewer than `minBeats` survive.
-    public static func analyze(rawRR: [Double]) -> HRVResult {
+    public static func analyze(rawRR: [Double], maxRejectedFraction: Double? = nil) -> HRVResult {
         let nInput = rawRR.count
         let clean = cleanRR(rawRR)
         guard clean.count >= minBeats else {
             return .empty(nInput: nInput)
+        }
+        // Opt-in quality gate (default nil → skipped, so the nightly/windowed path is byte-identical):
+        // enough clean beats survived, but if too LARGE a fraction of the input was dropped the survivors
+        // are sparse + non-consecutive, so RMSSD over them isn't trustworthy — refuse rather than report a
+        // confidently-noisy value. nClean is preserved so the UI can say how many were usable.
+        if let maxRejectedFraction, nInput > 0,
+           Double(nInput - clean.count) / Double(nInput) > maxRejectedFraction {
+            return HRVResult(rmssd: nil, sdnn: nil, meanNN: nil, pnn50: nil,
+                             nInput: nInput, nClean: clean.count)
         }
         let rmssd = rmssdRaw(clean)
         let sdnn = sdnnRaw(clean)

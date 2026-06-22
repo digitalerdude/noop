@@ -48,6 +48,16 @@ object HrvAnalyzer {
      */
     const val ECTOPIC_WINDOW_RADIUS: Int = 2
 
+    /**
+     * Spot-reading quality gate: refuse a single on-demand reading when MORE than this fraction of the
+     * input beats were dropped by cleaning (range + ectopic). Even with >= [MIN_BEATS] survivors, a high
+     * reject fraction means they're sparse / non-consecutive, so RMSSD over them (successive differences
+     * that now span the dropped beats) isn't trustworthy — worst on noisy optical PPG. OPT-IN: only the
+     * live spot path passes it; the nightly/windowed path leaves it null, so its behaviour is unchanged.
+     * Mirrors Swift `HRVAnalyzer.spotMaxRejectedFraction`.
+     */
+    const val SPOT_MAX_REJECTED_FRACTION: Double = 0.35
+
     /** Result of an HRV computation over a window. Mirrors Swift `HRVResult`. */
     data class HrvResult(
         /** RMSSD in milliseconds, or null when too few valid beats. */
@@ -170,11 +180,20 @@ object HrvAnalyzer {
      * Compute HRV from raw RR-interval values (ms), applying the full cleaning
      * pipeline. Returns an empty result when fewer than [MIN_BEATS] survive.
      */
-    fun analyzeRaw(rawRR: List<Double>): HrvResult {
+    fun analyzeRaw(rawRR: List<Double>, maxRejectedFraction: Double? = null): HrvResult {
         val nInput = rawRR.size
         val clean = cleanRR(rawRR)
         if (clean.size < MIN_BEATS) {
             return HrvResult.empty(nInput)
+        }
+        // Opt-in quality gate (default null → skipped, so the nightly/windowed path is byte-identical):
+        // enough clean beats survived, but if too LARGE a fraction of the input was dropped the survivors
+        // are sparse + non-consecutive, so RMSSD over them isn't trustworthy — refuse rather than report a
+        // confidently-noisy value. nClean is preserved so the UI can say how many were usable.
+        if (maxRejectedFraction != null && nInput > 0 &&
+            (nInput - clean.size).toDouble() / nInput.toDouble() > maxRejectedFraction) {
+            return HrvResult(rmssd = null, sdnn = null, meanNN = null, pnn50 = null,
+                nInput = nInput, nClean = clean.size)
         }
         val rmssd = rmssdRaw(clean)
         val sdnn = sdnnRaw(clean)

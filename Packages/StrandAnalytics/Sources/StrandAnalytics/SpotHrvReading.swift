@@ -56,7 +56,8 @@ public enum SpotHrvReading {
     /// - Parameter rrMs: the raw R-R intervals in milliseconds, in capture order (untrusted BLE input —
     ///   the analyzer's range filter bounds-checks each to `HRVAnalyzer.rrMinMs`...`HRVAnalyzer.rrMaxMs`).
     public static func compute(_ rrMs: [Int]) -> Outcome {
-        let result = HRVAnalyzer.analyze(rawRR: rrMs.map(Double.init))
+        let result = HRVAnalyzer.analyze(rawRR: rrMs.map(Double.init),
+                                         maxRejectedFraction: HRVAnalyzer.spotMaxRejectedFraction)
         guard let rmssd = result.rmssd else {
             return .insufficient(clean: result.nClean, needed: HRVAnalyzer.minBeats, input: result.nInput)
         }
