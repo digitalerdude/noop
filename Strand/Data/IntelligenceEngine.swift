@@ -366,6 +366,19 @@ final class IntelligenceEngine: ObservableObject {
             scoredNights.append((daily: res.daily, strain: res.strain, cachedSleep: res.cachedSleep,
                                  workouts: res.workouts, nightlySkin: res.nightlySkinTempC,
                                  sessionMotion: res.sessionMotionByStart))
+            // Sleep-HR diagnostic (iOS parity with the Android post-scoring strap-log line): the resting-HR
+            // FLOOR (what NOOP shows) next to the night-window MEAN HR, so "NOOP's resting HR is lower than
+            // app X's sleeping HR" reports are explainable straight from the shared strap log — NOOP reports
+            // the lowest sustained 5-min level while a "sleeping HR" app reports the average, so the floor
+            // sitting below the mean is expected, not a bug. Reuses the already-loaded night `hr` (no extra
+            // read); one line per scored day, into the SAME sink as the per-day sleep diagnostic below.
+            if !hr.isEmpty {
+                let meanHr = Int((Double(hr.reduce(0) { $0 + $1.bpm }) / Double(hr.count)).rounded())
+                diagnosticSink?("sleep-hr day=\(res.daily.day) "
+                    + "floor=\(res.daily.restingHr.map(String.init) ?? "nil") mean=\(meanHr) "
+                    + "min=\(hr.map { $0.bpm }.min() ?? 0) samp=\(hr.count) "
+                    + "(NOOP shows the floor; a sleeping-HR app shows the mean)")
+            }
             await Task.yield()
         }
 

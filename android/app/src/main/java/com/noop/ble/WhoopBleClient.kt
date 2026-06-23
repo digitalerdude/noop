@@ -1104,6 +1104,31 @@ class WhoopBleClient(
                         val present = if (merged.any { it.day == todayKey }) "present" else "MISSING"
                         log("Backfill: ${merged.size} day(s) banked; newest=$newest, dashboard-today=$todayKey ($present)")
                     }
+                    // Sleep-HR diagnostic: surface the resting-HR FLOOR (what NOOP shows) next to the
+                    // night's MEAN HR, so "NOOP's resting HR is lower than app X's sleeping HR" reports
+                    // are explainable straight from the shared strap log — NOOP reports the lowest sustained
+                    // 5-min level, while a "sleeping HR" app reports the average, so the floor sitting well
+                    // below the mean is expected, not a bug. Best-effort — a diagnostic read must never
+                    // break scoring.
+                    runCatching {
+                        val nowS = System.currentTimeMillis() / 1000
+                        val main = repository.sleepSessions(deviceId, nowS - 129_600L, nowS, 64)
+                            .maxByOrNull { it.endTs - it.startTs }   // longest recent session = main night
+                        if (main != null) {
+                            val hrSeg = repository.hrSamples(
+                                deviceId, main.startTs, main.endTs, IntelligenceEngine.STREAM_LIMIT,
+                            )
+                            if (hrSeg.isNotEmpty()) {
+                                val mean = Math.round(hrSeg.sumOf { it.bpm }.toDouble() / hrSeg.size).toInt()
+                                val durMin = (main.endTs - main.startTs) / 60
+                                log(
+                                    "Sleep[main ${durMin}min]: rhr floor=${main.restingHr ?: "—"} " +
+                                        "mean=$mean min=${hrSeg.minOf { it.bpm }} samp=${hrSeg.size} " +
+                                        "(NOOP shows the floor; a 'sleeping HR' app shows the mean)",
+                                )
+                            }
+                        }
+                    }
                 }.onFailure {
                     // The scoring pass now hops to Dispatchers.Default; shutdown() cancels it, which is
                     // not a scoring failure — rethrow so the cancellation isn't swallowed/mis-logged. (#125)
