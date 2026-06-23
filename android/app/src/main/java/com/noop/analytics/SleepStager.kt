@@ -881,34 +881,90 @@ object SleepStager {
     }
 
     /** Build a 30 s hypnogram for [start, end] and return StageSegments. */
-    internal fun stageSession(
+    /** The shared staging setup behind [stageSession] and [stageFunnel] (4-field destructurable). */
+    internal data class StagingInputs(
+        val grid: EpochGrid, val feats: List<EpochFeatures>, val onsetIdx: Int, val finalWakeIdx: Int,
+    )
+
+    /**
+     * Per-epoch features + sleep-window indices for a forced [start, end] window — the shared setup behind
+     * both [stageSession] and the [stageFunnel] diagnostic, so the two stage IDENTICALLY (a diagnostic that
+     * measured a different pipeline than production would mislead). null when there is too little gravity
+     * to grid — the same degenerate case [stageSession] answers with a single "light" span. Mirrors Swift.
+     */
+    internal fun stagingInputs(
         start: Long, end: Long, grav: List<GravitySample>,
         hr: List<HrSample>, rr: List<RrInterval>, resp: List<RespSample>,
-    ): List<StageSegment> {
+    ): StagingInputs? {
         val gSeg = rowsBetween(grav, start, end) { it.ts }
-        if (gSeg.size < 2) return listOf(StageSegment(start = start, end = end, stage = "light"))
-
+        if (gSeg.size < 2) return null
         val gDeltas = gravityDeltas(gSeg)
         val gTimes = gSeg.map { it.ts }
-
         val hrSeg = rowsBetween(hr, start, end) { it.ts }
         val rrSeg = rowsBetween(rr, start, end) { it.ts }
         val respSeg = rowsBetween(resp, start, end) { it.ts }
-
         val grid = buildEpochGrid(
             start = start.toDouble(), end = end.toDouble(),
             gravTimes = gTimes, gravDeltas = gDeltas,
             hr = hrSeg, rr = rrSeg, resp = respSeg,
         )
-        if (grid.nEpochs == 0) return listOf(StageSegment(start = start, end = end, stage = "light"))
-
-        val rescaled = rescaleCounts(grid.counts)
-        val ckFlags = coleKripke(rescaled)
+        if (grid.nEpochs == 0) return null
+        val ckFlags = coleKripke(rescaleCounts(grid.counts))
         val (onsetIdx, finalWakeIdx) = onsetAndFinalWake(ckFlags)
-
         val dogHR = dogHRVariability(grid.hr)
         val feats = extractFeatures(grid = grid, ckFlags = ckFlags, dogHR = dogHR,
             onsetIdx = onsetIdx, finalWakeIdx = finalWakeIdx)
+        return StagingInputs(grid, feats, onsetIdx, finalWakeIdx)
+    }
+
+    /**
+     * Why a session's REM came out as it did — a pure read-out for the debug export, no I/O. REM is
+     * suppressed at three points (the classifier conjunction in Stage 2, the 2.5-min majority smoothing,
+     * and the early-onset re-imposition) and is starved when per-epoch RRV/hrVar go NaN on sparse R-R
+     * (common on WHOOP 4.0). Reporting the REM count at each step plus the finite-feature fractions tells
+     * which stage zeroed REM on a given night. Mirrors Swift `StageFunnel`.
+     */
+    data class StageFunnel(
+        val epochs: Int,             // total epochs staged
+        val remRaw: Int,             // REM epochs straight out of classifyEpochs (Stage 2)
+        val remSmoothed: Int,        // after the 2.5-min majority smoothing
+        val remFinal: Int,           // after reimposePhysiology — what the hypnogram shows
+        val finiteRRVFrac: Double,   // sleep epochs with a finite rrv  (gates the PRIMARY REM rule)
+        val finiteHRVarFrac: Double, // sleep epochs with a finite hrVar (gates the REM FALLBACK)
+    )
+
+    /**
+     * Same inputs as [stageSession], but returns the REM funnel instead of segments (re-runs the SAME
+     * classify -> smooth -> reimpose, so the numbers describe the real pipeline). null when unstageable.
+     */
+    internal fun stageFunnel(
+        start: Long, end: Long, grav: List<GravitySample>,
+        hr: List<HrSample>, rr: List<RrInterval>, resp: List<RespSample>,
+    ): StageFunnel? {
+        val (_, feats, onsetIdx, finalWakeIdx) =
+            stagingInputs(start, end, grav, hr, rr, resp) ?: return null
+        val raw = classifyEpochs(feats)
+        val smoothed = smoothLabels(raw)
+        val reimposed = reimposePhysiology(smoothed, features = feats,
+            onsetIdx = onsetIdx, finalWakeIdx = finalWakeIdx)
+        fun remCount(ls: List<String>) = ls.count { it == "rem" }
+        val sleep = feats.filter { it.ckSleep }
+        val denom = maxOf(1, sleep.size).toDouble()
+        return StageFunnel(
+            epochs = feats.size,
+            remRaw = remCount(raw), remSmoothed = remCount(smoothed), remFinal = remCount(reimposed),
+            finiteRRVFrac = sleep.count { it.rrv.isFinite() } / denom,
+            finiteHRVarFrac = sleep.count { it.hrVar.isFinite() } / denom,
+        )
+    }
+
+    internal fun stageSession(
+        start: Long, end: Long, grav: List<GravitySample>,
+        hr: List<HrSample>, rr: List<RrInterval>, resp: List<RespSample>,
+    ): List<StageSegment> {
+        val (grid, feats, onsetIdx, finalWakeIdx) =
+            stagingInputs(start, end, grav, hr, rr, resp)
+                ?: return listOf(StageSegment(start = start, end = end, stage = "light"))
 
         var labels = classifyEpochs(feats)
         labels = smoothLabels(labels)

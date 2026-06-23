@@ -786,6 +786,70 @@ public enum SleepStager {
         return (o, f)
     }
 
+    /// Per-epoch features + sleep-window indices for a forced `[start, end]` window — the shared setup
+    /// behind both `stageSession` and the `stageFunnel` diagnostic, so the two stage IDENTICALLY (a
+    /// diagnostic that measured a different pipeline than production would mislead). nil when there is too
+    /// little gravity to grid — the same degenerate case `stageSession` answers with a single "light" span.
+    static func stagingInputs(start: Int, end: Int, grav: [GravitySample], hr: [HRSample],
+                              rr: [RRInterval], resp: [RespSample])
+        -> (grid: EpochGrid, feats: [EpochFeatures], onsetIdx: Int, finalWakeIdx: Int)? {
+        let gSeg = rowsBetween(grav, start: start, end: end) { $0.ts }
+        guard gSeg.count >= 2 else { return nil }
+        let gDeltas = gravityDeltas(gSeg)
+        let gTimes = gSeg.map { $0.ts }
+        let hrSeg = rowsBetween(hr, start: start, end: end) { $0.ts }
+        let rrSeg = rowsBetween(rr, start: start, end: end) { $0.ts }
+        let respSeg = rowsBetween(resp, start: start, end: end) { $0.ts }
+        let grid = buildEpochGrid(start: Double(start), end: Double(end),
+                                  gravTimes: gTimes, gravDeltas: gDeltas,
+                                  hr: hrSeg, rr: rrSeg, resp: respSeg)
+        guard grid.nEpochs > 0 else { return nil }
+        let ckFlags = coleKripke(rescaleCounts(grid.counts))
+        let (onsetIdx, finalWakeIdx) = onsetAndFinalWake(ckFlags)
+        let dogHR = dogHRVariability(grid.hr)
+        let feats = extractFeatures(grid: grid, ckFlags: ckFlags, dogHR: dogHR,
+                                    onsetIdx: onsetIdx, finalWakeIdx: finalWakeIdx)
+        return (grid, feats, onsetIdx, finalWakeIdx)
+    }
+
+    /// Why a session's REM came out as it did — a pure read-out for the debug export, no I/O. REM is
+    /// suppressed at three points (the classifier conjunction in Stage 2, the 2.5-min majority smoothing,
+    /// and the early-onset re-imposition) and is starved when per-epoch RRV/hrVar go NaN on sparse R-R
+    /// (common on WHOOP 4.0). Reporting the REM count at each step plus the finite-feature fractions tells
+    /// which stage zeroed REM on a given night. Mirrors Kotlin `StageFunnel`.
+    public struct StageFunnel: Equatable {
+        public let epochs: Int          // total epochs staged
+        public let remRaw: Int          // REM epochs straight out of classifyEpochs (Stage 2)
+        public let remSmoothed: Int     // after the 2.5-min majority smoothing
+        public let remFinal: Int        // after reimposePhysiology — what the hypnogram shows
+        public let finiteRRVFrac: Double    // sleep epochs with a finite rrv  (gates the PRIMARY REM rule)
+        public let finiteHRVarFrac: Double  // sleep epochs with a finite hrVar (gates the REM FALLBACK)
+        public init(epochs: Int, remRaw: Int, remSmoothed: Int, remFinal: Int,
+                    finiteRRVFrac: Double, finiteHRVarFrac: Double) {
+            self.epochs = epochs; self.remRaw = remRaw; self.remSmoothed = remSmoothed
+            self.remFinal = remFinal; self.finiteRRVFrac = finiteRRVFrac; self.finiteHRVarFrac = finiteHRVarFrac
+        }
+    }
+
+    /// Same inputs as `stageSession`, but returns the REM funnel instead of segments (re-runs the SAME
+    /// classify → smooth → reimpose, so the numbers describe the real pipeline). nil when unstageable.
+    public static func stageFunnel(start: Int, end: Int, grav: [GravitySample], hr: [HRSample],
+                                   rr: [RRInterval], resp: [RespSample]) -> StageFunnel? {
+        guard let (_, feats, onsetIdx, finalWakeIdx) =
+            stagingInputs(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp) else { return nil }
+        let raw = classifyEpochs(feats)
+        let smoothed = smoothLabels(raw)
+        let reimposed = reimposePhysiology(smoothed, features: feats, onsetIdx: onsetIdx, finalWakeIdx: finalWakeIdx)
+        func remCount(_ ls: [String]) -> Int { ls.reduce(0) { $0 + ($1 == "rem" ? 1 : 0) } }
+        let sleep = feats.filter { $0.ckSleep }
+        let denom = Double(max(1, sleep.count))
+        return StageFunnel(
+            epochs: feats.count,
+            remRaw: remCount(raw), remSmoothed: remCount(smoothed), remFinal: remCount(reimposed),
+            finiteRRVFrac: Double(sleep.filter { $0.rrv.isFinite }.count) / denom,
+            finiteHRVarFrac: Double(sleep.filter { $0.hrVar.isFinite }.count) / denom)
+    }
+
     /// Build a 30 s hypnogram for [start, end] and return StageSegments.
     /// Stage a FORCED window from raw streams (no boundary detection): the same per-epoch classifier
     /// the detection path uses, run over exactly `[start, end]`. The sleep-edit path calls this to
@@ -793,28 +857,10 @@ public enum SleepStager {
     /// stages from the sensor data instead of a fabricated "awake" block. (#318)
     public static func stageSession(start: Int, end: Int, grav: [GravitySample],
                                     hr: [HRSample], rr: [RRInterval], resp: [RespSample]) -> [StageSegment] {
-        let gSeg = rowsBetween(grav, start: start, end: end) { $0.ts }
-        if gSeg.count < 2 { return [StageSegment(start: start, end: end, stage: "light")] }
-
-        let gDeltas = gravityDeltas(gSeg)
-        let gTimes = gSeg.map { $0.ts }
-
-        let hrSeg = rowsBetween(hr, start: start, end: end) { $0.ts }
-        let rrSeg = rowsBetween(rr, start: start, end: end) { $0.ts }
-        let respSeg = rowsBetween(resp, start: start, end: end) { $0.ts }
-
-        let grid = buildEpochGrid(start: Double(start), end: Double(end),
-                                  gravTimes: gTimes, gravDeltas: gDeltas,
-                                  hr: hrSeg, rr: rrSeg, resp: respSeg)
-        if grid.nEpochs == 0 { return [StageSegment(start: start, end: end, stage: "light")] }
-
-        let rescaled = rescaleCounts(grid.counts)
-        let ckFlags = coleKripke(rescaled)
-        let (onsetIdx, finalWakeIdx) = onsetAndFinalWake(ckFlags)
-
-        let dogHR = dogHRVariability(grid.hr)
-        let feats = extractFeatures(grid: grid, ckFlags: ckFlags, dogHR: dogHR,
-                                    onsetIdx: onsetIdx, finalWakeIdx: finalWakeIdx)
+        guard let (grid, feats, onsetIdx, finalWakeIdx) =
+            stagingInputs(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp) else {
+            return [StageSegment(start: start, end: end, stage: "light")]
+        }
 
         var labels = classifyEpochs(feats)
         labels = smoothLabels(labels)

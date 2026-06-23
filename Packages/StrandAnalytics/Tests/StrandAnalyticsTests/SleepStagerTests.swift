@@ -874,4 +874,33 @@ final class SleepStagerTests: XCTestCase {
         // Too little gravity to grid → [] so the caller persists NULL, never a fabricated zero series.
         XCTAssertTrue(SleepStager.sessionEpochMotion(start: 0, end: 1800, grav: []).isEmpty)
     }
+
+    // MARK: - REM funnel diagnostic (#sleep-rem)
+
+    func testStageFunnelNilWhenTooLittleGravity() {
+        // Same degenerate case stageSession answers with a single "light" span → diagnostic returns nil.
+        XCTAssertNil(SleepStager.stageFunnel(start: 0, end: 3600, grav: [], hr: [], rr: [], resp: []))
+    }
+
+    func testStageFunnelCountsConsistentAndRRVStarvedWithoutRR() {
+        // A 1-hour still window with dense HR but NO R-R (the WHOOP 4.0 sparse-R-R situation): the funnel
+        // must come back populated, its counts internally consistent, and finiteRRVFrac == 0 — i.e. the
+        // PRIMARY rem rule (which needs a finite rrv) is starved, exactly the mechanism behind 0% REM.
+        let start = 0, end = 3600
+        var grav: [GravitySample] = []
+        var hr: [HRSample] = []
+        for t in stride(from: start, to: end, by: 30) { grav.append(GravitySample(ts: t, x: 0, y: 0, z: 1)) }
+        for t in stride(from: start, to: end, by: 2) { hr.append(HRSample(ts: t, bpm: 55)) }
+
+        guard let f = SleepStager.stageFunnel(start: start, end: end, grav: grav, hr: hr, rr: [], resp: []) else {
+            return XCTFail("a stageable window must return a funnel")
+        }
+        XCTAssertGreaterThan(f.epochs, 0)
+        XCTAssertLessThanOrEqual(f.remFinal, f.remSmoothed)   // reimposePhysiology only demotes REM → light
+        XCTAssertGreaterThanOrEqual(f.remRaw, 0)
+        XCTAssertLessThanOrEqual(f.remSmoothed, f.epochs)
+        XCTAssertEqual(f.finiteRRVFrac, 0, accuracy: 1e-9)    // no R-R supplied → rrv NaN everywhere
+        XCTAssertTrue((0.0...1.0).contains(f.finiteRRVFrac))
+        XCTAssertTrue((0.0...1.0).contains(f.finiteHRVarFrac))
+    }
 }
