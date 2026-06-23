@@ -125,19 +125,22 @@ object StepsEstimateEngine {
         if (manualOverride != null && manualOverride > 0) {
             return Calibration(manualOverride, points.size, 1.0, manual = true)
         }
-        val ratios = points
-            .filter { it.motion >= MIN_MOTION_FOR_FIT && it.steps > 0 }
-            .map { it.steps / it.motion }
-            .sorted()
-        if (ratios.size < MIN_CALIBRATION_DAYS) return null
-        val k = median(ratios)
+        val good = points.filter { it.motion >= MIN_MOTION_FOR_FIT && it.steps > 0 }
+        if (good.size < MIN_CALIBRATION_DAYS) return null
+        // Fit k = the MOTION-WEIGHTED median of each day's steps/motion ratio: a day's motion volume scales
+        // its pull, so the high-activity days (where the ratio is tightly determined) drive the fit, while a
+        // low-step day — whose ratio swings on a handful of miscounted steps — counts less. Volume-aware
+        // WITHOUT the outlier-fragility of a pooled sum(steps)/sum(motion): one odd day (a drive the strap
+        // mis-attributes) still can't dominate, exactly as the plain median resisted it. Mirrors Swift.
+        val weighted = good.map { (it.steps / it.motion) to it.motion }
+        val k = weightedMedian(weighted)
         if (k <= 0) return null
-        val sizeTerm = min(1.0, ratios.size.toDouble() / GOOD_CALIBRATION_DAYS)
-        val mad = median(ratios.map { abs(it - k) })
-        val spread = if (k > 0) mad / k else 1.0
+        val sizeTerm = min(1.0, good.size.toDouble() / GOOD_CALIBRATION_DAYS)
+        val wmad = weightedMedian(weighted.map { abs(it.first - k) to it.second })
+        val spread = if (k > 0) wmad / k else 1.0
         val tightness = (1.0 - spread).coerceAtLeast(0.0)
         val confidence = (0.5 * sizeTerm + 0.5 * tightness).coerceIn(0.0, 1.0)
-        return Calibration(k, ratios.size, confidence, manual = false)
+        return Calibration(k, good.size, confidence, manual = false)
     }
 
     /**
@@ -153,5 +156,27 @@ object StepsEstimateEngine {
         if (xs.isEmpty()) return 0.0
         val s = xs.sorted(); val n = s.size
         return if (n % 2 == 1) s[n / 2] else (s[n / 2 - 1] + s[n / 2]) / 2.0
+    }
+
+    /**
+     * Weighted median of (value, weight) pairs: the value where cumulative weight reaches half the total.
+     * Robust like a plain median — no single pair dominates — but a larger weight gives a value more pull
+     * (here, the day's motion volume). When the half-point falls exactly on a boundary the two straddling
+     * values are AVERAGED, so EQUAL weights reduce byte-for-byte to [median] (incl. its even-n averaging).
+     * Non-positive weights ignored; empty -> 0. Mirrors Swift `weightedMedian`.
+     */
+    internal fun weightedMedian(pairs: List<Pair<Double, Double>>): Double {
+        val valid = pairs.filter { it.second > 0 }.sortedBy { it.first }
+        if (valid.isEmpty()) return 0.0
+        val half = valid.sumOf { it.second } / 2.0
+        var cum = 0.0
+        for (i in valid.indices) {
+            cum += valid[i].second
+            if (cum > half) return valid[i].first
+            if (cum == half) {   // boundary exactly between i and i+1 -> average (matches median)
+                return if (i + 1 < valid.size) (valid[i].first + valid[i + 1].first) / 2.0 else valid[i].first
+            }
+        }
+        return valid.last().first
     }
 }

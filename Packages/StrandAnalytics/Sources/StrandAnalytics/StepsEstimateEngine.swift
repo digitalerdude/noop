@@ -132,28 +132,32 @@ public enum StepsEstimateEngine {
     // MARK: - Calibration
 
     /// Fit the personal coefficient from days that have BOTH a motion volume and a reference step count.
-    /// Robust: take the median of each day's `steps / motion` ratio (days below `minMotionForFit` are skipped),
-    /// so outliers don't pull `k`. Returns nil when there aren't enough usable days AND no manual override is
+    /// Robust: take the MOTION-WEIGHTED median of each day's `steps / motion` ratio (days below
+    /// `minMotionForFit` are skipped), so high-activity days drive the fit and outliers don't pull `k`.
+    /// Returns nil when there aren't enough usable days AND no manual override is
     /// supplied. A non-nil `manualOverride` always wins (confidence 1.0) — for users with no phone step data.
     public static func calibrate(_ points: [CalibrationPoint], manualOverride: Double? = nil) -> Calibration? {
         if let k = manualOverride, k > 0 {
             return Calibration(coefficient: k, sampleDays: points.count, confidence: 1.0, manual: true)
         }
-        let ratios = points
-            .filter { $0.motion >= minMotionForFit && $0.steps > 0 }
-            .map { $0.steps / $0.motion }
-            .sorted()
-        guard ratios.count >= minCalibrationDays else { return nil }
-        let k = median(ratios)
+        let good = points.filter { $0.motion >= minMotionForFit && $0.steps > 0 }
+        guard good.count >= minCalibrationDays else { return nil }
+        // Fit k = the MOTION-WEIGHTED median of each day's steps/motion ratio: a day's motion volume scales
+        // its pull, so the high-activity days (where the ratio is tightly determined) drive the fit, while a
+        // low-step day — whose ratio swings on a handful of miscounted steps — counts less. Volume-aware
+        // WITHOUT the outlier-fragility of a pooled sum(steps)/sum(motion): one odd day (a drive the strap
+        // mis-attributes) still can't dominate, exactly as the plain median resisted it.
+        let weighted = good.map { (value: $0.steps / $0.motion, weight: $0.motion) }
+        let k = weightedMedian(weighted)
         guard k > 0 else { return nil }
-        // Confidence: grows with sample size toward goodCalibrationDays, discounted by relative spread
-        // (MAD / median) so a noisy fit is honestly less trusted than a tight one.
-        let sizeTerm = min(1.0, Double(ratios.count) / Double(goodCalibrationDays))
-        let mad = median(ratios.map { abs($0 - k) })
-        let spread = k > 0 ? mad / k : 1.0
+        // Confidence: grows with sample size toward goodCalibrationDays, discounted by the (weighted)
+        // relative spread (MAD / median) so a noisy fit is honestly less trusted than a tight one.
+        let sizeTerm = min(1.0, Double(good.count) / Double(goodCalibrationDays))
+        let wmad = weightedMedian(weighted.map { (value: abs($0.value - k), weight: $0.weight) })
+        let spread = k > 0 ? wmad / k : 1.0
         let tightness = max(0.0, 1.0 - spread)              // 1 = all ratios equal, 0 = wildly scattered
         let confidence = (0.5 * sizeTerm + 0.5 * tightness).clampedUnit
-        return Calibration(coefficient: k, sampleDays: ratios.count, confidence: confidence, manual: false)
+        return Calibration(coefficient: k, sampleDays: good.count, confidence: confidence, manual: false)
     }
 
     // MARK: - Estimate
@@ -167,6 +171,26 @@ public enum StepsEstimateEngine {
     }
 
     // MARK: - Helpers
+
+    /// Weighted median of `(value, weight)` pairs: the value where the cumulative weight reaches half the
+    /// total. Robust like a plain median — no single pair can dominate — but a larger weight gives a value
+    /// more pull (here, the day's motion volume). When the half-point falls exactly on a boundary the two
+    /// straddling values are AVERAGED, so EQUAL weights reduce byte-for-byte to `median` (incl. its even-n
+    /// averaging). Non-positive weights are ignored; empty → 0.
+    static func weightedMedian(_ pairs: [(value: Double, weight: Double)]) -> Double {
+        let valid = pairs.filter { $0.weight > 0 }.sorted { $0.value < $1.value }
+        guard !valid.isEmpty else { return 0 }
+        let half = valid.reduce(0.0) { $0 + $1.weight } / 2.0
+        var cum = 0.0
+        for i in valid.indices {
+            cum += valid[i].weight
+            if cum > half { return valid[i].value }
+            if cum == half {   // boundary exactly between i and i+1 → average (matches `median`)
+                return i + 1 < valid.count ? (valid[i].value + valid[i + 1].value) / 2 : valid[i].value
+            }
+        }
+        return valid[valid.count - 1].value
+    }
 
     static func median(_ xs: [Double]) -> Double {
         guard !xs.isEmpty else { return 0 }

@@ -113,4 +113,23 @@ class StepsEstimateEngineTest {
         assertTrue(status.canEstimate)
         assertEquals("Calibrated by hand", status.headline)
     }
+
+    @Test
+    fun calibrationIsMotionWeighted() {
+        // 3 low-volume days at ratio 0.50 + 2 high-volume days at 0.40. Plain median of the 5 ratios = 0.50
+        // (the low days outvote); MOTION-WEIGHTED, the high-volume days carry the half-weight, so k lands
+        // on 0.40 — the better-determined value. Guards that the fit is volume-aware. Mirrors Swift.
+        val pts = listOf(
+            1000.0 to 500.0, 1000.0 to 500.0, 1000.0 to 500.0,      // ratio 0.50, low volume
+            30000.0 to 12000.0, 30000.0 to 12000.0,                 // ratio 0.40, high volume
+        ).map { StepsEstimateEngine.CalibrationPoint(it.first, it.second) }
+        assertEquals(0.40, StepsEstimateEngine.calibrate(pts)!!.coefficient, 1e-9)
+    }
+
+    @Test
+    fun weightedMedianReducesToMedianForEqualWeights() {
+        // Equal weights → weightedMedian must equal the plain median, including the even-n averaging.
+        assertEquals(2.0, StepsEstimateEngine.weightedMedian(listOf(1.0 to 5.0, 3.0 to 5.0, 2.0 to 5.0)), 1e-9)
+        assertEquals(15.0, StepsEstimateEngine.weightedMedian(listOf(10.0 to 5.0, 20.0 to 5.0)), 1e-9)
+    }
 }

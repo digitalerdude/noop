@@ -128,4 +128,25 @@ final class StepsEstimateEngineTests: XCTestCase {
         XCTAssertTrue(status.canEstimate)
         XCTAssertEqual(status.headline, "Calibrated by hand")
     }
+
+    func testCalibrationIsMotionWeighted() {
+        // 3 low-volume days at ratio 0.50 + 2 high-volume days at 0.40. The plain median of the 5 ratios is
+        // 0.50 (the low days outvote); MOTION-WEIGHTED, the high-volume days carry the half-weight, so k
+        // lands on 0.40 — the better-determined value. Guards that the fit is volume-aware.
+        let pts = [
+            (1000.0, 500.0), (1000.0, 500.0), (1000.0, 500.0),     // ratio 0.50, low volume
+            (30000.0, 12000.0), (30000.0, 12000.0),                // ratio 0.40, high volume
+        ].map { StepsEstimateEngine.CalibrationPoint(motion: $0.0, steps: $0.1) }
+        XCTAssertEqual(StepsEstimateEngine.calibrate(pts)!.coefficient, 0.40, accuracy: 1e-9)
+    }
+
+    func testWeightedMedianReducesToMedianForEqualWeights() {
+        // Equal weights → weightedMedian must equal the plain median, including the even-n averaging.
+        XCTAssertEqual(StepsEstimateEngine.weightedMedian(
+            [(value: 1.0, weight: 5.0), (value: 3.0, weight: 5.0), (value: 2.0, weight: 5.0)]),
+            2.0, accuracy: 1e-9)                                     // odd → middle value
+        XCTAssertEqual(StepsEstimateEngine.weightedMedian(
+            [(value: 10.0, weight: 5.0), (value: 20.0, weight: 5.0)]),
+            15.0, accuracy: 1e-9)                                    // even → averaged
+    }
 }
