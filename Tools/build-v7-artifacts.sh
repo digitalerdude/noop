@@ -48,6 +48,17 @@ if [ -d "$IOSAPP" ]; then
   if [ -n "$LEAK" ]; then echo "  ✗ LEAK in $LEAK"; else echo "  ✓ no home-path leak"; fi
   STAGE="build/ios-stage"; rm -rf "$STAGE"; mkdir -p "$STAGE/Payload"
   cp -R "$IOSAPP" "$STAGE/Payload/"
+  # The AltStore/SideStore IPA must NOT carry the embedded watch app. Re-signing a nested watchOS app +
+  # complication under a FREE Apple ID is an Apple limitation: AltStore can't provision them and crashes
+  # mid-install (confirmed by 7.2.0 user reports — earlier versions installed fine). Strip it from the
+  # SIDELOAD payload only — IOSAPP above (and build-from-source) still ships NOOP.app/Watch/NOOPWatch.app,
+  # and the anonymize + leak-check already ran on the full bundle. Safe: the iOS app has no runtime
+  # dependency on the watch bundle, and this IPA is unsigned (AltStore signs later) so there's no
+  # signature to invalidate.
+  if [ -d "$STAGE/Payload/NOOP.app/Watch" ]; then
+    rm -rf "$STAGE/Payload/NOOP.app/Watch"
+    echo "  ✓ stripped embedded watch app from the sideload IPA (free-Apple-ID install fix)"
+  fi
   ( cd "$STAGE" && zip -qry "$OLDPWD/$DIST/NOOP-v$VER.ipa" Payload )
   [ -f "$DIST/NOOP-v$VER.ipa" ] && ok_ios=1 && echo "  ✓ dist/NOOP-v$VER.ipa ($(( $(stat -f '%z' "$DIST/NOOP-v$VER.ipa")/1024/1024 ))MB)"
 else echo "  ✗ iOS build FAILED"; grep -E 'error:' /tmp/v7a-ios.log | sed 's#.*Strand/##' | sort -u | head; fi
