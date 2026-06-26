@@ -730,6 +730,16 @@ class WhoopBleClient(
             return oldest
         }
 
+        /** (#767) A strap whose real-time clock is corrupt banks records stamped far in the future. Per-connection
+         *  clock correction then scatters those records across the wrong calendar days, so the dashboard stays
+         *  empty even after a clean ~20k-row offload. Returns a user-facing recovery guide when the newest banked
+         *  record is implausibly future (more than two days ahead of now); null otherwise. The two-day margin
+         *  clears benign device/phone clock skew. Message is date-free so it stays byte-identical with Swift. */
+        fun strapFutureClockGuide(newestUnix: Long, nowUnix: Long): String? {
+            if (newestUnix <= nowUnix + 2 * 86_400L) return null
+            return "Your strap's clock is wrong: it's reporting banked data dated far in the future, so NOOP can't file your history on the right day and the dashboard stays empty even after a sync completes. Reconnecting won't fix it; the strap's clock has to reset. Fully drain the strap to 0%, charge it back to 100%, then reconnect. If it still reports future dates after that, it's a strap firmware issue for WHOOP support."
+        }
+
         /** #364 auto-continue cap: consecutive immediate re-kicks per connection before falling back to
          *  the 900s periodic timer. 6 × ~60s ≈ 6 min of back-to-back draining without letting a
          *  misbehaving strap monopolise Bluetooth. Mirrors Swift BackfillContinuation.defaultMaxAutoContinues. */
@@ -2749,6 +2759,17 @@ class WhoopBleClient(
                             // a genuinely un-banked night (newest is older) — mirrors the Swift line.
                             val fmt = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.US)
                             log("Strap newest banked record: ${fmt.format(java.util.Date(it * 1000L))} (from data range)")
+                            // (#767) If that newest marker is implausibly future the strap's RTC is corrupt: clock
+                            // correction will scatter this offload onto the wrong days and the dashboard stays empty.
+                            // Surface a drain/recharge recovery guide (reconnecting alone won't fix it). Guarded so it
+                            // doesn't clobber an existing re-pair guide already on screen.
+                            if (_state.value.reconnectGuide == null) {
+                                strapFutureClockGuide(it, System.currentTimeMillis() / 1000L)?.let { guide ->
+                                    _state.value = _state.value.copy(reconnectGuide = guide)
+                                    log("Strap clock is implausibly future (#767): newest banked record is more " +
+                                        "than 2 days ahead of now; surfaced drain/recharge guide")
+                                }
+                            }
                             // Also surface the OLDEST banked record → the full backlog SPAN, i.e. the depth a
                             // deep oldest-first drain must cover before recent nights land (#364). Mirrors Swift.
                             dataRangeOldestUnix(frame)?.let { oldest ->

@@ -2753,6 +2753,16 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
         return oldest
     }
 
+    /// (#767) A strap whose real-time clock is corrupt banks records stamped far in the future. Per-connection
+    /// clock correction then scatters those records across the wrong calendar days, so the dashboard stays empty
+    /// even after a clean ~20k-row offload. Returns a user-facing recovery guide when the newest banked record is
+    /// implausibly future (more than two days ahead of now); nil otherwise. The two-day margin clears benign
+    /// device/phone clock skew. The message is date-free so the Swift and Android strings stay byte-identical.
+    static func strapFutureClockGuide(newestUnix: Int, nowUnix: Int) -> String? {
+        guard newestUnix > nowUnix + 2 * 86_400 else { return nil }
+        return "Your strap's clock is wrong: it's reporting banked data dated far in the future, so NOOP can't file your history on the right day and the dashboard stays empty even after a sync completes. Reconnecting won't fix it; the strap's clock has to reset. Fully drain the strap to 0%, charge it back to 100%, then reconnect. If it still reports future dates after that, it's a strap firmware issue for WHOOP support."
+    }
+
     public func peripheral(_ peripheral: CBPeripheral,
                            didUpdateValueFor characteristic: CBCharacteristic,
                            error: Error?) {
@@ -2822,6 +2832,15 @@ extension BLEManager: @preconcurrency CBPeripheralDelegate {
                         let d = ISO8601DateFormatter()
                         d.formatOptions = [.withFullDate, .withTime, .withColonSeparatorInTime, .withSpaceBetweenDateAndTime]
                         log("Strap newest banked record: \(d.string(from: Date(timeIntervalSince1970: TimeInterval(newest)))) (from data range)")
+                        // (#767) If that newest marker is implausibly future the strap's RTC is corrupt: clock
+                        // correction will scatter this offload onto the wrong days and the dashboard stays empty.
+                        // Surface a drain/recharge recovery guide (reconnecting alone won't fix it). Guarded so it
+                        // doesn't clobber an existing re-pair guide already on screen.
+                        if state.reconnectGuide == nil,
+                           let guide = BLEManager.strapFutureClockGuide(newestUnix: newest, nowUnix: Int(Date().timeIntervalSince1970)) {
+                            state.reconnectGuide = guide
+                            log("Strap clock is implausibly future (#767): newest banked record is more than 2 days ahead of now; surfaced drain/recharge guide")
+                        }
                         // Also surface the OLDEST banked record so one connect shows the full backlog SPAN — the
                         // depth a deep oldest-first drain has to cover before recent nights land (#364).
                         if let oldest = BLEManager.dataRangeOldestUnix(from: frame), oldest < newest {
