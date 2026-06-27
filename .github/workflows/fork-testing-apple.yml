@@ -79,7 +79,10 @@ jobs:
 
   ios:
     needs: meta
-    runs-on: macos-15
+    # The iOS target uses the iOS 26 Liquid Glass API (`glassEffect`, availability-guarded but a
+    # compile-time SDK symbol), so it needs the iOS 26 SDK — i.e. Xcode 26, which ships on macos-26.
+    # (The macOS target above doesn't use it and builds fine on the proven macos-15 image.)
+    runs-on: macos-26
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
