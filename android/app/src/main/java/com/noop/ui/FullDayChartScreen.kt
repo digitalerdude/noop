@@ -25,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.noop.analytics.HrvAnalyzer
 import kotlinx.coroutines.delay
 import java.util.Calendar
 import java.util.Locale
@@ -266,11 +267,17 @@ private suspend fun readTimeline(
                 .map { TimelinePoint(it.bucket, it.avgBpm) }
         }
     }
+    if (metric == TimelineMetric.Hrv) {
+        // Real intraday HRV: rMSSD per time window from the R-R intervals (#803), NOT the raw R-R tachogram.
+        // The window floors at 300 s (5 min) so it matches the nightly bucket and clears HrvAnalyzer.MIN_BEATS,
+        // staying trustworthy when zoomed in; otherwise it tracks the chart's bucket. Mirrors the Swift path.
+        val window = maxOf(bucket, 300L)
+        val rr = runCatching { repo.rrIntervals(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
+        return HrvAnalyzer.rmssdTimeline(rr, window).map { (ts, rmssd) -> TimelinePoint(ts, rmssd) }
+    }
     val raw: List<TimelinePoint> = when (metric) {
         TimelineMetric.Hr -> emptyList()
-        TimelineMetric.Hrv ->
-            runCatching { repo.rrIntervals(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
-                .map { TimelinePoint(it.ts, it.rrMs.toDouble()) }
+        TimelineMetric.Hrv -> emptyList()   // #803: handled above by the windowed-rMSSD path, never raw R-R
         TimelineMetric.Spo2 ->
             runCatching { repo.spo2Samples(deviceId, from, to, 200_000) }.getOrDefault(emptyList())
                 .mapNotNull { if (it.ir > 0) TimelinePoint(it.ts, it.red.toDouble() / it.ir) else null }

@@ -213,6 +213,34 @@ object HrvAnalyzer {
             nInput = nInput, nClean = clean.size)
     }
 
+    /**
+     * rMSSD computed per fixed-width time window across [rr], so an intraday chart shows real HRV variability
+     * (#803) instead of the raw R-R tachogram. Each window reuses the canonical cleaning (range + Malik
+     * ectopic), Task-Force rMSSD, the [MIN_BEATS] floor, AND the spot-reading honesty gate (more than
+     * [DEFAULT_SPOT_MAX_REJECTED_FRACTION] of beats rejected => too noisy, dropped) so daytime motion-artifact
+     * windows don't show as spikes. Windows without a trustworthy result are omitted. Returns ascending
+     * (windowStartTs, rmssd) points. Faithful twin of Swift HRVAnalyzer.rmssdTimeline.
+     */
+    fun rmssdTimeline(rr: List<RrInterval>, windowSeconds: Long): List<Pair<Long, Double>> {
+        if (windowSeconds <= 0L || rr.isEmpty()) return emptyList()
+        // Bucket beats by fixed-width window (floor(ts / windowSeconds) * windowSeconds), preserving the
+        // input ts order within each bucket so the successive-difference rMSSD is meaningful.
+        val windows = HashMap<Long, MutableList<Double>>()
+        for (beat in rr) {
+            val key = (beat.ts / windowSeconds) * windowSeconds
+            windows.getOrPut(key) { mutableListOf() }.add(beat.rrMs.toDouble())
+        }
+        val points = ArrayList<Pair<Long, Double>>(windows.size)
+        for (key in windows.keys.sorted()) {
+            // The full cleaning + Task-Force rMSSD + the spot-reading honesty gate (#585): a window below
+            // MIN_BEATS clean intervals, OR with more than DEFAULT_SPOT_MAX_REJECTED_FRACTION of its beats
+            // rejected as noise, yields rmssd == null and is dropped — an honest gap, not a fabricated spike.
+            val rmssd = analyzeRaw(windows.getValue(key), DEFAULT_SPOT_MAX_REJECTED_FRACTION).rmssd
+            if (rmssd != null) points.add(key to rmssd)
+        }
+        return points
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     /**
