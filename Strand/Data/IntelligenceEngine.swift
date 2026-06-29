@@ -267,13 +267,31 @@ final class IntelligenceEngine: ObservableObject {
     /// Compute on-device scores for each of the last `maxDays` that actually has raw HR data.
     /// Personal baselines (HRV / resting HR) are folded from the imported history, so even the first
     /// live night can be scored against your norm.
-    func analyzeRecent(maxDays: Int = 21) async {
+    func analyzeRecent(maxDays: Int = 21, force: Bool = true) async {
         guard !computing else { return }
         guard let store = await repo.storeHandle() else { note = "No on-device store yet."; return }
         guard let hrvCfg = Baselines.metricCfg["hrv"],
               let rhrCfg = Baselines.metricCfg["resting_hr"],
               let respCfg = Baselines.metricCfg["resp"],
               let skinCfg = Baselines.metricCfg["skin_temp"] else { return }
+
+        // #836 (idle-tick gate): re-scoring a 21-day window re-reads ~21×54 h of raw HR and re-runs
+        // analyzeDay over it. After a big Apple Health import (this user: 2.1 M rows, ~190 k HR/day) that
+        // is multi-second, memory-heavy work, and the 15-minute steady-state tick (AppModel) repeats it
+        // every tick even when NOTHING new landed — the ongoing lag/crash in #836. A cheap whole-history
+        // HR fingerprint (count+maxTs, indexed, no rows materialized) lets a NON-forced caller short-circuit
+        // when the raw stream is byte-for-byte unchanged since the last successful run. This is all-or-nothing
+        // — it never produces a PARTIAL scoring pass, so the window-wide reconciliation (stale-day eviction,
+        // detected-workout delete) is untouched and no computed history can be dropped. Every real update path
+        // (sync backfill, import, sleep/workout edit, baseline recalibrate, timestamp heal) calls with the
+        // default `force: true` and always rescores, so a skipped tick can never hide new data.
+        let wmKey: String = (try? await store.hrFingerprint(deviceId: deviceId,
+                                                             from: 0, to: 9_999_999_999))
+            .map { "\($0.count):\($0.maxTs)" } ?? ""
+        if !force, !wmKey.isEmpty,
+           UserDefaults.standard.string(forKey: Self.analyzeWatermarkKey) == wmKey {
+            return
+        }
 
         computing = true
         defer { computing = false }
@@ -1012,7 +1030,17 @@ final class IntelligenceEngine: ObservableObject {
 
         // Reload the dashboard caches so the freshly computed scores show up immediately.
         if !dailies.isEmpty { await repo.refresh() }
+
+        // #836: record the raw-HR fingerprint this run scored against, so a later NON-forced tick can
+        // short-circuit while it's unchanged. Written ONLY here at the end of a completed run (never on an
+        // early guard-return), so an interrupted/failed run can't advance the watermark past unscored data.
+        if !wmKey.isEmpty { UserDefaults.standard.set(wmKey, forKey: Self.analyzeWatermarkKey) }
     }
+
+    /// UserDefaults key for the #836 idle-tick gate: the `(count:maxTs)` HR fingerprint the last completed
+    /// `analyzeRecent` scored against. A non-forced tick whose current fingerprint equals this skips the
+    /// 21-day rescore. Cleared implicitly by any HR insert/delete (the fingerprint moves), so it self-heals.
+    private static let analyzeWatermarkKey = "noop.analyzeWatermark"
 
     /// CAPTURE-B (#814/#799): build the universal `dayOwner …` self-diagnostic line VERBATIM (the Test
     /// Centre export parser depends on this exact shape). `readId` is the owner this day was read+scored

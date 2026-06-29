@@ -369,7 +369,13 @@ final class AppModel: ObservableObject {
                 // the one-shot done flag is set, purges any pollution, and rescores the affected days , so a
                 // wandering-clock strap can't keep re-polluting. A no-op when nothing's pending.
                 await self.intelligence.runTimestampHealIfNeeded()
-                await self.intelligence.analyzeRecent()
+                // #836: the steady-state tick is a BACKSTOP, not a data-driven refresh — every real update
+                // (sync backfill, import, edit, recalibrate, heal) already rescores via its own forced call.
+                // Pass `force: false` so the tick skips the heavy 21-day rescore when the raw HR stream is
+                // unchanged since the last run, instead of re-reading ~21×54 h of HR every 15 min on a
+                // big-import library. A new sample (the heal above, or a sync) moves the fingerprint and the
+                // tick rescores as before.
+                await self.intelligence.analyzeRecent(force: false)
                 // v5: recompute the skin-temp suite snapshots (cycle phase + body clock) from the
                 // freshly-scored history so the Health hub cards read a ready result.
                 await self.refreshV5Signals()
