@@ -25,7 +25,7 @@ object AppChangelog {
      * Bump this when you add a release below. The "What's New" sheet shows automatically when the
      * stored last-seen version is behind this. (Decoupled from the bundle version on purpose.)
      */
-    const val CURRENT_VERSION = "7.6.1"
+    const val CURRENT_VERSION = "7.7.0"
 
     data class Release(
         val version: String,
@@ -36,6 +36,20 @@ object AppChangelog {
 
     /** Newest first. */
     val releases: List<Release> = listOf(
+        Release(
+            version = "7.7.0",
+            title = "Smoother, an Oura live-HR fix, and a big pile of improvements",
+            date = "June 2026",
+            items = listOf(
+                "**Smoother, especially on Mac.** The long freeze some of you hit when opening the app or the Insights tab should be gone, and after a sync your Charge and Rest now catch up to your latest night instead of sometimes sticking on an older one.",
+                "**Oura ring (beta): live heart rate again.** Live heart rate from the ring had stopped coming through, and it streams again now. The file import also accepts more export shapes, and the ring is easier to find when you add a device.",
+                "**See a workout while it is happening.** Today shows a live \"workout in progress\" card you can tap straight through to the live view.",
+                "**Your WHOOP 4.0 data shows sooner.** While the strap is still building your history, the screens show what has banked so far instead of looking empty, and your steps can now show whether you were still, walking or running.",
+                "**Pinch to zoom your heart rate.** On iPhone you can pinch and drag the Today heart-rate chart to look closer at any part of the day.",
+                "**A coach you can shape.** The AI Coach now takes your own instructions, and it can factor in your stress balance when you have shared that signal. Still bring-your-own-key, still on your device.",
+                "**And a long list of smaller fixes.** Steadier Bluetooth, sleep edits that stick on imported nights, a more reliable smart alarm, cleaner day navigation, and more of the app in Italian.",
+            ),
+        ),
         Release(
             version = "7.6.1",
             title = "A quick fix",

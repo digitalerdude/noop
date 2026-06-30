@@ -17,6 +17,16 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## 7.7.0: smoother (especially on Mac), an Oura live-HR fix, and a big pile of improvements (all platforms)
+
+- **Smoother, especially on Mac.** The long freeze some people hit when opening the app or the Insights tab should be gone, and after a sync Charge and Rest now catch up to the latest night instead of sometimes sticking on an older one.
+- **Oura ring (beta): live heart rate again.** Live heart rate from the ring had stopped coming through; it streams again now. The file import accepts more export shapes, and the ring is easier to find when adding a device.
+- **A workout in progress on Today.** A live "workout in progress" card taps straight through to the live view.
+- **WHOOP 4.0 data shows sooner.** While the strap is still building history, the screens show what has banked so far instead of looking empty, and steps can show still / walking / running.
+- **Pinch to zoom the heart rate (iPhone).** Pinch and drag the Today heart-rate chart to look closer at any part of the day.
+- **A coach you can shape.** The AI Coach takes your own instructions and can factor in your stress balance when you have shared that signal. Still bring-your-own-key, still on-device.
+- **A long list of smaller fixes.** Steadier Bluetooth, sleep edits that stick on imported nights, a more reliable smart alarm, cleaner day navigation, and more of the app in Italian.
+
 ## 7.0.2 — the smoothness release: app-wide performance + a Sleep V2 crash fix (all platforms)
 
 You told us the home screen and sleep cards felt laggy, so this is a top-to-bottom performance pass across every screen on every platform, plus a real fix for a Sleep V2 crash.
