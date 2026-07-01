@@ -29,6 +29,27 @@ final class ContinuousCaptureTests: XCTestCase {
     }
 
     func testOvernightStartIsInclusive() {
-        XCTAssertTrue(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: ContinuousCapture.windowStartMin))
+        XCTAssertTrue(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: ContinuousCapture.defaultWindowStartMin))
+    }
+
+    func testCustomWrappingWindow() {
+        // 23:00 -> 06:00 custom window.
+        let s = 23 * 60, e = 6 * 60
+        XCTAssertTrue(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: 23 * 60, windowStartMin: s, windowEndMin: e))
+        XCTAssertTrue(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: 5 * 60 + 59, windowStartMin: s, windowEndMin: e))
+        XCTAssertFalse(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: 6 * 60, windowStartMin: s, windowEndMin: e))
+        XCTAssertFalse(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: 22 * 60, windowStartMin: s, windowEndMin: e))
+    }
+
+    func testCustomNonWrappingWindow() {
+        // 13:00 -> 14:00 daytime window (start <= end, no wrap).
+        let s = 13 * 60, e = 14 * 60
+        XCTAssertTrue(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: 13 * 60 + 30, windowStartMin: s, windowEndMin: e))
+        XCTAssertFalse(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: 12 * 60, windowStartMin: s, windowEndMin: e))
+        XCTAssertFalse(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: 14 * 60, windowStartMin: s, windowEndMin: e))
+    }
+
+    func testZeroWidthWindowIsNeverOpen() {
+        XCTAssertFalse(ContinuousCapture.wantsStreamNow(.overnight, nowMinuteOfDay: 8 * 60, windowStartMin: 8 * 60, windowEndMin: 8 * 60))
     }
 }

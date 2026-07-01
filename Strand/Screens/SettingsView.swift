@@ -48,6 +48,10 @@ struct SettingsView: View {
     /// Battery sub-option of `continuousHrvEnabled`: limit the always-on stream to the overnight window.
     /// See [PuffinExperiment.continuousHrvOvernightKey].
     @AppStorage(PuffinExperiment.continuousHrvOvernightKey) private var continuousHrvOvernight = false
+    /// The user's overnight window bounds (minutes-of-day, may wrap midnight). Default to the built-in
+    /// window; the From/To pickers below write these. See [PuffinExperiment.continuousHrvStartKey].
+    @AppStorage(PuffinExperiment.continuousHrvStartKey) private var continuousHrvStartMin = ContinuousCapture.defaultWindowStartMin
+    @AppStorage(PuffinExperiment.continuousHrvEndKey) private var continuousHrvEndMin = ContinuousCapture.defaultWindowEndMin
 
     /// Opt-in "Experimental sleep staging (V2)" (off by default). When on, detected nights are re-staged with
     /// `SleepStagerV2` (the transparent cardiorespiratory recipe) instead of the default V1 stager. Read at
@@ -771,9 +775,7 @@ struct SettingsView: View {
                 }
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
-                .onChangeCompat(of: continuousHrvEnabled) { _ in
-                    model.ble.setContinuousCaptureMode(PuffinExperiment.continuousCaptureMode)
-                }
+                .onChangeCompat(of: continuousHrvEnabled) { _ in pushContinuousCapture() }
                 Text("Keeps the detailed beat-to-beat heart-rate stream running all day and night, not just while a live screen is open, so NOOP captures much more for overnight HRV, recovery and sleep. Uses more battery — your strap streams heart rate continuously while connected.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
@@ -791,14 +793,36 @@ struct SettingsView: View {
                     .toggleStyle(.switch)
                     .tint(StrandPalette.accent)
                     .padding(.leading, 16)
-                    .onChangeCompat(of: continuousHrvOvernight) { _ in
-                        model.ble.setContinuousCaptureMode(PuffinExperiment.continuousCaptureMode)
-                    }
-                    Text("Only holds the stream open during the night (about 9:30pm–9:30am), when it matters most for HRV, recovery and sleep. Saves roughly half the extra battery of leaving it on all day.")
+                    .onChangeCompat(of: continuousHrvOvernight) { _ in pushContinuousCapture() }
+                    Text("Only holds the stream open during the hours you set below, when it matters most for HRV, recovery and sleep. Saves the extra battery the rest of the day. Sleep is still measured either way — this only changes the dense HRV capture.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.leading, 16)
+
+                    // The overnight window itself: From / To pickers (minutes-of-day, may wrap midnight),
+                    // shown only while "Limit to overnight" is on. Mirrors the quiet-hours pattern.
+                    if continuousHrvOvernight {
+                        HStack(spacing: 12) {
+                            Text("From")
+                                .font(StrandFont.body)
+                                .foregroundStyle(StrandPalette.textPrimary)
+                            DatePicker("", selection: overnightStartBinding, displayedComponents: .hourAndMinute)
+                                .labelsHidden()
+                                .datePickerStyle(.compact)
+                                .accessibilityLabel("Overnight capture start")
+                            Text("to")
+                                .font(StrandFont.body)
+                                .foregroundStyle(StrandPalette.textSecondary)
+                            DatePicker("", selection: overnightEndBinding, displayedComponents: .hourAndMinute)
+                                .labelsHidden()
+                                .datePickerStyle(.compact)
+                                .accessibilityLabel("Overnight capture end")
+                            Spacer(minLength: 0)
+                        }
+                        .frame(minHeight: 42)
+                        .padding(.leading, 32)
+                    }
                 }
 
                 // MARK: Strap name — rename the WHOOP 4.0's BLE advertising name (Harvard command set).
@@ -1334,6 +1358,48 @@ struct SettingsView: View {
                 let m = (c.hour ?? 7) * 60 + (c.minute ?? 0)
                 debugExportMinutes = m
                 ScheduledDebugExport.setTimeMinutes(m)
+            }
+        )
+    }
+
+    /// Push the full continuous-capture config (mode + overnight window) to the BLE client from the
+    /// persisted prefs. Called whenever any of the four inputs (on / overnight / from / to) changes.
+    private func pushContinuousCapture() {
+        model.ble.setContinuousCaptureMode(PuffinExperiment.continuousCaptureMode,
+                                           windowStartMin: PuffinExperiment.continuousHrvStartMin,
+                                           windowEndMin: PuffinExperiment.continuousHrvEndMin)
+    }
+
+    /// Bridge the overnight-window "from" minutes-of-day pref to the DatePicker's Date, and push on set.
+    private var overnightStartBinding: Binding<Date> {
+        Binding(
+            get: {
+                var c = DateComponents()
+                c.hour = continuousHrvStartMin / 60
+                c.minute = continuousHrvStartMin % 60
+                return Calendar.current.date(from: c) ?? Date()
+            },
+            set: { date in
+                let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+                continuousHrvStartMin = (c.hour ?? 21) * 60 + (c.minute ?? 30)
+                pushContinuousCapture()
+            }
+        )
+    }
+
+    /// Bridge the overnight-window "to" minutes-of-day pref to the DatePicker's Date, and push on set.
+    private var overnightEndBinding: Binding<Date> {
+        Binding(
+            get: {
+                var c = DateComponents()
+                c.hour = continuousHrvEndMin / 60
+                c.minute = continuousHrvEndMin % 60
+                return Calendar.current.date(from: c) ?? Date()
+            },
+            set: { date in
+                let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+                continuousHrvEndMin = (c.hour ?? 9) * 60 + (c.minute ?? 30)
+                pushContinuousCapture()
             }
         )
     }

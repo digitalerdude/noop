@@ -33,6 +33,27 @@ class ContinuousCaptureTest {
     }
 
     @Test fun overnightStartIsInclusive() {
-        assertTrue(ContinuousCapture.wantsStreamNow(m, ContinuousCapture.WINDOW_START_MIN))   // 21:30 in
+        assertTrue(ContinuousCapture.wantsStreamNow(m, ContinuousCapture.DEFAULT_WINDOW_START_MIN))   // 21:30 in
+    }
+
+    @Test fun customWrappingWindow() {
+        // 23:00 -> 06:00 custom window.
+        val s = 23 * 60; val e = 6 * 60
+        assertTrue(ContinuousCapture.wantsStreamNow(m, 23 * 60, s, e))      // 23:00 in
+        assertTrue(ContinuousCapture.wantsStreamNow(m, 5 * 60 + 59, s, e))  // 05:59 in
+        assertFalse(ContinuousCapture.wantsStreamNow(m, 6 * 60, s, e))      // 06:00 out
+        assertFalse(ContinuousCapture.wantsStreamNow(m, 22 * 60, s, e))     // 22:00 out
+    }
+
+    @Test fun customNonWrappingWindow() {
+        // 13:00 -> 14:00 daytime window (start <= end, no wrap).
+        val s = 13 * 60; val e = 14 * 60
+        assertTrue(ContinuousCapture.wantsStreamNow(m, 13 * 60 + 30, s, e)) // 13:30 in
+        assertFalse(ContinuousCapture.wantsStreamNow(m, 12 * 60, s, e))     // 12:00 out
+        assertFalse(ContinuousCapture.wantsStreamNow(m, 14 * 60, s, e))     // 14:00 out (exclusive)
+    }
+
+    @Test fun zeroWidthWindowIsNeverOpen() {
+        assertFalse(ContinuousCapture.wantsStreamNow(m, 8 * 60, 8 * 60, 8 * 60))
     }
 }

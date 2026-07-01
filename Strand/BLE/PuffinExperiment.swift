@@ -56,6 +56,20 @@ enum PuffinExperiment {
         return continuousHrvOvernightEnabled ? .overnight : .always
     }
 
+    /// The user's `.overnight` window bounds (minutes-of-day, may wrap midnight). Default to the built-in
+    /// window (`ContinuousCapture`); overridden by the Settings picker. Read via `object(forKey:)` so an
+    /// unset key falls back to the default rather than UserDefaults' 0 (00:00). Mirrors the Android
+    /// `NoopPrefs.KEY_CONTINUOUS_HRV_START` / `_END`.
+    static let continuousHrvStartKey = "noopContinuousHrvStartMin"
+    static let continuousHrvEndKey = "noopContinuousHrvEndMin"
+
+    static var continuousHrvStartMin: Int {
+        (UserDefaults.standard.object(forKey: continuousHrvStartKey) as? Int) ?? ContinuousCapture.defaultWindowStartMin
+    }
+    static var continuousHrvEndMin: Int {
+        (UserDefaults.standard.object(forKey: continuousHrvEndKey) as? Int) ?? ContinuousCapture.defaultWindowEndMin
+    }
+
     /// Opt-in "Experimental sleep staging (V2)": re-stage each detected night with `SleepStagerV2` — a
     /// transparent cardiorespiratory recipe (reimplemented from contributor PR #600) that recovers deep/REM
     /// better than the shipped V1 stager on its author's n=1 validation. Pure analysis switch: it changes

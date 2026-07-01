@@ -246,7 +246,9 @@ struct TestCentreView: View {
                 }
                 .toggleStyle(.switch).tint(StrandPalette.accent)
                 .onChangeCompat(of: continuousHrvEnabled) { _ in
-                    model.ble.setContinuousCaptureMode(PuffinExperiment.continuousCaptureMode)
+                    model.ble.setContinuousCaptureMode(PuffinExperiment.continuousCaptureMode,
+                                                      windowStartMin: PuffinExperiment.continuousHrvStartMin,
+                                                      windowEndMin: PuffinExperiment.continuousHrvEndMin)
                 }
                 // Battery sub-option (mirrors Settings): limit the always-on stream to the overnight window.
                 if continuousHrvEnabled {
@@ -257,7 +259,9 @@ struct TestCentreView: View {
                     .toggleStyle(.switch).tint(StrandPalette.accent)
                     .padding(.leading, 16)
                     .onChangeCompat(of: continuousHrvOvernight) { _ in
-                        model.ble.setContinuousCaptureMode(PuffinExperiment.continuousCaptureMode)
+                        model.ble.setContinuousCaptureMode(PuffinExperiment.continuousCaptureMode,
+                                                      windowStartMin: PuffinExperiment.continuousHrvStartMin,
+                                                      windowEndMin: PuffinExperiment.continuousHrvEndMin)
                     }
                 }
 

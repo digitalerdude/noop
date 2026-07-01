@@ -368,6 +368,8 @@ fun SettingsScreen(vm: AppViewModel, onOpenTestCentre: () -> Unit = {}) {
     // "Limit to overnight" sub-option: hold the dense stream only inside the sleep window (~half the
     // realtime radio + strap drain) instead of 24/7. Default OFF = original always-on behaviour.
     var continuousHrvOvernight by remember { mutableStateOf(NoopPrefs.continuousHrvOvernight(context)) }
+    var continuousHrvStartMin by remember { mutableStateOf(NoopPrefs.continuousHrvStartMin(context)) }
+    var continuousHrvEndMin by remember { mutableStateOf(NoopPrefs.continuousHrvEndMin(context)) }
 
     // "Debug logging" — mirror the strap log to logcat (adb). Default OFF so normal users don't.
     var debugLogging by remember { mutableStateOf(NoopPrefs.debugLogging(context)) }
@@ -1100,7 +1102,7 @@ fun SettingsScreen(vm: AppViewModel, onOpenTestCentre: () -> Unit = {}) {
                                 color = Palette.textPrimary,
                             )
                             Text(
-                                "Only holds the stream open during the night (about 9:30pm–9:30am), when it matters most for HRV, recovery and sleep. Saves roughly half the extra battery of leaving it on all day.",
+                                "Only holds the stream open during the hours you set below, when it matters most for HRV, recovery and sleep. Saves the extra battery the rest of the day. Sleep is still measured either way — this only changes the dense HRV capture.",
                                 style = NoopType.footnote,
                                 color = Palette.textTertiary,
                             )
@@ -1119,6 +1121,36 @@ fun SettingsScreen(vm: AppViewModel, onOpenTestCentre: () -> Unit = {}) {
                                 uncheckedBorderColor = Palette.hairline,
                             ),
                         )
+                    }
+
+                    // The overnight window itself: From / To pickers (minutes-of-day, may wrap midnight),
+                    // shown only when "Limit to overnight" is on. Reuses the shared TimeChip picker.
+                    if (continuousHrvOvernight) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(start = 32.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text("From", style = NoopType.body, color = Palette.textPrimary)
+                            TimeChip(
+                                minutes = continuousHrvStartMin,
+                                accessibilityLabel = "Overnight capture start",
+                                onPicked = {
+                                    continuousHrvStartMin = it
+                                    vm.setContinuousHrvWindow(it, continuousHrvEndMin)
+                                },
+                            )
+                            Text("to", style = NoopType.body, color = Palette.textSecondary)
+                            TimeChip(
+                                minutes = continuousHrvEndMin,
+                                accessibilityLabel = "Overnight capture end",
+                                onPicked = {
+                                    continuousHrvEndMin = it
+                                    vm.setContinuousHrvWindow(continuousHrvStartMin, it)
+                                },
+                            )
+                            Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
 

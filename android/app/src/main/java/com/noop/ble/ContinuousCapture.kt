@@ -17,20 +17,28 @@ enum class ContinuousCaptureMode { OFF, OVERNIGHT, ALWAYS }
  */
 object ContinuousCapture {
     /** Default OVERNIGHT window: 21:30 -> 09:30 local, as minutes-of-day, wrapping past midnight. Generous
-     *  on both edges so a late night / long lie-in isn't clipped. Kept a fixed default for now; a later
-     *  pass can refine it from the smart-alarm wake time + wind-down bedtime the app already computes. */
-    const val WINDOW_START_MIN = 21 * 60 + 30   // 21:30
-    const val WINDOW_END_MIN = 9 * 60 + 30       // 09:30
+     *  on both edges so a late night / long lie-in isn't clipped. Used when the user hasn't set their own
+     *  window; the picker in Settings overrides it (persisted per platform). */
+    const val DEFAULT_WINDOW_START_MIN = 21 * 60 + 30   // 21:30
+    const val DEFAULT_WINDOW_END_MIN = 9 * 60 + 30       // 09:30
 
-    /** Does continuous capture want the realtime stream armed at [nowMinuteOfDay] (0..1439) under [mode]? */
-    fun wantsStreamNow(mode: ContinuousCaptureMode, nowMinuteOfDay: Int): Boolean = when (mode) {
+    /** Does continuous capture want the realtime stream armed at [nowMinuteOfDay] (0..1439) under [mode]?
+     *  [windowStartMin]/[windowEndMin] bound the OVERNIGHT window (minutes-of-day, may wrap midnight);
+     *  they default to the built-in window and are overridden by the user's Settings picker. */
+    fun wantsStreamNow(
+        mode: ContinuousCaptureMode,
+        nowMinuteOfDay: Int,
+        windowStartMin: Int = DEFAULT_WINDOW_START_MIN,
+        windowEndMin: Int = DEFAULT_WINDOW_END_MIN,
+    ): Boolean = when (mode) {
         ContinuousCaptureMode.OFF -> false
         ContinuousCaptureMode.ALWAYS -> true
-        ContinuousCaptureMode.OVERNIGHT -> inOvernightWindow(nowMinuteOfDay)
+        ContinuousCaptureMode.OVERNIGHT -> inWindow(nowMinuteOfDay, windowStartMin, windowEndMin)
     }
 
-    /** True when [min] falls in the wrap-around window [WINDOW_START_MIN, WINDOW_END_MIN). */
-    fun inOvernightWindow(min: Int): Boolean =
-        if (WINDOW_START_MIN <= WINDOW_END_MIN) min in WINDOW_START_MIN until WINDOW_END_MIN
-        else min >= WINDOW_START_MIN || min < WINDOW_END_MIN
+    /** True when [min] falls in the wrap-around window [startMin, endMin). A zero-width window
+     *  (startMin == endMin) is never open, matching the app's quiet-hours convention. */
+    fun inWindow(min: Int, startMin: Int, endMin: Int): Boolean =
+        if (startMin <= endMin) min in startMin until endMin
+        else min >= startMin || min < endMin
 }

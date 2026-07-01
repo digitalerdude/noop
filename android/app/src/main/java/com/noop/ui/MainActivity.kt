@@ -237,6 +237,24 @@ object NoopPrefs {
         of(context).edit().putBoolean(KEY_CONTINUOUS_HRV_OVERNIGHT, enabled).apply()
     }
 
+    /** The user's OVERNIGHT window bounds (minutes-of-day, may wrap midnight). Default to the built-in
+     *  window ([com.noop.ble.ContinuousCapture]); overridden by the Settings picker. */
+    const val KEY_CONTINUOUS_HRV_START = "noop.continuousHrvStartMin"
+    const val KEY_CONTINUOUS_HRV_END = "noop.continuousHrvEndMin"
+
+    fun continuousHrvStartMin(context: Context): Int =
+        of(context).getInt(KEY_CONTINUOUS_HRV_START, com.noop.ble.ContinuousCapture.DEFAULT_WINDOW_START_MIN)
+
+    fun continuousHrvEndMin(context: Context): Int =
+        of(context).getInt(KEY_CONTINUOUS_HRV_END, com.noop.ble.ContinuousCapture.DEFAULT_WINDOW_END_MIN)
+
+    fun setContinuousHrvWindow(context: Context, startMin: Int, endMin: Int) {
+        of(context).edit()
+            .putInt(KEY_CONTINUOUS_HRV_START, startMin)
+            .putInt(KEY_CONTINUOUS_HRV_END, endMin)
+            .apply()
+    }
+
     /** The persisted continuous-capture MODE, composed from the two booleans: OFF when capture is off,
      *  else OVERNIGHT / ALWAYS per the sub-option. Two composable booleans give the three states with no
      *  key migration (an existing "on" user reads ALWAYS). Not yet gated on [backgroundConnection] — the

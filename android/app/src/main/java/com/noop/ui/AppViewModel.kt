@@ -800,7 +800,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // stream armed once bonded (the reconciler arms it post-bond). Only effective with background
         // connection on — without it there's nothing keeping the link up to stream over, so a continuous
         // want would be meaningless. Pushed BEFORE autoReconnectOnLaunch so a launch reconnect arms it.
-        ble.setContinuousCaptureMode(continuousCaptureModeEffective())
+        applyContinuousCapture()
 
         // Reconnect to the strap we last bonded to, so the user doesn't have to tap Connect after an
         // app update / restart (#67). Self-gates on the keep-connected pref + a saved strap + permission.
@@ -813,6 +813,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun continuousCaptureModeEffective(): com.noop.ble.ContinuousCaptureMode =
         if (!NoopPrefs.backgroundConnection(appContext)) com.noop.ble.ContinuousCaptureMode.OFF
         else NoopPrefs.continuousCaptureMode(appContext)
+
+    /** Push the full continuous-capture config (mode + OVERNIGHT window) to the BLE client from prefs. */
+    private fun applyContinuousCapture() {
+        ble.setContinuousCaptureMode(
+            continuousCaptureModeEffective(),
+            NoopPrefs.continuousHrvStartMin(appContext),
+            NoopPrefs.continuousHrvEndMin(appContext),
+        )
+    }
 
     /**
      * On launch, reconnect DIRECTLY to the strap we last bonded to (no scan), so the connection
@@ -1435,7 +1444,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Continuous HRV capture is gated on background connection (it has nothing to stream over without
         // it), so a change here re-reconciles the keep-stream want: turning background off disarms the
         // continuous stream when no Live screen wants it; turning it back on re-arms it if the pref is on.
-        ble.setContinuousCaptureMode(continuousCaptureModeEffective())
+        applyContinuousCapture()
     }
 
     /**
@@ -1447,7 +1456,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun setContinuousHrv(enabled: Boolean) {
         NoopPrefs.setContinuousHrv(appContext, enabled)
-        ble.setContinuousCaptureMode(continuousCaptureModeEffective())
+        applyContinuousCapture()
     }
 
     /**
@@ -1457,7 +1466,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun setContinuousHrvOvernight(enabled: Boolean) {
         NoopPrefs.setContinuousHrvOvernight(appContext, enabled)
-        ble.setContinuousCaptureMode(continuousCaptureModeEffective())
+        applyContinuousCapture()
+    }
+
+    /** Set the OVERNIGHT window (minutes-of-day, may wrap midnight). Persists it and re-pushes the config so
+     *  a live strap picks up the new bounds on the next keep-alive tick (or immediately if it's an edge). */
+    fun setContinuousHrvWindow(startMin: Int, endMin: Int) {
+        NoopPrefs.setContinuousHrvWindow(appContext, startMin, endMin)
+        applyContinuousCapture()
     }
 
     /**

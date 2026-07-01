@@ -1313,6 +1313,10 @@ class WhoopBleClient(
      *  input to [wantsRealtime]. Default OFF; set by [setContinuousCaptureMode]. OVERNIGHT limits the stream
      *  to the sleep window to save battery. Mirrors the Swift `continuousMode`. */
     @Volatile private var continuousMode = ContinuousCaptureMode.OFF
+    /** The user's OVERNIGHT window (minutes-of-day, may wrap midnight), pushed alongside the mode. Default
+     *  to the built-in window until the caller supplies the persisted picker values. */
+    @Volatile private var overnightStartMin = ContinuousCapture.DEFAULT_WINDOW_START_MIN
+    @Volatile private var overnightEndMin = ContinuousCapture.DEFAULT_WINDOW_END_MIN
     /** Derived want: the realtime stream should be armed while EITHER a screen wants it OR the
      *  continuous-capture preference wants it. The keep-alive re-arms it so it can't lapse, and the
      *  post-bond branch arms it on connect. Recomputed only inside [reconcileRealtime]. */
@@ -3434,8 +3438,14 @@ class WhoopBleClient(
     /** The "Continuous HRV capture" preference changed: hold the realtime stream open with no Live screen
      *  visible per [mode] (OFF/OVERNIGHT/ALWAYS), then reconcile. Wired from [com.noop.ui.AppViewModel] and
      *  gated there on the background-connection preference. Mirrors the Swift `setContinuousCaptureMode`. */
-    fun setContinuousCaptureMode(mode: ContinuousCaptureMode) {
+    fun setContinuousCaptureMode(
+        mode: ContinuousCaptureMode,
+        overnightStartMin: Int = ContinuousCapture.DEFAULT_WINDOW_START_MIN,
+        overnightEndMin: Int = ContinuousCapture.DEFAULT_WINDOW_END_MIN,
+    ) {
         continuousMode = mode
+        this.overnightStartMin = overnightStartMin
+        this.overnightEndMin = overnightEndMin
         reconcileRealtime()
     }
 
@@ -3456,7 +3466,7 @@ class WhoopBleClient(
      */
     private fun reconcileRealtime() {
         val want = screenWantsRealtime ||
-            ContinuousCapture.wantsStreamNow(continuousMode, nowMinuteOfDay())
+            ContinuousCapture.wantsStreamNow(continuousMode, nowMinuteOfDay(), overnightStartMin, overnightEndMin)
         wantsRealtime = want   // the keep-alive + post-bond arm-on-connect read this derived value
         if (want == realtimeArmed) return                          // no edge — nothing to send
         if (connectedFamily != DeviceFamily.WHOOP4 && !_state.value.bonded) return   // can't reach the strap yet

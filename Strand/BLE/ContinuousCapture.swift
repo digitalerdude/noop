@@ -13,24 +13,30 @@ public enum ContinuousCaptureMode: Equatable, Sendable { case off, overnight, al
 /// `ContinuousCapture`.
 public enum ContinuousCapture {
     /// Default `.overnight` window: 21:30 -> 09:30 local, as minutes-of-day, wrapping past midnight.
-    /// Generous on both edges so a late night / long lie-in isn't clipped. Kept a fixed default for now;
-    /// a later pass can refine it from the smart-alarm wake time + wind-down bedtime the app computes.
-    public static let windowStartMin = 21 * 60 + 30   // 21:30
-    public static let windowEndMin = 9 * 60 + 30       // 09:30
+    /// Generous on both edges so a late night / long lie-in isn't clipped. Used when the user hasn't set
+    /// their own window; the picker in Settings overrides it (persisted per platform).
+    public static let defaultWindowStartMin = 21 * 60 + 30   // 21:30
+    public static let defaultWindowEndMin = 9 * 60 + 30       // 09:30
 
     /// Does continuous capture want the realtime stream armed at `nowMinuteOfDay` (0..1439) under `mode`?
-    public static func wantsStreamNow(_ mode: ContinuousCaptureMode, nowMinuteOfDay: Int) -> Bool {
+    /// `windowStartMin`/`windowEndMin` bound the `.overnight` window (minutes-of-day, may wrap midnight);
+    /// they default to the built-in window and are overridden by the user's Settings picker.
+    public static func wantsStreamNow(_ mode: ContinuousCaptureMode,
+                                      nowMinuteOfDay: Int,
+                                      windowStartMin: Int = defaultWindowStartMin,
+                                      windowEndMin: Int = defaultWindowEndMin) -> Bool {
         switch mode {
         case .off: return false
         case .always: return true
-        case .overnight: return inOvernightWindow(nowMinuteOfDay)
+        case .overnight: return inWindow(nowMinuteOfDay, startMin: windowStartMin, endMin: windowEndMin)
         }
     }
 
-    /// True when `min` falls in the wrap-around window [windowStartMin, windowEndMin).
-    public static func inOvernightWindow(_ min: Int) -> Bool {
-        windowStartMin <= windowEndMin
-            ? (min >= windowStartMin && min < windowEndMin)
-            : (min >= windowStartMin || min < windowEndMin)
+    /// True when `min` falls in the wrap-around window [startMin, endMin). A zero-width window
+    /// (startMin == endMin) is never open, matching the app's quiet-hours convention.
+    public static func inWindow(_ min: Int, startMin: Int, endMin: Int) -> Bool {
+        startMin <= endMin
+            ? (min >= startMin && min < endMin)
+            : (min >= startMin || min < endMin)
     }
 }
