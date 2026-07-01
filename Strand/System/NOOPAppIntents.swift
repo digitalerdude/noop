@@ -32,7 +32,7 @@ struct BuzzStrapIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         guard let model = AppModel.shared else { throw NOOPIntentError.notRunning }
         guard model.live.bonded else { throw NOOPIntentError.notConnected }
-        model.buzz(loops: 2)
+        model.buzzOnce()   // #921: pattern-79 alone didn't fire on some 4.0 firmware; use the confirmed sequence
         return .result()
     }
 }

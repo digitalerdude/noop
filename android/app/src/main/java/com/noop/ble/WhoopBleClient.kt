@@ -1792,6 +1792,25 @@ class WhoopBleClient(
     }
 
     /**
+     * The hardware-confirmed ONE-SHOT strap buzz (#921): RUN_HAPTICS_PATTERN (patternId 2, 3 loops) PLUS
+     * the alarm-family RUN_ALARM belt-and-suspenders — pattern-79 alone doesn't reliably fire the motor on
+     * some WHOOP 4.0 firmware (the buzz-shortcut symptom). Family-aware (5/MG: RUN_HAPTICS_PATTERN remaps to
+     * the maverick notify buzz in [send]). For USER-TRIGGERED one-shots only (the Buzz button / a shortcut),
+     * never the rapid biofeedback/interval pulse streams — each RUN_ALARM emits an APP_DRIVEN_ALARM_EXECUTED
+     * event. Mirrors Swift `BLEManager.buzzStrapOnce()`.
+     */
+    fun buzzStrapOnce() {
+        send(CommandNumber.RUN_HAPTICS_PATTERN, byteArrayOf(2, 3, 0, 0, 0))   // 4.0: pattern-79 · 5/MG: remaps to maverick buzz
+        // The RUN_ALARM belt-and-suspenders is a WHOOP 4.0 concern only: on 5/MG the haptics send above
+        // already remapped to the CONFIRMED maverick notify buzz, and RUN_ALARM isn't in the 5/MG framing
+        // allowlist (would just log "skipped"). (iOS sends runAlarm rev2 on 5/MG since its allowlist permits it.)
+        if (connectedFamily != DeviceFamily.WHOOP5) {
+            send(CommandNumber.RUN_ALARM, byteArrayOf(1))      // REVISION_1 immediate buzz
+        }
+        log("Buzz: one-shot strap buzz")
+    }
+
+    /**
      * Tell the strap to STOP an in-progress haptic pattern (#769). The Breathe biofeedback loop schedules
      * a stream of buzzes; ending the session stops scheduling NEW pulses but cannot recall a pattern the
      * strap is already mid-way through. If the link then drops mid-pattern, the strap's haptic/UI manager

@@ -926,6 +926,11 @@ final class AppModel: ObservableObject {
         ble.send(.runHapticsPattern, payload: [2, loops, 0, 0, 0])
     }
 
+    /// #921: reliable one-shot buzz for user-triggered "buzz strap" actions (the Siri shortcut, the test
+    /// button) — the pattern-79 + RUN_ALARM sequence confirmed to fire on-device. Distinct from
+    /// `buzz(loops:)`, which the rapid biofeedback/breathing pulse streams use (no per-pulse alarm event).
+    func buzzOnce() { ble.buzzStrapOnce() }
+
     /// Fire a specific preset haptic pattern (patternId 0–6 on Harvard; loops sets length).
     /// Used by the notification-pattern picker and coaching features.
     func buzz(pattern: UInt8, loops: UInt8 = 1) {

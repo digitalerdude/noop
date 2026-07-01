@@ -2164,26 +2164,32 @@ public final class BLEManager: NSObject, ObservableObject {
         log("Alarm: requested current alarm time")
     }
 
-    /// Fire an immediate alarm buzz on the strap for testing.
+    /// The hardware-confirmed ONE-SHOT strap buzz (#921): RUN_HAPTICS_PATTERN (cmd 79) with patternId=2,
+    /// 3 loops — the pattern the official WHOOP app uses for alarms — PLUS RUN_ALARM (cmd 68) as a
+    /// belt-and-suspenders, because pattern-79 alone doesn't reliably fire the motor on some WHOOP 4.0
+    /// firmware (the Buzz Strap shortcut symptom). patternId=2 is the characteristic graduated alarm buzz;
+    /// on 5/MG the haptics send remaps to the maverick notify buzz.
     ///
-    /// Uses RUN_HAPTICS_PATTERN (cmd 79) with patternId=2, 3 loops — the same pattern the official
-    /// WHOOP app uses for alarms (verified: patternId=2, observed for interoperability), plus RUN_ALARM
-    /// (cmd 68) as a belt-and-suspenders. patternId=2 gives the characteristic graduated alarm buzz.
+    /// For USER-TRIGGERED one-shots only (the shortcut / test button / Buzz button) — NOT the rapid
+    /// biofeedback/breathing pulse streams, each of which would otherwise emit an APP_DRIVEN_ALARM_EXECUTED
+    /// event; those keep using `buzz(loops:)`.
     ///
-    /// Alternative waveform form (12-byte):
-    ///   [wfe1=47, wfe2=152, 0,0,0,0,0,0, loop u16=0, overall_loop=7, dur=30]
-    /// — note for future refinement; the preset id=2 form is simpler and confirmed to buzz on-device.
-    ///
+    /// Alternative waveform form (12-byte): [wfe1=47, wfe2=152, 0,0,0,0,0,0, loop u16=0, overall_loop=7,
+    /// dur=30] — a future-refinement note; the preset id=2 form is simpler and confirmed to buzz on-device.
     /// Haptic firing cannot be verified in the simulator (no strap motor). Test on-device only.
-    func testAlarmBuzz() {
-        send(.runHapticsPattern, payload: [2, 3, 0, 0, 0])  // patternId=2, 3 loops (5/MG: send() remaps to the maverick notify buzz)
+    func buzzStrapOnce() {
+        send(.runHapticsPattern, payload: [2, 3, 0, 0, 0])  // patternId=2, 3 loops (5/MG: remaps to maverick buzz)
         if selectedModel.deviceFamily == .whoop5 {
             send(.runAlarm, payload: AlarmPayload.runAlarmRev2())   // REVISION_2 [0x02, alarmId]
-            log("Alarm: test buzz fired (5/MG maverick buzz + runAlarm rev2)")
-            return
+        } else {
+            send(.runAlarm, payload: [0x01])                        // REVISION_1 immediate buzz
         }
-        send(.runAlarm, payload: [0x01])
-        log("Alarm: test buzz fired (patternId=2, runAlarm)")
+    }
+
+    /// The alarm settings' "test buzz" button — fires the confirmed one-shot buzz and logs it.
+    func testAlarmBuzz() {
+        buzzStrapOnce()   // #921: the test buzz IS the confirmed one-shot sequence
+        log("Alarm: test buzz fired (pattern-79 + runAlarm)")
     }
 
     /// Haptic Clock (#460): buzz the current wall-clock time out on the strap so the user can read it

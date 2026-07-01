@@ -523,7 +523,7 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
             }
 
             OutlinedButton(
-                onClick = { viewModel.buzz(2) },
+                onClick = { viewModel.buzzOnce() },   // #921: confirmed pattern-79 + RUN_ALARM one-shot
                 modifier = Modifier.weight(1f),
                 enabled = live.bonded,
                 contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),

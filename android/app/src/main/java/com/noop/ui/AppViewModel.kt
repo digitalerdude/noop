@@ -1815,6 +1815,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Fire a haptic buzz on the strap (requires a bonded connection). */
     fun buzz(loops: Int = 2) = ble.buzz(loops)
 
+    /** #921: reliable one-shot buzz for user-triggered "buzz strap" actions — pattern-79 + RUN_ALARM, the
+     *  confirmed sequence. Distinct from [buzz], which the rapid biofeedback/interval pulse streams use. */
+    fun buzzOnce() = ble.buzzStrapOnce()
+
     /** Tell the strap to stop an in-progress haptic pattern (#769). Best-effort; no-op when not connected
      *  or on a 5/MG (cmd 122 isn't confirmed on its 0x13 path). Used by the Breathe session teardown. */
     fun stopHaptics() = ble.stopHaptics()
