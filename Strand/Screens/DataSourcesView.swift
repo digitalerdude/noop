@@ -586,6 +586,13 @@ struct DataSourcesView: View {
                 // wraps — same construction the rest of the app uses (AppModel / BLEManager).
                 try DeviceRegistryStore(dbQueue: store.registryWriter).deleteAllData(deviceId: model.appleDeviceId)
                 await repo.refresh()
+                // #833/v7.7.2: this purge clears the body-composition series (weight/body_fat/lean_mass/bmi/
+                // vo2max) that live in metricSeries OUTSIDE refresh()'s diff, so refresh() may not bump
+                // `refreshSeq` and AppleHealthView's re-mount cache would keep serving the now-DELETED data.
+                // Explicitly drop the cache so the next visit re-reads the emptied source. (refresh() alone is
+                // insufficient for the body-comp keys.)
+                repo.appleHealthCache = nil
+                repo.appleHealthLoadedSeq = -1
                 model.appleHealthImportSummary = nil
                 model.appleHealthImportFailed = false
                 appleHealthDeletedSummary = "Removed all Apple Health imported data."

@@ -17,6 +17,27 @@ import Foundation
 // visibly distinct); only when it holds ZERO points do we auto-expand to the smallest
 // larger range that does. Tile heroes show the LATEST point with "as of <date>".
 
+/// #833/v7.7.2 (Apple Health per-source freeze): the snapshot AppleHealthView.load() builds, parked on the
+/// long-lived Repository so a re-mount (macOS keys the NavigationSplitView detail with `.id`, so every sidebar
+/// switch cold-mounts the screen) can RESTORE it in-memory instead of re-running the whole apple-health history
+/// read on the @MainActor. The exact twin of `InsightsLoadCache` for #833; holds load()'s three `@State`
+/// outputs. Consumed only when the seq AND the dayKey still match (see `Repository.appleHealthLoadedSeq` /
+/// `appleHealthLoadedDayKey`).
+struct AppleHealthLoadCache {
+    let appleRows: [AppleDaily]
+    let workoutCount: Int
+    let series: [String: [(day: String, value: Double)]]
+}
+
+/// #833/v7.7.2: `.task(id:)` key for the Apple Health load, the data-refresh seq PLUS today's local day-key, so
+/// the load re-runs both on a data change AND on a calendar-day rollover while the screen stays mounted across
+/// midnight (keying on `refreshSeq` alone left the inside-load dayKey guard unreachable). The exact twin of
+/// InsightsView's `InsightsLoadKey`.
+struct AppleHealthLoadKey: Equatable {
+    let seq: Int
+    let dayKey: String
+}
+
 struct AppleHealthView: View {
     @EnvironmentObject var repo: Repository
 
@@ -213,7 +234,7 @@ struct AppleHealthView: View {
                 }
             }
         }
-        .task(id: repo.refreshSeq) { await load() }
+        .task(id: AppleHealthLoadKey(seq: repo.refreshSeq, dayKey: Repository.localDayKey(Date()))) { await load(allowCache: true) }
         .onChangeCompat(of: range) { _ in rebuildWindowCache() }
     }
 
@@ -238,8 +259,9 @@ struct AppleHealthView: View {
 
     // MARK: - Load
 
-    private func load() async {
-        // Previews inject data directly (store-backed reads can't be seeded).
+    private func load(allowCache: Bool = false) async {
+        // Previews inject data directly (store-backed reads can't be seeded). Stays ABOVE the cache path so a
+        // preview never touches the repo.
         if let pd = previewData {
             appleRows = pd.rows.sorted { $0.day < $1.day }
             workoutCount = pd.workoutCount
@@ -249,24 +271,18 @@ struct AppleHealthView: View {
             return
         }
 
-        async let rows = repo.appleDailyRows()
-        async let workouts = repo.workoutRows()
-
-        var fetched: [String: [(day: String, value: Double)]] = [:]
-        for key in Self.seriesKeys {
-            fetched[key] = await repo.series(key: key, source: "apple-health")
-        }
-
-        let loadedRows = await rows
-        let appleWorkouts = await workouts.filter { WorkoutSource.isAppleHealth($0.source) }
-
-        await MainActor.run {
-            appleRows = loadedRows.sorted { $0.day < $1.day }
-            workoutCount = appleWorkouts.count
-            series = fetched
-            rebuildWindowCache()
-            loaded = true
-        }
+        // #833/v7.7.2: the whole heavy load, cache short-circuit, DEBUG fire tally, and write-back live on the
+        // long-lived repo (`performAppleHealthLoad`, a headless-testable seam) so a re-mount RESTORES the prior
+        // snapshot in-memory instead of re-running the whole apple-health history read on the @MainActor, which
+        // is the freeze fix. `allowCache` is true ONLY on the `.task(id:)`-driven path (a re-mount / data refresh
+        // / day rollover); the direct load() sites (Enable / Sync now) leave it false so a live sync always
+        // re-reads. The seam owns the cache; this view just copies the snapshot into its `@State`.
+        let snapshot = await repo.performAppleHealthLoad(seriesKeys: Self.seriesKeys, allowCache: allowCache)
+        appleRows = snapshot.appleRows
+        workoutCount = snapshot.workoutCount
+        series = snapshot.series
+        rebuildWindowCache()
+        loaded = true
     }
 
     // MARK: - Range control + header span

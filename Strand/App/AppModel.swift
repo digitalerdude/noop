@@ -1718,6 +1718,13 @@ final class AppModel: ObservableObject {
                                                                        deviceId: appleDeviceId, trace: importTraceSink())
                 try? await store.checkpointWAL()   // reclaim the WAL a bulk import grew (#590)
                 await repo.refresh()
+                // #833/v7.7.2: an Apple Health import may write ONLY body-composition series (weight/body_fat/
+                // lean_mass/bmi/vo2max), which live in metricSeries OUTSIDE refresh()'s diff over daily/sleep/
+                // vitals, so refresh() may not bump `refreshSeq`. AppleHealthView's re-mount cache keys on
+                // `refreshSeq`, so it would keep serving the pre-import snapshot. Explicitly drop the cache so
+                // the next visit re-reads the freshly imported data. (refresh() alone is insufficient here.)
+                repo.appleHealthCache = nil
+                repo.appleHealthLoadedSeq = -1
                 finishImport(.appleHealth, summary: "Imported \(summary.recordCount) records")
             } catch {
                 finishImport(.appleHealth, summary: "Import failed: \(error)", failed: true)
@@ -1835,6 +1842,12 @@ final class AppModel: ObservableObject {
             switch outcome {
             case .imported(let days, let workouts):
                 await repo.refresh()
+                // #833/v7.7.2: the Shortcuts import writes body-composition series (e.g. weight) into
+                // metricSeries, which sits OUTSIDE refresh()'s diff, so refresh() may leave `refreshSeq`
+                // unchanged and AppleHealthView's re-mount cache would serve stale data. Drop the cache so the
+                // next visit re-reads. (Same reasoning as the file-import path above.)
+                repo.appleHealthCache = nil
+                repo.appleHealthLoadedSeq = -1
                 let w = workouts > 0 ? " · \(workouts) workouts" : ""
                 finishImport(.appleHealth, summary: "Imported \(days) days\(w)")
             case .nothingToImport:
