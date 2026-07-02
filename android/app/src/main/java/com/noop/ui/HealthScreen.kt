@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1010,11 +1011,21 @@ private fun HeartRateSection(vm: AppViewModel, hrMax: Int) {
     // derive from sparse R-R and flat-line). Each sample now carries its arrival time so the hero can
     // render a real time x-axis (#198). Lives in UI state; resets when you leave the screen.
     val hrHistory = remember { mutableStateListOf<LiveHrSample>() }
-    LaunchedEffect(displayHr) {
-        displayHr?.let { if (it in 30..220) {
-            hrHistory.add(LiveHrSample(timeMs = System.currentTimeMillis(), bpm = it.toDouble()))
-            if (hrHistory.size > 180) hrHistory.removeAt(0)
-        } }
+    // Sample the live HR at a fixed 1 Hz, NOT on value-change. On-change sampling (keyed on displayHr)
+    // added a point only when the value moved — so a steady stretch banked no points and the time x-axis
+    // interpolated one long straight line across it (a fake smooth "ramp"), while a burst of changes at
+    // stream start crammed into a sliver of the axis as a zigzag. A steady clock tick draws a steady HR as
+    // a flat line and a real change as a real slope — an honest, evenly-spaced trace. rememberUpdatedState
+    // so the once-launched loop always reads the latest value. (#198 follow-up)
+    val latestHr = rememberUpdatedState(displayHr)
+    LaunchedEffect(Unit) {
+        while (true) {
+            latestHr.value?.let { if (it in 30..220) {
+                hrHistory.add(LiveHrSample(timeMs = System.currentTimeMillis(), bpm = it.toDouble()))
+                if (hrHistory.size > 180) hrHistory.removeAt(0)
+            } }
+            kotlinx.coroutines.delay(1000)
+        }
     }
     val series = hrSeries(hrHistory, live, displayHr)
     val zoneColor = Palette.hrZoneColor(zone)

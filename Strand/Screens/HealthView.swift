@@ -219,6 +219,9 @@ private struct HeartRateSection: View {
     /// (#198 — the chart had no time axis, so an iPhone user with no hover had no time context).
     /// Capped to ~3 min @ ~1 Hz; resets when the view is recreated, which is fine for a live trace.
     @State private var hrHistory: [LiveHRSample] = []
+    /// Fixed 1 Hz sampler for [hrHistory] (see [onReceive] below) — the buffer's own doc is "~1 Hz", and
+    /// a steady clock tick is what makes the time x-axis honest (vs the old on-change sampling).
+    private let hrSampleTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     /// HR to display: the spike-filtered median (model.bpm, #39) when available — raw live.heartRate
     /// carries PPG harmonic spikes (real ~92 read as 170+); AppModel.bpm's doc mandates "every screen
@@ -306,10 +309,14 @@ private struct HeartRateSection: View {
                 ])
             }
         }
-        .onChangeCompat(of: displayHR) { newHR in
-            // Append each new live HR reading (with its arrival time) so the hero graph grows a
-            // continuous, time-stamped series — feeding the time x-axis (#198) and the #105 trace.
-            guard let v = newHR else { return }
+        .onReceive(hrSampleTimer) { _ in
+            // Sample the live HR at a fixed 1 Hz, NOT on value-change. On-change sampling banked a point
+            // only when the value moved, so a steady stretch banked nothing and the time x-axis drew one
+            // long straight line across it (a fake smooth "ramp"), while a burst of changes at stream start
+            // crammed into a sliver as a zigzag. A steady tick renders steady HR as a flat line and a real
+            // change as a real slope. displayHR is already the spike-filtered median (#39), so no extra
+            // reject is needed. Feeds the time x-axis (#198) and the #105 trace. (#198 follow-up)
+            guard let v = displayHR, (30...220).contains(v) else { return }
             hrHistory.append(LiveHRSample(date: Date(), bpm: Double(v)))
             if hrHistory.count > 180 { hrHistory.removeFirst(hrHistory.count - 180) }
         }
