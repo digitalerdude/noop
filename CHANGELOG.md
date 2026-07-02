@@ -27,8 +27,8 @@ for the Mac sidebar, an opt-in overnight-only mode for Continuous HRV at about h
 cost, the fix for Charge and Rest pinning to an old night (duplicate sleep from a drifting strap
 clock is now detected, healed and re-scored), the silent Buzz Strap shortcut fixed with
 acknowledged writes, mid-session widget refresh with a budget-aware watch gate, Bowling in the
-sports list, and complete Spanish and Chinese (Simplified and Traditional) with a refreshed
-Italian. Community contributions reimplemented with credit: quanturtle, ryanbr, dpguglielmi,
+sports list, and, on iPhone and Mac, complete Spanish and Chinese (Simplified and Traditional) with a
+refreshed Italian. Community contributions reimplemented with credit: quanturtle, ryanbr, dpguglielmi,
 subscriptiondestroyer. Thank you.
 
 ## 7.7.1: bug fixes (Effort, the widget's day, and Oura reconnect) (all platforms)

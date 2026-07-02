@@ -48,7 +48,7 @@ object AppChangelog {
                 "**Charge and Rest stop sticking on an old night.** A strap with a drifting clock could re-bank the same night twice and pin your scores to the stale copy. Duplicates are now caught, cleaned up and re-scored automatically.",
                 "**The Buzz Strap shortcut buzzes again.** One-shot buzzes now use the exact sequence the strap is known to answer, delivered as acknowledged writes so a busy connection can't silently drop them.",
                 "**Widgets keep up.** The iPhone widget refreshes during long sessions instead of freezing at the last app open, and the Apple Watch gets fresher snapshots within its update budget.",
-                "**NOOP en español, and in Chinese.** Spanish and Chinese (Simplified and Traditional) are complete, and Italian is refreshed. Community-contributed, with thanks.",
+                "**NOOP en español, and in Chinese.** On iPhone and Mac, Spanish and Chinese (Simplified and Traditional) are complete, and Italian is refreshed. Community-contributed, with thanks. Android translations are on the roadmap.",
                 "**And a pile more.** Bowling in the sports list, workout cards keep even heights, the ring labels center properly, clearer guidance when a signing profile lacks the Health permission, and a guard against straps whose clock claims to be in the future.",
             ),
         ),
