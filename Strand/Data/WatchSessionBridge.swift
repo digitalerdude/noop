@@ -74,6 +74,13 @@ final class WatchSessionBridge: NSObject, ObservableObject {
     /// `DailyMetric` column, so it needs an `exploreSeries` read (mirrors `WidgetSnapshot.publish`).
     func sendLatest(from model: AppModel) async {
         let snap = await Self.buildSnapshot(from: model)
+        // A contentless snapshot (a cold launch races the first repo refresh, so `days` is still empty)
+        // must NOT push: it would stomp the watch's last REAL data with the empty state AND burn the
+        // 30-minute spacing gate, locking out the genuine snapshot that lands seconds later. Skip
+        // without touching lastPushedAt/lastSent, so the first real snapshot passes the gate untouched.
+        let contentless = snap.scoreDay == nil && snap.charge == nil && snap.effort == nil
+            && snap.rest == nil && snap.sleepSummary.isEmpty
+        if contentless { return }
         let now = Date()
         guard shouldPush(snap, now: now) else { return }
         lastPushedAt = now

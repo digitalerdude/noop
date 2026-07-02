@@ -1141,7 +1141,7 @@ fun TodayScreen(
                     modifier = Modifier.size(Metrics.iconSmall),
                 )
                 Text(
-                    "No cardio load yet — Effort builds once your heart rate climbs into your effort " +
+                    "No cardio load yet. Effort builds once your heart rate climbs into your effort " +
                         "zone (around 50% of your heart-rate reserve). A calm day honestly reads near zero.",
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
@@ -1595,7 +1595,7 @@ private fun ScoringGuideIntroCard(onOpen: () -> Unit, onDismiss: () -> Unit) {
                 }
             }
             Text(
-                "See how Charge, Effort and Rest are calculated — and how they differ from WHOOP.",
+                "See how Charge, Effort and Rest are calculated, and how they differ from WHOOP.",
                 style = NoopType.subhead,
                 color = Palette.textSecondary,
             )
@@ -1893,7 +1893,7 @@ private fun SupportRow(onSupport: () -> Unit) {
                 indication = null,
                 onClick = onSupport,
             )
-            .semantics { contentDescription = "Support NOOP — donate or get in touch" },
+            .semantics { contentDescription = "Support NOOP: donate or get in touch" },
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1911,7 +1911,7 @@ private fun SupportRow(onSupport: () -> Unit) {
             ) {
                 Text("Support NOOP", style = NoopType.headline, color = Palette.textPrimary)
                 Text(
-                    "Donate or get in touch — totally optional.",
+                    "Donate or get in touch. Totally optional.",
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                 )
@@ -3155,7 +3155,7 @@ private fun RecoveryContributorsSection(day: DailyMetric?, carriedDay: DailyMetr
             )
             Text(
                 "Baselines learned on-device over 14 days. Bars are an approximate read of each " +
-                    "signal against a typical adult range — not medical advice.",
+                    "signal against a typical adult range, not medical advice.",
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
             )
@@ -4328,6 +4328,15 @@ private fun OverviewHRChart(
         val f = if (t1 > t0) (ts - t0).toFloat() / (t1 - t0).toFloat() else 0f
         return lo + f
     }
+    // Strict variant for POINT markers (charge pill, peak, effort-now rule): null when the time
+    // falls outside the RENDERED buckets, so a zoomed window hides out-of-window marks exactly like
+    // iOS clips them, instead of pinning them to the window edge. The sleep BAND keeps the clamping
+    // xFor: clamping a range to the visible window is the correct behaviour for a span.
+    fun xForStrict(ts: Long): Float? {
+        if (n < 2) return null
+        if (ts < buckets.first().bucket || ts > buckets.last().bucket) return null
+        return xFor(ts)
+    }
     fun xFor(ts: Long): Float? {
         val fi = fracIndexFor(ts) ?: return null
         return if (n > 1) plotW * fi / (n - 1) else null
@@ -4344,7 +4353,7 @@ private fun OverviewHRChart(
     val sleepStartX = sleep?.let { xFor(it.effectiveStartTs) }
     val sleepEndX = sleep?.let { xFor(it.endTs) }
     // Charge marker sits at wake (sleep end), else the window start; hidden while recovery is null.
-    val chargeX = recovery?.let { sleep?.let { s -> xFor(s.endTs) } ?: 0f }
+    val chargeX = recovery?.let { sleep?.let { s -> xForStrict(s.endTs) } }
     // Effort marker pinned to the latest sample (right edge) when a strain exists.
     val effortX = strain?.let { if (n > 1) plotW else null }
 
@@ -4478,7 +4487,7 @@ private fun OverviewHRChart(
             workouts.forEach { w ->
                 val peak = hrPeakIn(buckets, w.startTs, w.endTs)
                 if (peak != null) {
-                    val px = xFor(peak.bucket)
+                    val px = xForStrict(peak.bucket)
                     if (px != null) {
                         val py = yForBpm(peak.avgBpm)
                         WorkoutGlyph(

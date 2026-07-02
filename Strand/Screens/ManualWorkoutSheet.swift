@@ -44,7 +44,9 @@ struct ManualWorkoutSheet: View {
         self.onSave = onSave
         // Pre-fill from the edited row (display "detected" as "Activity" so a re-label starts clean).
         let e = editing
-        _sport = State(initialValue: e.map { WorkoutSource.displaySport($0.sport) } ?? "")
+        // Seeds the LOCALE-STABLE editable form, not the localized display: the field's content is
+        // persisted verbatim on save, and a translated word would split cross-source dedup per language.
+        _sport = State(initialValue: e.map { WorkoutSource.editableSport($0.sport) } ?? "")
         _start = State(initialValue: e.map { Date(timeIntervalSince1970: TimeInterval($0.startTs)) } ?? Date())
         _durationMin = State(initialValue: e.map { max(1, Int((($0.durationS ?? Double($0.endTs - $0.startTs)) / 60).rounded())) } ?? 45)
         _avgHrText = State(initialValue: e?.avgHr.map(String.init) ?? "")

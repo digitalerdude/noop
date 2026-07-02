@@ -48,6 +48,12 @@ enum WorkoutSource: Equatable {
     /// renders "Traditional Strength Training". Already-spaced labels (manual/edited) pass through. (#175)
     static func displaySport(_ sport: String) -> String {
         if sport == "detected" { return String(localized: "Activity") }
+        return splitCamelCase(sport)
+    }
+
+    /// The camelCase splitter shared by the display and KEY paths. Deliberately NOT localized: the
+    /// key path below must be locale-stable.
+    private static func splitCamelCase(_ sport: String) -> String {
         if sport.isEmpty || sport.contains(" ") { return sport }
         var out = ""
         var prev: Character?
@@ -57,6 +63,12 @@ enum WorkoutSource: Equatable {
             prev = ch
         }
         return out
+    }
+
+    /// The locale-stable editable form: what an edit field should SEED so a save round-trips a stable
+    /// token ("Activity", never a translated word that would split cross-source dedup per language).
+    static func editableSport(_ sport: String) -> String {
+        sport == "detected" ? "Activity" : splitCamelCase(sport)
     }
 
     // MARK: - Dismissed detected bouts (durable across re-detection)
@@ -107,8 +119,10 @@ enum WorkoutSource: Equatable {
     /// human-readable import label to the same key ("TraditionalStrengthTraining" and
     /// "Traditional Strength Training" → "traditionalstrengthtraining"), case- and space-insensitive,
     /// so the same activity matches across sources. "detected"/"Activity" both fold to "activity".
+    /// LOCALE-STABLE by construction: computed from the raw token, never the localized display (a
+    /// localized word here would vary the dedup key and the trace allowlist per user language).
     static func sportKey(_ sport: String) -> String {
-        displaySport(sport).lowercased().filter { !$0.isWhitespace }
+        editableSport(sport).lowercased().filter { !$0.isWhitespace }
     }
 
     /// The set of `sportKey`s for the named catalogue (Running, Cycling, … Padel, Other), computed once.

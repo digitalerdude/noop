@@ -34,6 +34,10 @@ final class IntelligenceEngine: ObservableObject {
     /// `defer` re-invokes `analyzeRecent(force: true)` ONCE when it clears. A single re-arm (the flag is
     /// cleared BEFORE the re-invoke) bounds it to one extra pass , no recompute storm.
     private var pendingForcedRescore = false
+    /// #899 heal bound: true while the last heal already re-armed a rescore, so a heal firing again on
+    /// the very next pass cannot re-arm a second time (the Android twin is hard-bounded to exactly one
+    /// re-pass; this mirrors it). Reset by any pass whose heal finds nothing, restoring the budget.
+    private var healRearmedThisCycle = false
 
     /// Who supplies the dashboard headline for a By-Day row. The By-Day card always shows NOOP's OWN
     /// on-device numbers, but the WHOLE-DASHBOARD value for the same day can come from an IMPORTED row
@@ -314,7 +318,10 @@ final class IntelligenceEngine: ObservableObject {
             computing = false
             if pendingForcedRescore {
                 pendingForcedRescore = false
-                Task { await self.analyzeRecent(force: true) }
+                // Carry THIS pass's window into the re-pass: a heal firing during a wide one-shot pass
+                // must re-score the same width, not the default 21 days (Kotlin re-passes with the same
+                // maxDays; keep the platforms in lockstep).
+                Task { await self.analyzeRecent(maxDays: maxDays, force: true) }
             }
         }
 
@@ -1094,8 +1101,15 @@ final class IntelligenceEngine: ObservableObject {
             // Re-score against the cleaned store via the existing #899-A re-arm: the days scored THIS
             // pass consumed the read-side deduped view, but that view had no bank-recency witness (the
             // fresh detections weren't banked yet), so its survivor can differ from the heal's. One
-            // forced re-pass reconciles them; its own heal then finds nothing, so it cannot loop.
-            pendingForcedRescore = true
+            // forced re-pass reconciles them. HARD-BOUNDED: if the re-pass's own heal drops rows
+            // again (detection oscillating under its own feedback), it does NOT re-arm a second time,
+            // matching the Android one-re-pass bound; the budget restores once a pass heals nothing.
+            if !healRearmedThisCycle {
+                healRearmedThisCycle = true
+                pendingForcedRescore = true
+            }
+        } else {
+            healRearmedThisCycle = false
         }
         // Make re-detection idempotent across runs: clear the prior computed detected workouts in the
         // scored window (a bout's startTs can drift as more HR arrives, which would otherwise orphan
