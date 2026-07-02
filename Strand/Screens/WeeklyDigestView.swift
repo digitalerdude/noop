@@ -28,7 +28,8 @@ enum WeeklyDigestSource {
     /// history. Extracts each tracked metric into a "yyyy-MM-dd"→value map and hands
     /// it to the pure engine.
     static func digest(from days: [DailyMetric],
-                       anchorDay: String) -> WeeklyDigest {
+                       anchorDay: String,
+                       effortDisplayFactor: Double = UnitPrefs.currentEffortDisplayFactor()) -> WeeklyDigest {
         var charge: [String: Double] = [:]
         var effort: [String: Double] = [:]
         var rest: [String: Double] = [:]
@@ -44,7 +45,8 @@ enum WeeklyDigestSource {
         }
         return WeeklyDigestEngine.build(
             byMetric: [.charge: charge, .effort: effort, .rest: rest, .rhr: rhr, .hrv: hrv],
-            anchorDay: anchorDay)
+            anchorDay: anchorDay,
+            effortDisplayFactor: effortDisplayFactor)
     }
 
     /// The 0–100 Rest composite for a persisted day, via AnalyticsEngine's display-path

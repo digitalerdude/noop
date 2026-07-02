@@ -314,7 +314,11 @@ private fun WeeklyDigestNav(
     val anchorDay = remember(weekOffset) {
         WeeklyDigestEngine.addDays(logicalDayKeyNow(), weekOffset * 7)
     }
-    val digest = remember(days, anchorDay) { buildWeeklyDigest(days, anchorDay) }
+    // #268/#463: past weeks quote Effort on the user's display scale too, same as the live card.
+    val factor = effortDisplayFactor(UnitPrefs.effortScale(LocalContext.current))
+    val digest = remember(days, anchorDay, factor) {
+        buildWeeklyDigest(days, anchorDay, effortDisplayFactor = factor)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         WeekNavBar(weekOffset = weekOffset, minWeekOffset = minWeekOffset, onStep = onStep)
@@ -687,6 +691,9 @@ private fun ChartWithAxes(
                         color = color,
                         fill = true,
                         selectionEnabled = true,
+                        // #463: the pinpoint label goes through the SAME formatter as the axis column,
+                        // so a tapped Effort day can't print the stored 0-100 value beside a 0-21 axis.
+                        formatValue = formatY,
                     )
                     GlowEndCap(values = values, tipColor = tipColor)
                 }
