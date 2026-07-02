@@ -3571,6 +3571,19 @@ class WhoopBleClient(
      * the want is remembered and the post-bond branch arms it. Port of `BLEManager.reconcileRealtime`.
      */
     private fun reconcileRealtime() {
+        // Confine to the GATT looper (main), exactly like [drainWriteQueue]/[drainCccdQueue]. This does an
+        // order-sensitive check-then-set on [realtimeArmed] and is reachable from ViewModel callers
+        // (startRealtime / stopRealtime / setKeepStreamForData) as well as the main-looper keep-alive tick
+        // and post-bond arm. Every caller runs on Main today, so this is a no-op pass-through — but it makes
+        // the battery-critical stream toggle self-enforcing: a future off-main caller is deferred onto the
+        // looper instead of silently racing the keep-alive tick on [realtimeArmed]. iOS gets this for free
+        // via @MainActor isolation on BLEManager (BLEManager.swift:407); Kotlin has no compile-time actor,
+        // so the confinement is enforced at runtime here. The deferred re-run re-derives `want` from the
+        // fresh @Volatile flags, so it reconciles against the latest state.
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            handler.post { reconcileRealtime() }
+            return
+        }
         val want = screenWantsRealtime || continuousCaptureWantsNow()
         wantsRealtime = want   // the keep-alive + post-bond arm-on-connect read this derived value
         if (want == realtimeArmed) return                          // no edge — nothing to send
