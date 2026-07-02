@@ -294,7 +294,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
         if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
-            runImport { HealthConnectImporter.import(context, vm.repo) }
+            runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
         } else {
             Toast.makeText(context, "Health Connect access not granted.", Toast.LENGTH_LONG).show()
         }
@@ -316,7 +316,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 HealthConnectImporter.client(context).permissionController.getGrantedPermissions()
             }.getOrDefault(emptySet())
             if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
-                runImport { HealthConnectImporter.import(context, vm.repo) }
+                runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
                 hcPermissionLauncher.launch(HealthConnectImporter.PERMISSIONS)
             }

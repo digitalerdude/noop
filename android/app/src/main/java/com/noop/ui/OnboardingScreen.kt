@@ -790,7 +790,7 @@ private fun ImportStep(viewModel: AppViewModel) {
         PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
         if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
-            runImport { HealthConnectImporter.import(context, viewModel.repo) }
+            runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
         } else {
             val message = "Health Connect access not granted."
             status = message
@@ -808,7 +808,7 @@ private fun ImportStep(viewModel: AppViewModel) {
                 HealthConnectImporter.client(context).permissionController.getGrantedPermissions()
             }.getOrDefault(emptySet())
             if (granted.any { it in HealthConnectImporter.PERMISSIONS }) {
-                runImport { HealthConnectImporter.import(context, viewModel.repo) }
+                runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
             } else {
                 hcPermissionLauncher.launch(HealthConnectImporter.PERMISSIONS)
             }

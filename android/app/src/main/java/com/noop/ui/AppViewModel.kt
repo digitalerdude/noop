@@ -1597,7 +1597,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }.getOrDefault(emptySet())
                 // Partial permissions are fine (#150): auto-import as long as at least one type is granted.
                 if (granted.none { it in HealthConnectImporter.PERMISSIONS }) return@withContext false
-                runCatching { HealthConnectImporter.import(appContext, repository) }.isSuccess
+                // Pass the profile height so the importer can derive BMI (Health Connect has no BMI record).
+                runCatching { HealthConnectImporter.import(appContext, repository, profileStore.heightCm) }.isSuccess
             }
             if (ran) {
                 val t = System.currentTimeMillis()

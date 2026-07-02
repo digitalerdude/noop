@@ -21,6 +21,7 @@ import androidx.health.connect.client.records.Vo2MaxRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
+import com.noop.analytics.FitnessAgeEngine
 import com.noop.data.AppleDaily
 import com.noop.data.DailyMetric
 import com.noop.data.ImportSummary
@@ -128,7 +129,7 @@ object HealthConnectImporter {
      * Assumes [PERMISSIONS] have already been granted. Returns [ImportSummary.failure] when
      * Health Connect is unavailable or the permissions are not actually granted.
      */
-    suspend fun import(context: Context, repo: WhoopRepository): ImportSummary {
+    suspend fun import(context: Context, repo: WhoopRepository, heightCm: Double = 0.0): ImportSummary {
         if (sdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return ImportSummary.failure(SOURCE, "Health Connect is not available on this device.")
         }
@@ -433,6 +434,14 @@ object HealthConnectImporter {
                     )
                 )
                 a.weightKg?.let { metricSeriesRows += MetricSeriesRow(HC_DEVICE, day, "weight", round2(it)) }
+                // Health Connect has no BMI record (unlike Apple Health, which iOS imports directly), so
+                // DERIVE it from the day's weight + the user's profile height — the same figure NOOP already
+                // uses for its calorie / fitness-age estimates (it defaults to 178 cm until the user sets
+                // theirs, so this reflects the profile, not a measured BMI). Same "bmi" key as the iOS
+                // import. The heightCm>0 guard is only a floor for a caller that passes none.
+                if (heightCm > 0.0) a.weightKg?.let {
+                    metricSeriesRows += MetricSeriesRow(HC_DEVICE, day, "bmi", round2(FitnessAgeEngine.bmi(it, heightCm)))
+                }
             }
             // Body composition (from a smart scale — e.g. a Garmin Index synced via Garmin Connect) is
             // metricSeries-only (no AppleDaily field), so emit it independently of the AppleDaily gate — a
