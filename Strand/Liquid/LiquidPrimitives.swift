@@ -346,6 +346,24 @@ extension View {
             self
         }
     }
+
+    /// A selection tick (e.g. the WHOOP-style day change), guarded so it compiles on macOS 13.
+    @ViewBuilder func liquidSelectionHaptic(trigger: some Equatable) -> some View {
+        if #available(iOS 17.0, macOS 14.0, *) {
+            self.sensoryFeedback(.selection, trigger: trigger)
+        } else {
+            self
+        }
+    }
+
+    /// A firmer medium impact (e.g. the pull-to-refresh release), guarded for the macOS 13 target.
+    @ViewBuilder func liquidMediumHaptic(trigger: some Equatable) -> some View {
+        if #available(iOS 17.0, macOS 14.0, *) {
+            self.sensoryFeedback(.impact(weight: .medium), trigger: trigger)
+        } else {
+            self
+        }
+    }
 }
 
 /// The "this card was pressed" response for any tappable liquid card — a small settle inward plus a

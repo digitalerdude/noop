@@ -185,6 +185,12 @@ struct LiquidTodayView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 30) // sit the title lower into the sky, not jammed under the status bar
             }
+            #if os(macOS)
+            // Keep the phone-shaped column readable + centred on the wide mac detail pane. The sky is a
+            // ScrollView background (full-bleed), so constraining the content column here doesn't touch it.
+            .frame(maxWidth: 680)
+            .frame(maxWidth: .infinity)
+            #endif
         }
         .coordinateSpace(name: Self.pullSpace)
         .onPreferenceChange(PullOffsetKey.self) { handlePull($0) }
@@ -212,9 +218,9 @@ struct LiquidTodayView: View {
         .simultaneousGesture(daySwipeGesture)
         // A light tick when the day changes (swipe or calendar pick) — the WHOOP-style day nav should
         // feel physical (Aaron: "every tiny little thing").
-        .sensoryFeedback(.selection, trigger: selectedDayOffset)
+        .liquidSelectionHaptic(trigger: selectedDayOffset)
         // A firm tick when the pull passes the release threshold (the custom liquid refresh).
-        .sensoryFeedback(.impact(weight: .medium), trigger: pullHaptic)
+        .liquidMediumHaptic(trigger: pullHaptic)
         .task(id: "\(repo.refreshSeq)-\(selectedDayOffset)") { await load() }
         .sheet(item: $guideSection) { section in
             NavigationStack { ScoringGuideView(initialSection: section, onClose: { guideSection = nil }) }
@@ -226,12 +232,7 @@ struct LiquidTodayView: View {
             NavigationStack {
                 SettingsView()
                     .background(StrandPalette.surfaceBase.ignoresSafeArea())
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Done") { showSettings = false }.foregroundStyle(StrandPalette.accent)
-                        }
-                    }
+                    .liquidSheetDoneChrome { showSettings = false }
             }
         }
         // The heart → the (optional) Support sheet: NOOP is free forever, donations just help it keep moving.
@@ -239,12 +240,7 @@ struct LiquidTodayView: View {
             NavigationStack {
                 SupportView()
                     .background(StrandPalette.surfaceBase.ignoresSafeArea())
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Done") { showSupport = false }.foregroundStyle(StrandPalette.accent)
-                        }
-                    }
+                    .liquidSheetDoneChrome { showSupport = false }
             }
         }
     }
@@ -321,7 +317,7 @@ struct LiquidTodayView: View {
                         .labelsHidden()
                         .padding(12)
                         .frame(minWidth: 320, minHeight: 360)
-                        .presentationCompactAdaptation(.popover)
+                        .liquidPopoverAdaptation()
                 }
                 Spacer(minLength: 8)
                 HStack(spacing: 8) {
@@ -899,7 +895,7 @@ private struct LiquidWordmark: View {
         .rotation3DEffect(.degrees(flip), axis: (x: 0, y: 1, z: 0), perspective: 0.5)
         .contentShape(Rectangle())
         .onTapGesture { playRandomEgg() }
-        .sensoryFeedback(.impact(weight: .light), trigger: token)
+        .liquidTapHaptic(trigger: token)
         .frame(maxWidth: .infinity)
         .accessibilityHidden(true)
     }
@@ -987,7 +983,7 @@ private struct HeroScoreCell: View {
         }
         .frame(maxWidth: .infinity)
         .onAppear { rollTo(score) }
-        .onChange(of: score) { _, v in rollTo(v) }
+        .onChangeCompat(of: score) { v in rollTo(v) }
     }
 
     private func rollTo(_ v: Double?) {
@@ -1085,7 +1081,7 @@ private struct LiquidLiveHR: View {
             }
         }
         .onAppear { if samples.isEmpty, let hr = live.heartRate, hr > 0 { samples = [Double(hr)] } }
-        .onChange(of: live.heartRate) { _, hr in
+        .onChangeCompat(of: live.heartRate) { hr in
             guard let hr, hr > 0 else { return }
             samples.append(Double(hr))
             if samples.count > maxSamples { samples.removeFirst(samples.count - maxSamples) }
@@ -1147,5 +1143,40 @@ private struct LiquidStrapBatteryRow: View {
                 Text("\(Int(pct.rounded()))%").font(StrandFont.number(15)).foregroundStyle(StrandPalette.textPrimary)
             }
         }
+    }
+}
+
+// MARK: - Cross-platform chrome helpers
+//
+// The liquid Today is shared with the macOS target now (the mac split-view shell hosts it too). A few of
+// its chrome modifiers are iOS-only, so they are wrapped here: `topBarTrailing` + `navigationBarTitleDisplayMode`
+// don't exist on macOS, and `presentationCompactAdaptation` is an iOS phone-width concern. These keep the
+// exact iOS behaviour while giving macOS the platform-correct equivalent.
+private extension View {
+    /// A sheet's trailing "Done" button (inline title on iOS; the confirmation-action toolbar slot on macOS).
+    @ViewBuilder func liquidSheetDoneChrome(done: @escaping () -> Void) -> some View {
+        #if os(iOS)
+        self.navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done", action: done).foregroundStyle(StrandPalette.accent)
+                }
+            }
+        #else
+        self.toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done", action: done).foregroundStyle(StrandPalette.accent)
+            }
+        }
+        #endif
+    }
+
+    /// Keep a popover a popover in compact width (iOS 16.4+); a no-op on macOS where popovers never adapt.
+    @ViewBuilder func liquidPopoverAdaptation() -> some View {
+        #if os(iOS)
+        if #available(iOS 16.4, *) { self.presentationCompactAdaptation(.popover) } else { self }
+        #else
+        self
+        #endif
     }
 }
