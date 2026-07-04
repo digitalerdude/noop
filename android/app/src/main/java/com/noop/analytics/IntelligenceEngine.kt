@@ -394,6 +394,13 @@ object IntelligenceEngine {
             nowLocalMidnight - maxDays * SECONDS_PER_DAY - 30 * 3_600L, nowSeconds, tzOffsetSeconds,
         )
 
+        // #970-adjacent read efficiency: skinTempFamily(owner) reads registry.all() (a Room query) on every
+        // call, so resolving it per day re-reads the paired-devices table ~maxDays times for the SAME owner.
+        // Swift resolves the family from an in-memory regDevices list loaded ONCE (skinTempFamily(forOwner:
+        // devices:)); memoise per owner here so the DB read happens once per DISTINCT owner across the scan
+        // (once total on the common single-WHOOP install), not once per scanned day. Byte-identical result.
+        val skinFamilyByOwner = HashMap<String, DeviceFamily>()
+
         for (offset in 0 until maxDays) {
             val dayStart = nowLocalMidnight - offset * SECONDS_PER_DAY
             val day = AnalyticsEngine.dayString(dayStart, tzOffsetSeconds)
@@ -432,7 +439,9 @@ object IntelligenceEngine {
             // register on the right scale (5/MG banks centidegrees, a WHOOP 4.0 v24 banks a raw ADC). The
             // owner source resolves it from the registry; unknown/non-WHOOP owners fall back to WHOOP5 (the
             // prior /100 behaviour), so only a device positively identified as a 4.0 changes scale.
-            val skinFamily = ownerSource?.skinTempFamily(owner) ?: DeviceFamily.WHOOP5
+            val skinFamily = skinFamilyByOwner[owner]
+                ?: (ownerSource?.skinTempFamily(owner) ?: DeviceFamily.WHOOP5)
+                    .also { skinFamilyByOwner[owner] = it }
             // Wrist-wear events in the night window, paired into off-wrist [start, end) intervals for the
             // off-wrist sleep backstop (#500). The HR-gap proxy in the stager is the always-on guard;
             // these explicit intervals sharpen it under the FRACTIONAL rule (#504) , a session is dropped
