@@ -50,8 +50,18 @@ struct FullDayChartView: View {
     /// The currently-visible window (zoomed or the whole day).
     private var visibleWindow: ClosedRange<Date> { zoomDomain ?? dayBounds }
 
+    /// The pan/zoom clamp — a rolling 3-DAY window (the shown day + the 2 before it), so a left drag scrolls
+    /// continuously back up to 3 days at the right resolution, but a single gesture can never fling through
+    /// weeks of history. The DEFAULT view stays one day (`xRange: dayBounds`), and older SPECIFIC days remain
+    /// reachable via the day-stepper — a deliberate jump, not a scroll (#597). Mirrors the Android
+    /// FullDayChartScreen 3-day `panBounds`. (The Android build additionally clamps this to the oldest banked
+    /// sample; here a drag into a pre-data gap simply shows the honest empty state.)
+    private var panBounds: ClosedRange<Date> {
+        dayStart.addingTimeInterval(-2 * 86_400)...dayBounds.upperBound
+    }
+
     var body: some View {
-        ScreenScaffold(title: "Deep Timeline", subtitle: "Every second of your day, zoomable.") {
+        ScreenScaffold(title: "Deep Timeline", subtitle: "Every second, zoomable — drag back through your history.") {
             metricPills
             dayNav
             sourcePill
@@ -180,7 +190,9 @@ struct FullDayChartView: View {
             xRange: dayBounds,
             height: 280,
             zoomDomain: $zoomDomain,
-            zoomBounds: dayBounds,
+            // Widened past the shown day so a left drag scrolls back into older history (a rolling 3-day
+            // window); the default view (`xRange: dayBounds`) and Reset stay one day. Mirrors Android.
+            zoomBounds: panBounds,
             valueFormat: { format($0) },
             dateFormat: { Self.timeFmt.string(from: $0) }
         )
@@ -189,7 +201,7 @@ struct FullDayChartView: View {
         // (DeepTimeline owns the scroll handler; the chart's own gesture covers drag-pan.)
         .modifier(ScrollToZoomModifier(
             current: { visibleWindow },
-            bounds: dayBounds,
+            bounds: panBounds,
             apply: { zoomDomain = $0 }
         ))
         #endif
