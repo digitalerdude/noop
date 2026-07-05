@@ -868,9 +868,12 @@ class WhoopBleClient(
             // #928: a strap clock set in the FUTURE makes "newest" read ahead of ANY real frontier, so 2a
             // would report backlog forever and drive up to the full cap in EMPTY offloads on every
             // connect. A newest more than [futureSkewSeconds] past [wallNowUnix] (the REAL wall clock,
-            // passed in so the predicate stays pure) is implausible: exclude it (treat the range as
-            // unknown) so only demonstrated progress (2b, real rows) can continue the drain.
-            val newest = strapNewestTs?.takeIf { it <= wallNowUnix + futureSkewSeconds }
+            // passed in so the predicate stays pure) is implausible: the strap clock is set in the FUTURE
+            // (#928). We (a) treat the range as unknown for 2a below, and (b) — new for #1012 — stop the
+            // drain at 2b, since its "real rows" are future-timestamped too and continuing on them burned
+            // the whole cap re-draining data we cannot place on the timeline.
+            val futureDated = strapNewestTs != null && strapNewestTs > wallNowUnix + futureSkewSeconds
+            val newest = if (futureDated) null else strapNewestTs
             val frontier = ourFrontierTs
             // 2a: strap reports newer data than we hold — reliable WHEN its clock epoch is sane.
             if (newest != null && frontier != null && (newest - frontier) > behindGapSeconds) return true
@@ -881,6 +884,13 @@ class WhoopBleClient(
             // (#364 / #451). But guard #3 proved the trim advanced, so if this session also PERSISTED REAL
             // SENSOR ROWS the strap is still handing over real backlog — keep going. Empty / console-only
             // ENDs persist 0 rows, so a stuck or caught-up strap won't spin; the cap bounds it regardless.
+            //
+            // #1012: EXCEPT when the range is FUTURE-dated (#928) — that is NOT the stale/past-epoch case
+            // this branch was built for. Its persisted rows are themselves future-timestamped, so continuing
+            // on them burned the whole 6-kick cap re-draining data we cannot place on the timeline (a ~1-min
+            // sync became ~15 min, issue #1012). Stop after ONE pass; the periodic floor drains the rest
+            // across connects, restoring the pre-#928 single-pass behaviour.
+            if (futureDated) return false
             return rowsPersistedThisSession > 0
         }
 

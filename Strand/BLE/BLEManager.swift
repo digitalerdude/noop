@@ -342,10 +342,12 @@ struct BackfillContinuation {
         guard lastTrimAdvanced else { return false }               // 3 (don't spin on a frozen cursor)
         // #928: a strap clock set in the FUTURE makes "newest" read ahead of ANY real frontier, so 2a
         // would report backlog forever and drive up to the full cap in EMPTY offloads on every connect.
-        // A newest more than futureSkewSeconds past the wall clock is implausible: exclude it (treat the
-        // range as unknown) so only demonstrated progress (2b, real rows) can continue the drain.
-        var plausibleNewest = strapNewestTs
-        if let n = plausibleNewest, n > wallNowUnix + futureSkewSeconds { plausibleNewest = nil }
+        // A newest more than futureSkewSeconds past the wall clock is implausible: the strap clock is set in
+        // the FUTURE (#928). We (a) treat the range as unknown for 2a below, and (b) — new for #1012 — stop
+        // the drain at 2b, since its "real rows" are future-timestamped too and continuing on them burned the
+        // whole cap re-draining data we cannot place on the timeline.
+        let futureDated = strapNewestTs.map { $0 > wallNowUnix + futureSkewSeconds } ?? false
+        let plausibleNewest = futureDated ? nil : strapNewestTs
         // 2a: the strap reports newer data than we hold — reliable WHEN its clock epoch is sane.
         if let newest = plausibleNewest, let frontier = ourFrontierTs, (newest - frontier) > behindGapSeconds {
             return true
@@ -358,6 +360,12 @@ struct BackfillContinuation {
         // so if this session also PERSISTED REAL SENSOR ROWS the strap is demonstrably still handing over
         // real backlog — keep going. Empty / console-only ENDs persist 0 rows, so a genuinely stuck or
         // caught-up strap still won't spin, and the consecutive cap bounds it either way.
+        //
+        // #1012: EXCEPT when the range is FUTURE-dated (#928) — that is NOT the stale/past-epoch case this
+        // branch was built for. Its persisted rows are themselves future-timestamped, so continuing on them
+        // burned the whole 6-kick cap re-draining data we cannot place on the timeline (a ~1-min sync became
+        // ~15 min, issue #1012). Stop after ONE pass; the periodic floor drains the rest across connects.
+        if futureDated { return false }
         return rowsPersistedThisSession > 0
     }
 }

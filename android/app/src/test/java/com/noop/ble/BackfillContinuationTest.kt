@@ -366,20 +366,21 @@ class BackfillContinuationTest {
         )
     }
 
-    /** #928 + #451 symmetry: a future-dated range answer is unreliable, but REAL rows persisting this
-     *  session are direct evidence of backlog, so the rows path still continues the drain (the exclusion
-     *  only removes the untrustworthy range shortcut, it never blocks demonstrated progress). */
+    /** #1012: a future-dated range is NOT symmetric with a stale/past one. Its persisted "real rows" are
+     *  themselves future-timestamped, so continuing on them burned the whole 6-kick cap re-draining data we
+     *  can't place on the timeline — a ~1-min sync became ~15 min on a real future-clock strap (#928). A
+     *  future-dated range now stops after ONE pass regardless of rows; the periodic floor drains the rest. */
     @Test
-    fun futureClockNewest_stillContinuesOnRealRows() {
-        assertTrue(
+    fun futureClockNewest_stopsEvenOnRealRows() {
+        assertFalse(
             WhoopBleClient.shouldAutoContinue(
                 stillConnected = true,
-                strapNewestTs = wallNow + 30L * 86_400L,   // same future-dated answer
+                strapNewestTs = wallNow + 30L * 86_400L,   // future-dated answer (a month ahead)
                 ourFrontierTs = wallNow - 600L,
                 wallNowUnix = wallNow,
                 lastTrimAdvanced = true,
                 consecutiveCount = 0,
-                rowsPersistedThisSession = 240,            // but this pass banked real records
+                rowsPersistedThisSession = 240,            // real records this pass — but the clock is broken
             ),
         )
     }
