@@ -772,8 +772,11 @@ class WhoopRepository(private val dao: WhoopDao) {
         val now = System.currentTimeMillis() / 1000L
         val lo = now - days * 86_400L
         val hi = now + 86_400L
-        val imported = dao.sleepSessions(deviceId, lo, hi, 4000)
-        val computed = dao.sleepSessions(computedDeviceId(deviceId), lo, hi, 4000)
+        // UNION active strap + canonical (imported) and their computed siblings (#814), de-duplicating
+        // identical (startTs,endTs) blocks recorded under both ids so a day present in both namespaces
+        // doesn't double-weight the learner. Mirrors Swift Repository.habitualMidsleepSec.
+        val imported = dedupSleepBlocks(importedSourceIds(deviceId).flatMap { dao.sleepSessions(it, lo, hi, 4000) })
+        val computed = dedupSleepBlocks(computedSourceIds(deviceId).flatMap { dao.sleepSessions(it, lo, hi, 4000) })
         val offsetSec = (java.util.TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000).toLong()
         val blocks = (imported + computed).mapNotNull { s ->
             val start = s.effectiveStartTs
@@ -788,6 +791,13 @@ class WhoopRepository(private val dao: WhoopDao) {
             }
         }
         return com.noop.analytics.SleepStageTotals.habitualMidsleepSec(blocks, offsetSec)
+    }
+
+    /** Drop sleep blocks sharing an identical (startTs, endTs) — the same physical night recorded under two
+     *  union ids (#814) — keeping the first seen. Mirrors Swift Repository.dedupBlocks. */
+    private fun dedupSleepBlocks(sessions: List<SleepSession>): List<SleepSession> {
+        val seen = HashSet<Pair<Long, Long>>()
+        return sessions.filter { seen.add(it.startTs to it.endTs) }
     }
 
     suspend fun metricSeries(deviceId: String, key: String, from: String, to: String) =
@@ -1245,9 +1255,16 @@ class WhoopRepository(private val dao: WhoopDao) {
                 return seen.toList()
             }
             if (preferredSource == WHOOP_SOURCE || preferredSource == strapDeviceId) {
+                // Active strap first (live/measured wins per day), then the CANONICAL "my-whoop" import + its
+                // computed sibling so history banked under the canonical id BEFORE a re-add still resolves
+                // (the #814 union model, matching importedSourceIdsFor). uniqued() collapses these to one pair
+                // on a single-device install (active == canonical), so that path stays byte-identical. Apple
+                // is the final cross-source fallback. Mirrors Swift Repository.sourceCandidates.
                 val candidates = mutableListOf(
                     MetricSourceCandidate(strapDeviceId, key),
                     MetricSourceCandidate(computedSource, key),
+                    MetricSourceCandidate(WHOOP_SOURCE, key),
+                    MetricSourceCandidate("$WHOOP_SOURCE-noop", key),
                 )
                 appleCompatibleKey(key)?.let {
                     candidates.add(MetricSourceCandidate(APPLE_HEALTH_SOURCE, it))

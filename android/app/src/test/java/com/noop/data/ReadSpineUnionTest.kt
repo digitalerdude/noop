@@ -96,4 +96,38 @@ class ReadSpineUnionTest {
         // mergeDaily re-sorts oldest-first downstream; here assert the day SET is the union.
         assertTrue(union.map { it.day }.toSet() == setOf("2026-06-09", "2026-06-13"))
     }
+
+    // --- resolvedSeries source-candidate union: the daily-metric resolver must join the SAME #814 union.
+    // Callers pass preferredSource = WHOOP_SOURCE ("my-whoop") and thread the ACTIVE id as strapDeviceId.
+
+    private fun candidateSources(strap: String, key: String = "recovery") =
+        WhoopRepository.sourceCandidates(key, canonical, strap).map { it.source }
+
+    /** Single-WHOOP install: the resolver's candidate list collapses (uniqued) to the canonical id + its
+     *  computed sibling — byte-identical to the pre-fix behaviour. */
+    @Test
+    fun sourceCandidatesSingleDeviceCollapsesToCanonical() {
+        assertEquals(listOf("my-whoop", "my-whoop-noop"), candidateSources(strap = canonical))
+    }
+
+    /** After a re-add the resolver tries the ACTIVE id + its computed sibling FIRST, then falls back to the
+     *  canonical "my-whoop"/"my-whoop-noop" so daily metrics + scores banked before the re-add still resolve.
+     *  Before the fix the resolver read the canonical id ONLY and orphaned the active strap's series. */
+    @Test
+    fun sourceCandidatesReAddUnionsActiveThenCanonical() {
+        assertEquals(
+            listOf(reAdded, "$reAdded-noop", "my-whoop", "my-whoop-noop"),
+            candidateSources(strap = reAdded),
+        )
+    }
+
+    /** A vital with a declared Apple-Health mapping appends the Apple candidate LAST — after the whole WHOOP
+     *  union — so a real Apple export fills only days no WHOOP source covers. */
+    @Test
+    fun sourceCandidatesReAddAppendsAppleFallbackLast() {
+        assertEquals(
+            listOf(reAdded, "$reAdded-noop", "my-whoop", "my-whoop-noop", "apple-health"),
+            candidateSources(strap = reAdded, key = "rhr"),
+        )
+    }
 }

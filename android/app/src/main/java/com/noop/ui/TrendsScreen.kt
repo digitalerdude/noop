@@ -133,7 +133,7 @@ fun TrendsScreen(vm: AppViewModel) {
     var sleepPerfByDay by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
     LaunchedEffect(days) {
         sleepPerfByDay = runCatching {
-            vm.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99")
+            vm.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99", vm.activeStrapId)
                 .values.associate { it.first to it.second }
         }.getOrDefault(emptyMap())
     }

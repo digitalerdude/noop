@@ -200,7 +200,7 @@ fun SleepScreen(
     // alongside `sleeps`. Mirrors iOS SleepView.habitualMidsleepSec. (#547)
     var habitualMidsleep by remember { mutableStateOf<Long?>(null) }
     LaunchedEffect(days) {
-        habitualMidsleep = runCatching { vm.repo.habitualMidsleepSec("my-whoop") }.getOrNull()
+        habitualMidsleep = runCatching { vm.repo.habitualMidsleepSec(vm.activeStrapId) }.getOrNull()
     }
 
     // Persisted per-epoch MOTION keyed by each session's detected startTs (#407). Loaded alongside

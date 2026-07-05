@@ -658,7 +658,7 @@ fun TodayScreen(
     var stepsEstForDay by remember { mutableStateOf<Int?>(null) }
     LaunchedEffect(days, selectedDayKey) {
         val byDay = runCatching {
-            viewModel.repo.resolvedSeries("steps_est", "my-whoop", "0000-00-00", "9999-99-99")
+            viewModel.repo.resolvedSeries("steps_est", "my-whoop", "0000-00-00", "9999-99-99", viewModel.activeStrapId)
                 .values.associate { it.first to it.second }
         }.getOrDefault(emptyMap())
         stepsEstForDay = byDay[selectedDayKey]?.let { Math.round(it).toInt() }
@@ -694,7 +694,7 @@ fun TodayScreen(
     var restScoreForDay by remember { mutableStateOf<Double?>(null) }
     LaunchedEffect(days, selectedDayKey, selectedDayOffset) {
         val byDay = runCatching {
-            viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99")
+            viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99", viewModel.activeStrapId)
                 .values.associate { it.first to it.second }
         }.getOrDefault(emptyMap())
         // #977: the tail-fallback (latest scored night) is now freshness-gated. A live 5.0 whose sleep never
@@ -716,7 +716,7 @@ fun TodayScreen(
     var restCompositeSpark by remember { mutableStateOf<List<Double>>(emptyList()) }
     LaunchedEffect(days, selectedDay) {
         val byDay = runCatching {
-            viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99")
+            viewModel.repo.resolvedSeries("sleep_performance", "my-whoop", "0000-00-00", "9999-99-99", viewModel.activeStrapId)
                 .values.associate { it.first to it.second }
         }.getOrDefault(emptyMap())
         val cutoff = selectedDay.minusDays(13).toString()
@@ -739,7 +739,7 @@ fun TodayScreen(
         val resolved = mutableMapOf<String, String>()
         for (key in listOf("recovery", "sleep_performance")) {
             val win = runCatching {
-                viewModel.repo.resolvedSeries(key, "my-whoop", "0000-00-00", "9999-99-99")
+                viewModel.repo.resolvedSeries(key, "my-whoop", "0000-00-00", "9999-99-99", viewModel.activeStrapId)
                     .points.lastOrNull { it.day == selectedDayKey }?.source
             }.getOrNull()
             if (win != null) resolved[key] = win
