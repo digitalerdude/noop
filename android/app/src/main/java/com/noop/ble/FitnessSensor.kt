@@ -197,7 +197,8 @@ object FitnessSensor {
  * Turns successive CSC/CPS revolution counters into instantaneous wheel speed and crank/pedal cadence.
  *
  * HONEST DERIVATION: CSC/CPS report only CUMULATIVE counts + the event time of the last revolution (unit
- * 1/1024 s, wrapping at 65536). An instantaneous rate is the count difference over the time difference
+ * 1/1024 s for CSC and for all crank data; CPS wheel event time is 1/2048 s — see the wheel path in
+ * [update]; the raw field wraps at 65536 either way). An instantaneous rate is the count difference over the time difference
  * between two packets — so the FIRST packet, and any packet that repeats the same event time, yield null,
  * never a fabricated value. Time wrap (the 16-bit clock rolls every ~64 s) and counter wrap (u32 wheel /
  * u16 crank) are handled with modular arithmetic. Pure — no I/O — so it's fully unit-tested.
@@ -236,7 +237,11 @@ class FitnessRateComputer(
                 if (dt > 0) {
                     // u32 counter wrap handled with a 2^32 modulus.
                     val dRev = ((wheelRevs - pRevs) % 0x1_0000_0000L + 0x1_0000_0000L) % 0x1_0000_0000L
-                    val seconds = dt / 1024.0
+                    // Wheel event time tick rate is SOURCE-dependent: CPS (0x2A63) is 1/2048 s, CSC (0x2A5B)
+                    // is 1/1024 s (the crank event time below is 1/1024 s for BOTH). Using 1024 for a CPS
+                    // wheel packet HALVED the derived speed. The 16-bit wrap in timeDelta1024 is unaffected.
+                    val wheelTicksPerSec = if (reading.kind == FitnessSensor.SensorKind.CYCLING_POWER) 2048.0 else 1024.0
+                    val seconds = dt / wheelTicksPerSec
                     speed = dRev * wheelCircumferenceM / seconds
                 }
             }

@@ -152,6 +152,31 @@ class FitnessSensorTest {
         assertEquals(60.0, r.crankRpm!!, 0.0001)
     }
 
+    /**
+     * CPS (0x2A63) wheel event time ticks at 1/2048 s, NOT the 1/1024 s that CSC uses. With the SAME
+     * counters/timestamps as the CSC test above, a CPS source must derive DOUBLE the speed (the 1024-tick
+     * delta spans 0.5 s here, not 1 s). Guards the source-dependent tick rate in [FitnessRateComputer.update].
+     */
+    @Test
+    fun rateComputerUsesHalfSecondTicksForCyclingPowerWheel() {
+        val rc = FitnessRateComputer(wheelCircumferenceM = 2.0)
+        rc.update(
+            FitnessSensor.Reading(
+                FitnessSensor.SensorKind.CYCLING_POWER,
+                cumulativeWheelRevolutions = 100L, lastWheelEventTime1024 = 1024,
+            ),
+        )
+        val r = rc.update(
+            FitnessSensor.Reading(
+                FitnessSensor.SensorKind.CYCLING_POWER,
+                cumulativeWheelRevolutions = 105L, lastWheelEventTime1024 = 2048,
+            ),
+        )
+        // 5 rev * 2.0 m / (1024 ticks / 2048 per s = 0.5 s) = 20 m/s. (CSC on identical bytes = 10 m/s.)
+        assertEquals(20.0, r.speedMps!!, 0.0001)
+        assertEquals(72.0, r.speedKmh!!, 0.0001)
+    }
+
     @Test
     fun rateComputerNoNewRevolutionYieldsNull() {
         val rc = FitnessRateComputer()

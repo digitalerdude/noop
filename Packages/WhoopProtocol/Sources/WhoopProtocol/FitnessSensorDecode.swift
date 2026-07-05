@@ -306,7 +306,11 @@ public struct FitnessRateComputer: Sendable {
                 if dt > 0 {
                     // u32 counter wrap handled by unsigned subtraction.
                     let dRev = Int(bitPattern: UInt(revs &- pRevs))
-                    let seconds = Double(dt) / 1024.0
+                    // Wheel event time tick rate is SOURCE-dependent: CPS (0x2A63) is 1/2048 s, CSC (0x2A5B)
+                    // is 1/1024 s (the crank event time below is 1/1024 s for both). Using 1024 for a CPS
+                    // wheel packet halved the derived speed. The 16-bit wrap is unaffected.
+                    let wheelTicksPerSec = reading.kind == .cyclingPower ? 2048.0 : 1024.0
+                    let seconds = Double(dt) / wheelTicksPerSec
                     rates.speedMps = Double(dRev) * wheelCircumferenceM / seconds
                 }
             }
