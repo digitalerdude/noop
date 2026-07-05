@@ -338,8 +338,10 @@ class WhoopRepository(private val dao: WhoopDao) {
         futureMargin: Long = com.noop.protocol.FUTURE_MARGIN,
     ): Int {
         val maxTs = nowSec + futureMargin
-        // The oldest plausible computed-day key (the local day of MIN_PLAUSIBLE_UNIX). A day before this is
-        // implausibly old; a day after `today` is future-dated. Both are purged.
+        // The far-past floor day (local day of MIN_PLAUSIBLE_UNIX). A computed (`-noop`) row before this
+        // can't legitimately predate NOOP, so it is bad-clock garbage and is purged; the prune queries
+        // apply this floor ONLY to `-noop` rows so a WHOOP CSV import (bare "my-whoop", REAL dates going
+        // back years) is never touched (v8.2.1). A day after `today` is future-dated and always purged.
         val minDay = java.time.Instant.ofEpochSecond(minTs)
             .atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
         var deleted = 0
@@ -354,7 +356,9 @@ class WhoopRepository(private val dao: WhoopDao) {
         deleted += dao.pruneSpo2ByTs(minTs, maxTs)
         deleted += dao.pruneEventByTs(minTs, maxTs)
         deleted += dao.pruneBatteryByTs(minTs, maxTs)
-        // (b) computed daily metrics (by day key) + sleep sessions (by startTs)
+        // (b) computed daily metrics (by day key) + sleep sessions (by startTs). The prune queries apply
+        // the far-past floor ONLY to `-noop` computed rows, so a multi-year import (bare "my-whoop")
+        // survives; future rows are always purged (v8.2.1).
         deleted += dao.pruneDailyMetricByDay(today, minDay)
         deleted += dao.pruneSleepSessionByTs(minTs, maxTs)
         return deleted
