@@ -40,9 +40,9 @@ class HrvAnalyzerRollingTest {
     @Test fun timestampsAreThePerSampleWindowEnd() {
         val series = (0 until 10).map { rr(100L + it, 800) }
         val out = HrvAnalyzer.rollingRmssd(series, windowSec = 300)
-        // One point per input sample that had >= 2 clean beats in its trailing window. The first sample has
-        // no predecessor in-window, so the curve starts at the SECOND sample's ts.
-        assertEquals(101L, out.first().first)
+        // One point per sample once its trailing window holds >= minBeatsPerWindow (8) clean beats, so the
+        // curve starts at the 8th sample's ts (107) — a 2-beat window was a noisy spike, not HRV.
+        assertEquals(107L, out.first().first)
         assertEquals(109L, out.last().first)
     }
 

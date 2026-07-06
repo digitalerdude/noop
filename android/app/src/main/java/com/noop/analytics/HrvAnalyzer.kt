@@ -232,9 +232,11 @@ object HrvAnalyzer {
     /**
      * Rolling/windowed rMSSD over an RR series. For each input sample (ascending by ts), computes the
      * Task-Force rMSSD over the cleaned beats whose ts falls in the trailing window `(ts - windowSec, ts]`,
-     * emitting `(ts, rmssd)` only when at least 2 clean beats survive in that window (rMSSD needs a
-     * successive difference). Range + Malik ectopic filtering ([cleanRR]) is applied to the WHOLE series
-     * once, so artifacts never enter any window. Empty when fewer than 2 input rows. Pure, deterministic.
+     * emitting `(ts, rmssd)` only when at least [minBeatsPerWindow] clean beats survive in that window (a
+     * 2-beat window is one successive difference = a noisy spike, not HRV — matches the Swift twin's
+     * minBeatsPerWindow gate). Range + Malik ectopic filtering ([cleanRR]) is applied to the WHOLE series
+     * once, so artifacts never enter any window. Empty when fewer than [minBeatsPerWindow] input rows.
+     * Pure, deterministic.
      *
      * @param rr the RR intervals (each carries a ts in unix SECONDS and rrMs); the Android twin of the
      *   Swift `[RRSample]`.
@@ -243,8 +245,9 @@ object HrvAnalyzer {
     fun rollingRmssd(
         rr: List<RrInterval>,
         windowSec: Int = DEFAULT_ROLLING_WINDOW_SEC,
+        minBeatsPerWindow: Int = 8,
     ): List<Pair<Long, Double>> {
-        if (rr.size < 2 || windowSec <= 0) return emptyList()
+        if (rr.size < minBeatsPerWindow || windowSec <= 0) return emptyList()
         // Ascending by ts so the trailing-window scan is monotone (the table read is already ordered, but
         // we don't assume it). Stable on equal ts.
         val sorted = rr.sortedBy { it.ts }
@@ -272,6 +275,9 @@ object HrvAnalyzer {
             // Advance the trailing edge so only beats with ts in (tStart, tEnd] remain.
             while (lo < hi && kept[lo].ts <= tStart) lo++
             val span = kept.subList(lo, hi + 1).map { it.rrMs.toDouble() }
+            // A window with too few clean beats is a noisy spike, not a trustworthy rMSSD — require
+            // [minBeatsPerWindow] survivors, matching the Swift HRVAnalyzer.rollingRmssd default (8).
+            if (span.size < minBeatsPerWindow) continue
             val r = rmssdRaw(span) ?: continue
             out.add(tEnd to r)
         }
