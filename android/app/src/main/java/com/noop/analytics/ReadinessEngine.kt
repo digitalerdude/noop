@@ -250,7 +250,7 @@ object ReadinessEngine {
         else String.format(Locale.US, "%.${decimals}f", x)
 
     private fun acwrSignal(ratio: Double, acute: Double, chronic: Double): Signal {
-        val pct = String.format("%.2f", ratio)
+        val pct = fmt(ratio, 2)
         // Evidence: the two strain loads the ratio is built from, 1 dp each.
         val evidence = "7d ${fmt(acute, 1)} / 28d ${fmt(chronic, 1)}"
         return when {
