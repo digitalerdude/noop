@@ -46,6 +46,20 @@ class HrvAnalyzerRollingTest {
         assertEquals(109L, out.last().first)
     }
 
+    @Test fun stepSecThinsEmission() {
+        // #803 parity with Swift testRollingRmssdStepThinsEmission: the same 60-beat 1 Hz stream with a
+        // 10 s stride emits far fewer than one-per-beat, and adjacent emitted points are >= stepSec apart,
+        // while the value stays the steady ~10 ms alternation. This is the flood guard the day-scale chart
+        // needs (the HRV branch skips downsampleTimeline, so without a stride it plots every beat).
+        val series = (0 until 60).map { rr(1000L + it, if (it % 2 == 0) 800 else 810) }
+        val dense = HrvAnalyzer.rollingRmssd(series, windowSec = 30, stepSec = 0)
+        val thinned = HrvAnalyzer.rollingRmssd(series, windowSec = 30, stepSec = 10)
+        assertTrue("a stride must emit fewer points than every-beat", thinned.size < dense.size)
+        for (i in 1 until thinned.size) {
+            assertTrue("adjacent emits >= stepSec apart", thinned[i].first - thinned[i - 1].first >= 10)
+        }
+    }
+
     @Test fun rangeFilterDropsOutOfRangeBeatsFromWindows() {
         // Inject a physiologically-impossible 50 ms RR between clean beats. It must be range-filtered out,
         // so the rMSSD never sees the huge artifact jump (which would spike a raw-RR plot).

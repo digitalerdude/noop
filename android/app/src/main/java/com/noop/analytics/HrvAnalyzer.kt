@@ -241,10 +241,14 @@ object HrvAnalyzer {
      * @param rr the RR intervals (each carries a ts in unix SECONDS and rrMs); the Android twin of the
      *   Swift `[RRSample]`.
      * @param windowSec the trailing window width in seconds (defaults to [DEFAULT_ROLLING_WINDOW_SEC]).
+     * @param stepSec emit at most one point per this many seconds of advance — a thinning stride so a 1 Hz
+     *   RR stream does not emit a point per beat (and flood the chart). 0 (the default) emits at every
+     *   qualifying window. Mirrors the Swift HRVAnalyzer.rollingRmssd `stepSec`.
      */
     fun rollingRmssd(
         rr: List<RrInterval>,
         windowSec: Int = DEFAULT_ROLLING_WINDOW_SEC,
+        stepSec: Int = 0,
         minBeatsPerWindow: Int = 8,
     ): List<Pair<Long, Double>> {
         if (rr.size < minBeatsPerWindow || windowSec <= 0) return emptyList()
@@ -269,17 +273,23 @@ object HrvAnalyzer {
         val window = windowSec.toLong()
         val out = ArrayList<Pair<Long, Double>>(kept.size)
         var lo = 0
+        var lastEmitTs: Long? = null
         for (hi in kept.indices) {
             val tEnd = kept[hi].ts
             val tStart = tEnd - window
             // Advance the trailing edge so only beats with ts in (tStart, tEnd] remain.
             while (lo < hi && kept[lo].ts <= tStart) lo++
+            // Thinning stride: skip emitting until at least [stepSec] has passed since the last EMITTED
+            // point (measured against emits, not candidates), matching the Swift twin's stepSec branch.
+            val last = lastEmitTs
+            if (stepSec > 0 && last != null && tEnd - last < stepSec) continue
             val span = kept.subList(lo, hi + 1).map { it.rrMs.toDouble() }
             // A window with too few clean beats is a noisy spike, not a trustworthy rMSSD — require
             // [minBeatsPerWindow] survivors, matching the Swift HRVAnalyzer.rollingRmssd default (8).
             if (span.size < minBeatsPerWindow) continue
             val r = rmssdRaw(span) ?: continue
             out.add(tEnd to r)
+            lastEmitTs = tEnd
         }
         return out
     }
