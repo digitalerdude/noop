@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Runs exactly ONE device's live BLE at a time, driven by [DeviceRegistry]'s active device id.
@@ -155,8 +157,21 @@ class SourceCoordinator(
     /** The address of the strap the WHOOP link is CURRENTLY connected to, learned from
      *  [connectedPeripheralChanged]. Lets a WHOOP→WHOOP make-active adopt IN PLACE when the newly-activated
      *  row is the same physical strap (#74 keep): a stop/start churn there would drop the live link and
-     *  reconnect through the scan path. Cleared on disconnect (null address). */
+     *  reconnect through the scan path. Cleared on disconnect (null address).
+     *
+     *  @Volatile: written synchronously from [connectedPeripheralChanged] (the WHOOP BLE-callback thread)
+     *  and read inside [switchToWhoop] on the [scope] thread — @Volatile gives the cross-thread visibility
+     *  the Swift twin gets from `@MainActor` isolating the whole class. */
+    @Volatile
     private var connectedWhoopAddress: String? = null
+
+    /** Serializes [reconcile] so two device switches — or [start] racing [onActiveDeviceChanged] — can't
+     *  interleave on the multi-threaded [scope] (Dispatchers.IO is a pool) and leak a half-torn-down source
+     *  or corrupt onStrap/activeStrapId/activeWhoopId. The Swift twin gets this free from `@MainActor`
+     *  serializing every method on one actor; on Android we serialize the state machine explicitly. The
+     *  persist launches ([scope].launch { repository.insert }) are deliberately NOT under this lock — they
+     *  touch no coordinator state, so they stay parallel + off-main as before. */
+    private val reconcileLock = Mutex()
 
     /**
      * Reconcile once against the CURRENT active id (launch). For a single-WHOOP install this resolves to
@@ -165,7 +180,7 @@ class SourceCoordinator(
     fun start() {
         scope.launch {
             val id = registry.activeDeviceId() ?: WhoopBleClient.DEFAULT_DEVICE_ID
-            reconcile(id)
+            reconcileLock.withLock { reconcile(id) }
         }
     }
 
@@ -175,7 +190,7 @@ class SourceCoordinator(
      * repeated call for the same id is dropped (the `removeDuplicates()` equivalent).
      */
     fun onActiveDeviceChanged(id: String) {
-        scope.launch { reconcile(id) }
+        scope.launch { reconcileLock.withLock { reconcile(id) } }
     }
 
     /**
