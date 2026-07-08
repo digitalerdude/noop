@@ -261,17 +261,17 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.renderLiquidSky(
     // (aspect-filled to width, top-aligned, blended so the sky reads through), else the procedural draw.
     // `now` is 0 on the static sky, so procedural rain/snow are frozen there but still visible.
     if (weather != LiquidWeather.CLEAR && weatherImage != null) {
-        val iw = weatherImage.width
-        val ih = weatherImage.height
-        val dstH = if (iw > 0) (w * ih / iw) else h
-        // Normal (SrcOver) is the universal default: an OPAQUE scene (e.g. a storm sky) covers the gradient,
-        // a TRANSPARENT overlay shows the gradient through its alpha. TUNE per art. (#weather)
+        // Fill the WHOLE sky canvas (stretch), matching the iOS draw — an aspect-fit-to-width draw left a
+        // short 3:2 image with a hard bottom edge partway down the tall sky band, which read as "not
+        // stretched" and (split by a floating card) as "doubled". The settle fade below dissolves the lower
+        // part into the page. Normal (SrcOver): an OPAQUE scene covers the gradient; a TRANSPARENT overlay
+        // shows the gradient through its alpha. (#weather)
         drawImage(
             image = weatherImage,
             srcOffset = IntOffset.Zero,
-            srcSize = IntSize(iw, ih),
+            srcSize = IntSize(weatherImage.width, weatherImage.height),
             dstOffset = IntOffset.Zero,
-            dstSize = IntSize(w.toInt().coerceAtLeast(1), dstH.toInt().coerceAtLeast(1)),
+            dstSize = IntSize(w.toInt().coerceAtLeast(1), h.toInt().coerceAtLeast(1)),
             alpha = 0.9f,                  // TUNE per the art
             blendMode = BlendMode.SrcOver,
         )
