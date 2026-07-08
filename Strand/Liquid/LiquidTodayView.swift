@@ -420,8 +420,11 @@ struct LiquidTodayView: View {
         HStack(alignment: .top, spacing: 4) {
             HeroScoreCell(label: String(localized: "Charge"), score: displayDay?.recovery, tint: StrandPalette.chargeColor,
                           pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .charge })
-            HeroScoreCell(label: String(localized: "Effort"), score: displayDay?.strain, tint: StrandPalette.effortColor,
-                          pill: nil, animated: dataLoaded, onGuide: { guideSection = .effort })
+            HeroScoreCell(label: String(localized: "Effort"),
+                          score: displayDay?.strain.map { UnitFormatter.effortValue($0, scale: effortScale) },
+                          tint: StrandPalette.effortColor, pill: nil, animated: dataLoaded,
+                          onGuide: { guideSection = .effort },
+                          maxValue: effortScale == .whoop ? 21 : 100)
             HeroScoreCell(label: String(localized: "Rest"), score: restScore, tint: StrandPalette.restColor,
                           pill: "WHOOP", animated: dataLoaded, onGuide: { guideSection = .rest })
         }
@@ -1065,15 +1068,18 @@ private struct LiquidWordmark: View {
 /// hit-transparent so the tap reaches the vessel). The label row taps through to the scoring guide.
 private struct HeroScoreCell: View {
     let label: String
-    let score: Double?            // 0–100 (nil = no data yet)
+    let score: Double?            // on whatever scale the caller passes (nil = no data yet)
     let tint: Color
     let pill: String?
     let animated: Bool
     let onGuide: () -> Void
+    // The scale `score` is already expressed on — 100 for Charge/Rest, or the user's chosen
+    // Effort scale max (100 or 21, #45) so the vessel fill matches the displayed number.
+    var maxValue: Double = 100
 
     @State private var shown: Double = 0
 
-    private var frac: Double? { score.map { max(0, min(1, $0 / 100)) } }
+    private var frac: Double? { score.map { max(0, min(1, $0 / maxValue)) } }
 
     var body: some View {
         VStack(spacing: 7) {
