@@ -79,11 +79,15 @@ final class DecoderOracleTests: XCTestCase {
                     case .int(let i): wantMag = Double(i)
                     default: XCTFail("gravity_mag must be a number in \(frame.name)"); continue
                     }
-                    let gx = parsed["gravity_x"]?.doubleValue
-                    let gy = parsed["gravity_y"]?.doubleValue
-                    let gz = parsed["gravity_z"]?.doubleValue
-                    XCTAssertNotNil(gx, "\(frame.name): gravity did not decode")
-                    let mag = ((gx ?? 0) * (gx ?? 0) + (gy ?? 0) * (gy ?? 0) + (gz ?? 0) * (gz ?? 0)).squareRoot()
+                    // Bind to concrete Doubles before the arithmetic: the one-line optional-chained
+                    // magnitude expression exceeded the type-checker's time budget on the CI runners
+                    // ("unable to type-check this expression in reasonable time").
+                    let gx: Double = parsed["gravity_x"]?.doubleValue ?? 0
+                    let gy: Double = parsed["gravity_y"]?.doubleValue ?? 0
+                    let gz: Double = parsed["gravity_z"]?.doubleValue ?? 0
+                    XCTAssertNotNil(parsed["gravity_x"]?.doubleValue, "\(frame.name): gravity did not decode")
+                    let sumOfSquares: Double = gx * gx + gy * gy + gz * gz
+                    let mag = sumOfSquares.squareRoot()
                     XCTAssertEqual(mag, wantMag, accuracy: 0.1, "\(frame.name): |gravity|")
                 default:
                     switch expected {
