@@ -74,6 +74,16 @@ enum UnitPrefs {
         return system.temperatureMatching
     }
 
+    /// The resolved temperature display unit for NON-VIEW call sites (banner strings, notifications),
+    /// reading the same keys the screens' @AppStorage plumbing resolves — one preference, one answer.
+    /// Views should keep their reactive @AppStorage properties; this is for one-shot string generation,
+    /// mirroring `currentEffortDisplayFactor()` above.
+    static func currentTemperatureUnit() -> TemperatureUnit {
+        let system = UnitSystem(rawValue: UserDefaults.standard.string(forKey: systemKey) ?? "") ?? .metric
+        return resolveTemperature(system: system,
+                                  override: UserDefaults.standard.string(forKey: temperatureKey) ?? "")
+    }
+
     /// Resolve the stored Effort-scale raw value, defaulting to NOOP's native 0–100 axis.
     static func resolveEffortScale(_ raw: String) -> EffortScale {
         EffortScale(rawValue: raw) ?? .hundred

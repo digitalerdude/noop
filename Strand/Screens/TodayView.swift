@@ -197,6 +197,12 @@ struct TodayView: View {
     // Imperial/Metric display preference (D#103). Only the Weight tile carries a convertible unit here.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    // °C/°F override for the skin-temp dashboard card (#101-class fix) — same resolution as
+    // FullDayChartView / MetricExplorerView so every skin-temp read-out honours the one preference.
+    @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
+    private var temperatureUnit: TemperatureUnit {
+        UnitPrefs.resolveTemperature(system: unitSystem, override: temperatureRaw)
+    }
     // Day-cycle scene backdrop (#698). Default ON. When the user turns it off in Settings → Appearance,
     // Today drops the SceneScreenBackground and falls back to the plain dark surfaceBase canvas. The
     // cards already sit on an opaque canvas, so readability is unchanged either way.
@@ -2079,8 +2085,12 @@ struct TodayView: View {
         case .bloodOxygen:
             return d?.spo2Pct.map { String(format: "%.0f%%", $0) } ?? "—"
         case .skinTemp:
-            // Stored as a deviation from baseline (°C); show it signed so +/- reads honestly.
-            return d?.skinTempDevC.map { String(format: "%+.1f°", $0) } ?? "—"
+            // Stored as a deviation from baseline (°C); show it signed so +/- reads honestly, converted
+            // to the °C/°F preference (a delta scales by 9/5, no +32 offset — UnitFormatter handles it).
+            return d?.skinTempDevC.map {
+                let s = UnitFormatter.temperatureDeltaFromCelsius($0, unit: temperatureUnit)
+                return $0 > 0 ? "+" + s : s
+            } ?? "—"
         case .sleep:
             return sleepValue(d)
         case .steps:

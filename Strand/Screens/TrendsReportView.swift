@@ -132,12 +132,19 @@ enum TrendsReportData {
     }
 
     /// Build the full report for a range from a DailyMetric history (+ the stored daily
-    /// stress series, for the Stress row — #457).
+    /// stress series, for the Stress row — #457). The display factors flow into the
+    /// engine's headline prose only (Effort scale #268, °C/°F) — stats stay SI.
     static func report(for range: ReportRange, days: [DailyMetric],
-                       today: String, stressByDay: [String: Double] = [:]) -> RangeReport {
+                       today: String, stressByDay: [String: Double] = [:],
+                       effortDisplayFactor: Double = 1.0,
+                       skinTempDisplayFactor: Double = 1.0,
+                       skinTempUnitLabel: String = "°C") -> RangeReport {
         let (start, end) = window(for: range, days: days, today: today)
         return RangeReportEngine.build(metrics: metricMaps(from: days, stressByDay: stressByDay),
-                                       start: start, end: end)
+                                       start: start, end: end,
+                                       effortDisplayFactor: effortDisplayFactor,
+                                       skinTempDisplayFactor: skinTempDisplayFactor,
+                                       skinTempUnitLabel: skinTempUnitLabel)
     }
 
     /// The in-range sparkline series (chronological values) for one metric — the same
@@ -190,6 +197,18 @@ struct TrendsReportPage: View {
     let series: [ReportMetric: [Double]]
     /// Generated-on label (e.g. "Jun 15, 2026").
     let generatedOn: String
+
+    // Display-unit preferences (#101-class / #268): the Avg/Min/Max read-outs convert the stored
+    // SI values (Δ°C, 0–100 Effort) to the user's °C/°F and Effort-scale choice — same resolution
+    // as FullDayChartView so the exported PDF matches what every screen shows.
+    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
+    @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
+    @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    private var temperatureUnit: TemperatureUnit {
+        UnitPrefs.resolveTemperature(system: UnitSystem(rawValue: unitSystemRaw) ?? .metric,
+                                     override: temperatureRaw)
+    }
+    private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
 
     /// The fixed page width used for the PDF render. ~ A4 portrait at 72dpi-ish density.
     static let pageWidth: CGFloat = 612
@@ -382,12 +401,25 @@ struct TrendsReportPage: View {
     /// Skin-temp is a signed deviation from baseline, so a positive reading gets an explicit
     /// "+" to keep it from reading as an absolute temp.
     private func valueText(_ v: Double, _ metric: ReportMetric) -> String {
-        let unit = metric.unit
-        // Workouts is a fractional rate in the AVG read-out but a whole count at min/max; one
-        // decimal keeps the averaged cadence honest (e.g. "0.4 /day") without faking precision.
-        var num = metric.usesOneDecimal ? round1Text(v) : "\(Int(v.rounded()))"
-        if metric == .skinTempDev && v > 0 { num = "+\(num)" }
-        return unit.isEmpty ? num : "\(num) \(unit)"
+        switch metric {
+        case .skinTempDev:
+            // °C/°F preference: the stored Δ°C scales by 9/5 for °F (no +32 offset — it's a delta).
+            // UnitFormatter carries the converted number + the right unit label in one go.
+            let s = UnitFormatter.temperatureDeltaFromCelsius(v, unit: temperatureUnit)
+            return v > 0 ? "+\(s)" : s
+        case .strain:
+            // Effort scale (#268): the stored 0–100 value rescaled for display. The native scale
+            // keeps the report's whole-number style; the 0–21 axis needs one decimal to not read
+            // coarse (matching UnitFormatter.effortDisplay everywhere else).
+            let scaled = UnitFormatter.effortValue(v, scale: effortScale)
+            return effortScale == .whoop ? round1Text(scaled) : "\(Int(scaled.rounded()))"
+        default:
+            let unit = metric.unit
+            // Workouts is a fractional rate in the AVG read-out but a whole count at min/max; one
+            // decimal keeps the averaged cadence honest (e.g. "0.4 /day") without faking precision.
+            let num = metric.usesOneDecimal ? round1Text(v) : "\(Int(v.rounded()))"
+            return unit.isEmpty ? num : "\(num) \(unit)"
+        }
     }
 
     private func meanText(_ stat: MetricRangeStat) -> String {
@@ -427,8 +459,22 @@ struct TrendsReportSheet: View {
 
     private var today: String { Repository.localDayKey(Date()) }
 
+    // Display-unit preferences, resolved once here so the engine's headline prose matches the
+    // page's converted Avg/Min/Max read-outs (Effort scale #268, °C/°F #101-class).
+    @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
+    @AppStorage(UnitPrefs.temperatureKey) private var temperatureRaw = ""
+    private var temperatureUnit: TemperatureUnit {
+        UnitPrefs.resolveTemperature(system: UnitSystem(rawValue: unitSystemRaw) ?? .metric,
+                                     override: temperatureRaw)
+    }
+
     private var report: RangeReport {
-        TrendsReportData.report(for: range, days: days, today: today, stressByDay: stressByDay)
+        TrendsReportData.report(
+            for: range, days: days, today: today, stressByDay: stressByDay,
+            effortDisplayFactor: UnitPrefs.currentEffortDisplayFactor(),
+            // A Δ°C→Δ°F conversion is the 9/5 scale WITHOUT the +32 offset (it's a difference).
+            skinTempDisplayFactor: temperatureUnit == .fahrenheit ? 9.0 / 5.0 : 1.0,
+            skinTempUnitLabel: UnitFormatter.temperatureUnit(temperatureUnit))
     }
 
     private func seriesMap(start: String, end: String) -> [ReportMetric: [Double]] {

@@ -232,10 +232,26 @@ public enum RangeReportEngine {
     ///     and missing days are simply absent; this is robust to sparse data.
     ///   - start: inclusive range start, "yyyy-MM-dd".
     ///   - end: inclusive range end, "yyyy-MM-dd".
+    ///   - effortDisplayFactor: multiplier applied to STRAIN means in the rendered
+    ///     headline sentences ONLY, so a user on the 0–21 Effort scale (#268) never
+    ///     reads a stored 0–100 mean in prose. Defaults to 1.0 (stored scale) so
+    ///     existing callers are byte-identical. Mirrors WeeklyDigestEngine's parameter
+    ///     of the same name — keep the Android RangeReport in lockstep.
+    ///   - skinTempDisplayFactor: multiplier applied to SKIN-TEMP Δ means in the
+    ///     headline sentences (9/5 for a °F display — a delta scales but takes no +32
+    ///     offset). Defaults to 1.0 (°C, the stored unit).
+    ///   - skinTempUnitLabel: the unit suffix rendered next to skin-temp Δ means in
+    ///     headlines ("°C"/"°F"), paired with `skinTempDisplayFactor`.
+    ///
+    /// The display factors are display-only: every stat, delta, trend and threshold is
+    /// computed on the stored SI values.
     ///
     /// If `end` sorts before `start` the range is treated as empty (no metrics, 0 days).
     public static func build(metrics: [ReportMetric: [String: Double]],
-                             start: String, end: String) -> RangeReport {
+                             start: String, end: String,
+                             effortDisplayFactor: Double = 1.0,
+                             skinTempDisplayFactor: Double = 1.0,
+                             skinTempUnitLabel: String = "°C") -> RangeReport {
         // A valid window requires start <= end (ISO string compare == chronological).
         guard start <= end else {
             return RangeReport(start: start, end: end, totalDays: 0,
@@ -288,7 +304,10 @@ public enum RangeReportEngine {
                 trend: trend, latest: latest))
         }
 
-        let headlines = makeHeadlines(stats)
+        let headlines = makeHeadlines(stats,
+                                      effortDisplayFactor: effortDisplayFactor,
+                                      skinTempDisplayFactor: skinTempDisplayFactor,
+                                      skinTempUnitLabel: skinTempUnitLabel)
         return RangeReport(start: start, end: end, totalDays: totalDays,
                            metrics: stats, headlines: headlines)
     }
@@ -298,9 +317,17 @@ public enum RangeReportEngine {
     /// One plain-English line per present metric, ranked most-notable first. "Notable"
     /// is the absolute first→second-half change scaled by the metric's trend threshold,
     /// so movers on different units are comparable. Folds in good/bad framing.
-    static func makeHeadlines(_ stats: [MetricRangeStat]) -> [String] {
+    static func makeHeadlines(_ stats: [MetricRangeStat],
+                              effortDisplayFactor: Double = 1.0,
+                              skinTempDisplayFactor: Double = 1.0,
+                              skinTempUnitLabel: String = "°C") -> [String] {
         let ranked = stats.sorted { salience($0) > salience($1) }
-        return ranked.map { headline($0) }
+        return ranked.map {
+            headline($0,
+                     effortDisplayFactor: effortDisplayFactor,
+                     skinTempDisplayFactor: skinTempDisplayFactor,
+                     skinTempUnitLabel: skinTempUnitLabel)
+        }
     }
 
     /// |half delta| normalised by the metric's trend threshold (a units-agnostic move).
@@ -310,7 +337,12 @@ public enum RangeReportEngine {
     }
 
     /// Render one metric's headline. Trend word + good/bad framing + the two half means.
-    static func headline(_ s: MetricRangeStat) -> String {
+    /// The display factors convert the PROSE only (Effort scale #268, °C/°F) — trend and
+    /// framing were already decided on the stored SI values.
+    static func headline(_ s: MetricRangeStat,
+                         effortDisplayFactor: Double = 1.0,
+                         skinTempDisplayFactor: Double = 1.0,
+                         skinTempUnitLabel: String = "°C") -> String {
         let word: String
         switch s.trend {
         case .rising:  word = "trending up"
@@ -326,9 +358,16 @@ public enum RangeReportEngine {
             let good = (up == s.metric.higherIsBetter)
             frame = good ? " - a good sign" : " - worth a look"
         }
-        let unit = s.metric.unit.isEmpty ? "" : " \(s.metric.unit)"
-        return "\(s.metric.label) is \(word) (avg \(round1(s.firstHalfMean))\(unit) → "
-            + "\(round1(s.secondHalfMean))\(unit))\(frame)."
+        let f: Double
+        switch s.metric {
+        case .strain:      f = effortDisplayFactor
+        case .skinTempDev: f = skinTempDisplayFactor
+        default:           f = 1.0
+        }
+        let unitLabel = s.metric == .skinTempDev ? skinTempUnitLabel : s.metric.unit
+        let unit = unitLabel.isEmpty ? "" : " \(unitLabel)"
+        return "\(s.metric.label) is \(word) (avg \(round1(s.firstHalfMean * f))\(unit) → "
+            + "\(round1(s.secondHalfMean * f))\(unit))\(frame)."
     }
 
     // MARK: - Trend

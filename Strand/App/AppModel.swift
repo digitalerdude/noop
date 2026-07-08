@@ -1414,7 +1414,10 @@ final class AppModel: ObservableObject {
             labels["hrv"] = "HRV −\(Int(((1 - r / b) * 100).rounded()))%"
         }
         if let r = rm({ $0.skinTempDevC }), r > 0 {
-            labels["skinTemp"] = "skin temp +\(String(format: "%.1f", r)) °C"
+            // Converted to the °C/°F preference like every on-screen skin-temp read-out — the banner
+            // and its notification would otherwise contradict the cards for a Fahrenheit user.
+            labels["skinTemp"] = "skin temp +"
+                + UnitFormatter.temperatureDeltaFromCelsius(r, unit: UnitPrefs.currentTemperatureUnit())
         }
         if let r = rm({ $0.respRateBpm }), let b = mean(base.compactMap { $0.respRateBpm }), r > b {
             labels["respiration"] = "respiration up"
