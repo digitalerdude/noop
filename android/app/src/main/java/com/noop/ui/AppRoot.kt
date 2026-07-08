@@ -736,14 +736,16 @@ private fun GlassBottomBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            // #86: recede on scroll. graphicsLayer only (no relayout); pivots at the bottom-centre so it
-            // shrinks toward the edge like the Instagram bar. Subtle by design (scale ~0.88, fade to 0.6).
+            // #86: recede on scroll. graphicsLayer only (no relayout). It fades toward TRANSPARENT and
+            // shrinks slightly IN PLACE rather than sliding off the bottom — a big translate looked like the
+            // bar was falling off / going under the gesture nav. Gentle shrink (0.92), fades to ~0.35 (clearly
+            // see-through), and only a hair of downward drift (6dp). Bottom-centre pivot.
             .graphicsLayer {
-                val s = 1f - collapse * 0.12f
+                val s = 1f - collapse * 0.08f
                 scaleX = s
                 scaleY = s
-                alpha = 1f - collapse * 0.40f
-                translationY = collapse * 22.dp.toPx()
+                alpha = 1f - collapse * 0.65f
+                translationY = collapse * 6.dp.toPx()
                 transformOrigin = TransformOrigin(0.5f, 1f)
             }
             // Clear the gesture-nav bar (home indicator) first, then add breathing room so the capsule
