@@ -741,7 +741,7 @@ private struct FitnessAgeSection: View {
             // how far off it is, then the checklist shows exactly what's still needed.
             ReadinessChecklistCard(
                 readiness: readiness,
-                lead: fitnessReadyLead(),
+                lead: LocalizedStringKey(fitnessReadyLead()),
                 onFix: { fitnessSheet = .settings })
         } else {
             // Brief read of the weekly value; honest placeholder rather than an empty gap.
