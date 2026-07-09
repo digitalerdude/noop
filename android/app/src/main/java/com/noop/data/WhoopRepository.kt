@@ -825,6 +825,12 @@ class WhoopRepository(private val dao: WhoopDao) {
     suspend fun deleteJournalEntry(deviceId: String, day: String, question: String) =
         dao.deleteJournalEntry(deviceId, day, question)
 
+    /** Atomically replace a device's imported journal within a day range (#136) — the WHOOP importer
+     *  clears the span it re-writes and upserts in ONE transaction, so the wake-day re-keying leaves no
+     *  pre-fix onset-keyed duplicates and a crash mid-import can't drop the range's journal. */
+    suspend fun replaceJournalRange(deviceId: String, from: String, to: String, rows: List<JournalEntry>) =
+        dao.replaceJournalRange(deviceId, from, to, rows)
+
     /** Apple-Health daily aggregates for the inclusive day range [from, to] (YYYY-MM-DD), oldest first. */
     suspend fun appleDaily(deviceId: String, from: String, to: String): List<AppleDaily> =
         dao.appleDaily(deviceId, from, to)
@@ -1588,6 +1594,10 @@ class WhoopRepository(private val dao: WhoopDao) {
                     respRateBpm = d.respRateBpm ?: c.respRateBpm,
                     steps = d.steps ?: c.steps,
                     activeKcalEst = d.activeKcalEst ?: c.activeKcalEst,
+                    // Raw SpO2 is on-device only (imports never carry it), so the imported row's null
+                    // is backfilled from the computed row — otherwise the nightly means would be lost. (#93)
+                    spo2Red = d.spo2Red ?: c.spo2Red,
+                    spo2Ir = d.spo2Ir ?: c.spo2Ir,
                 )
                 // #993: a BARE imported sleep total must never override a night the strap actually
                 // scored. HealthConnectImporter backfills a "my-whoop" daily row carrying ONLY

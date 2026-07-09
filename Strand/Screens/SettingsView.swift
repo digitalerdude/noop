@@ -65,6 +65,8 @@ struct SettingsView: View {
     // Effort display scale (#268). Display-only — Effort stays stored 0–100, this only chooses whether
     // it's shown on NOOP's 0–100 axis or WHOOP's 0–21 Day Strain axis.
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    @AppStorage(UnitPrefs.trendChartStyleKey) private var trendChartStyleRaw = TrendChartStyle.line.rawValue
+    @AppStorage(UnitPrefs.hrvWindowKey) private var hrvWindowRaw = HrvWindow.whole.rawValue
     // Live-HR Live Activity (Lock Screen + Dynamic Island), iOS only (#336). Default on.
     @AppStorage(UnitPrefs.liveActivityKey) private var liveActivityEnabled = true
     // Alternate app icon (iOS only) — false = Titanium (primary AppIcon), true = Blue Titanium
@@ -656,6 +658,7 @@ struct SettingsView: View {
                     .fixedSize()
                     .accessibilityLabel("Theme")
                 }
+                rowDivider   // #79: the segmented rows sat flush against each other (missing separator)
                 FormRow(label: "Chart colours") {
                     // Default = NOOP's clean metric ramps; Classic = the throwback red→amber→green
                     // readiness scale (cool→hot zones, green→red stress). Both schemes.
@@ -669,7 +672,22 @@ struct SettingsView: View {
                     .fixedSize()
                     .accessibilityLabel("Chart colours")
                 }
+                rowDivider
+                // Trend chart style (line vs bar). Display-only: flips the Trends tab's charts between the
+                // gradient line + area and value-ramp bars. The plotted data is identical either way.
+                FormRow(label: "Trend charts") {
+                    Picker("Trend charts", selection: $trendChartStyleRaw) {
+                        ForEach(TrendChartStyle.allCases) { style in
+                            Text(style.label).tag(style.rawValue)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                    .accessibilityLabel("Trend chart style")
+                }
                 #if os(iOS)
+                rowDivider   // #79: separator before App icon (inside #if so macOS keeps a single divider)
                 FormRow(label: "App icon") {
                     Picker("App icon", selection: $useNavyIcon) {
                         Text("Default").tag(false)
@@ -854,11 +872,39 @@ struct SettingsView: View {
                     .onChangeCompat(of: continuousHrvOvernightOnly) { _ in
                         model.ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
                     }
-                    Text("Runs the stream only during your quiet hours window (22:00 to 07:00 by default), roughly halving the battery cost. Daytime Stress readings will be sparser, since Stress reads this live stream.")
+                    Text("Runs the continuous HRV stream only during your quiet hours window (22:00–07:00 by default), roughly halving the battery cost. Daytime Stress readings will be sparser. Note: continuous background HRV capture (including daytime naps) is paused outside this window. For on-demand daytime HRV readings (including naps), use the \"Take an HRV reading\" button on the Live screen.")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                // HRV window (#141) — grouped with the other HRV settings (#155). Whole night (NOOP's
+                // long-standing value) or DEEP sleep only (WHOOP-style, reads lower and more comparable to
+                // WHOOP/Polar). Unlike the Effort scale this CHANGES the number, so a switch re-scores +
+                // re-baselines (like a sleep edit).
+                FormRow(label: "HRV window") {
+                    Picker("HRV window", selection: $hrvWindowRaw) {
+                        Text("Whole night").tag(HrvWindow.whole.rawValue)
+                        Text("Deep sleep").tag(HrvWindow.deep.rawValue)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .fixedSize()
+                    .accessibilityLabel("HRV window")
+                    .onChangeCompat(of: hrvWindowRaw) { _ in
+                        // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or
+                        // recovery would compare the new value against a baseline still folded from the old
+                        // window (the EWMA spans further than the ~21 nights that re-score → skewed for weeks).
+                        // Re-anchor the HRV baseline to now (HRV-only sibling of "Recalibrate Charge baseline"),
+                        // then re-score + refresh so the recent trend + fresh baseline both reflect the window.
+                        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: Baselines.hrvBaselineEpochKey)
+                        Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+                    }
+                }
+                Text("Whole night is NOOP's default measure; Deep sleep pools HRV over slow-wave sleep only, reading lower and matching WHOOP. Switching re-scores recent nights and recalibrates Charge over a few nights.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 // MARK: Strap name — rename the WHOOP 4.0's BLE advertising name (Harvard command set).
                 if live.connected && selectedWhoopModelRaw == WhoopModel.whoop4.rawValue {
@@ -2379,6 +2425,13 @@ struct StepsCalibrationSheet: View {
     @State private var draftManual: Double = 0
     @State private var didLoad = false
 
+    /// #107: the sheet's guidance depends on the strap family. A WHOOP 4.0 streams motion automatically, so
+    /// "let it sync" is right; a 5/MG only streams motion once the experimental deep-data unlock is on, so
+    /// the 4.0 advice is futile there and the empty state must say so instead.
+    @AppStorage("selectedWhoopModel") private var selectedWhoopModelRaw = WhoopModel.whoop4.rawValue
+    @AppStorage(PuffinExperiment.deepDataKey) private var deepDataEnabled = false
+    private var is5MG: Bool { selectedWhoopModelRaw == WhoopModel.whoop5mg.rawValue }
+
     /// The coefficient the slider's max anchors to — generous headroom over whatever the auto-fit found so
     /// a manual nudge in either direction is reachable. Floor keeps the slider usable before any fit.
     private var sliderMax: Double {
@@ -2422,7 +2475,7 @@ struct StepsCalibrationSheet: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                 Text("Calibrate your steps").font(StrandFont.rounded(26, weight: .bold))
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("WHOOP 4.0 · motion → steps").font(StrandFont.caption)
+                Text(is5MG ? "WHOOP 5.0 / MG · motion → steps" : "WHOOP 4.0 · motion → steps").font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
             }
             Spacer()
@@ -2458,7 +2511,9 @@ struct StepsCalibrationSheet: View {
                 Label("How this works", systemImage: "figure.walk.motion")
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter. A WHOOP 4.0 doesn't transmit steps.")
+                Text(is5MG
+                     ? String(localized: "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter — a WHOOP 5.0 / MG streams motion (not a step count) only with deep data on.")
+                     : String(localized: "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter. A WHOOP 4.0 doesn't transmit steps."))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -2473,22 +2528,45 @@ struct StepsCalibrationSheet: View {
     /// Shown when the strap has banked NO motion yet (sampleMotion is nil) — the real reason a fresh
     /// WHOOP 4.0 shows zero steps (#37 bringiton321). Steps are built from the strap's synced motion
     /// history, so without a backfill there is nothing to estimate from — calibration can't help yet.
+    ///
+    /// #107: family-aware. A 4.0 streams motion automatically → "let it sync" is right. A 5/MG only streams
+    /// motion once the experimental deep-data unlock is ON — so on a 5/MG the honest advice is "turn that on
+    /// and reconnect", not "wait for a sync" (which never comes). Imports don't supply strap motion either.
     private var noMotionNote: some View {
         NoopCard(tint: StrandPalette.metricAmber) {
             VStack(alignment: .leading, spacing: 10) {
                 Label("No motion synced yet", systemImage: "antenna.radiowaves.left.and.right.slash")
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
-                Text("We're not seeing any motion from your strap yet. Steps are estimated from your WHOOP's banked motion history, so your strap needs to sync that history before NOOP has anything to count.")
+                Text(noMotionLead)
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("Open NOOP near your strap and let it catch up (a full history sync can take a while on first run). Once a day or two of motion lands, your step estimate and the calibration below will start to fill in.")
+                Text(noMotionAction)
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+    }
+
+    /// The "why it's empty" line — a 5/MG needs the deep-data unlock before it streams motion at all.
+    private var noMotionLead: String {
+        if is5MG {
+            return String(localized: "We're not seeing any motion from your WHOOP 5.0 / MG yet. Unlike a 4.0, a 5/MG only streams motion (and history) once the experimental deep-data unlock is on — so until then there's nothing to estimate steps from. Importing history from WHOOP or Apple Health doesn't provide the strap motion this needs.")
+        }
+        return String(localized: "We're not seeing any motion from your strap yet. Steps are estimated from your WHOOP's banked motion history, so your strap needs to sync that history before NOOP has anything to count.")
+    }
+
+    /// The "what to do" line — 5/MG points at the deep-data toggle (unless it's already on, then just sync).
+    private var noMotionAction: String {
+        if is5MG && !deepDataEnabled {
+            return String(localized: "Turn on Settings → \u{201C}Unlock WHOOP 5/MG deep data (R22)\u{201D}, reconnect your strap, then open NOOP near it and let a day or two of motion sync. Your step estimate and the calibration below fill in once motion lands.")
+        }
+        if is5MG {
+            return String(localized: "Deep data is on — open NOOP near your strap and let it sync its motion history (a full first-run sync can take a while). Once a day or two of motion lands, your step estimate and the calibration below fill in.")
+        }
+        return String(localized: "Open NOOP near your strap and let it catch up (a full history sync can take a while on first run). Once a day or two of motion lands, your step estimate and the calibration below will start to fill in.")
     }
 
     /// The current calibration read-out: coefficient, sample days, and a Low/Medium/High confidence —

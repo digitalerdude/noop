@@ -5,6 +5,7 @@ import com.noop.data.EventRow
 import com.noop.data.GravitySample
 import com.noop.data.HrSample
 import com.noop.data.SkinTempSample
+import com.noop.data.Spo2Sample
 import com.noop.data.RespSample
 import com.noop.data.RrInterval
 import com.noop.data.StepSample
@@ -168,6 +169,11 @@ object AnalyticsEngine {
         // Default WHOOP5 keeps every 5/MG + pure-function caller byte-identical; IntelligenceEngine passes
         // the day owner's real family.
         skinTempFamily: DeviceFamily = DeviceFamily.WHOOP5,
+        // WHOOP 4.0 raw SpO2 PPG ADC samples (red/IR) for the night window (#93). The nightly red/IR
+        // means over detected sleep are banked on the DailyMetric as RAW ADC — honest "the sensor
+        // decoded" data, NOT a calibrated blood-oxygen % (that needs WHOOP's proprietary curve). Default
+        // empty keeps pure-function callers/tests + non-4.0 nights null.
+        spo2: List<Spo2Sample> = emptyList(),
         profile: UserProfile,
         baselines: ProfileBaselines = ProfileBaselines(),
         maxHROverride: Double? = null,
@@ -210,6 +216,19 @@ object AnalyticsEngine {
         // Sleep & Rest test-mode trace sink (E11). null = byte-identical default. When non-null the gate
         // trace from detectSleep and the Rest sub-score line are forwarded line-by-line. Mirrors Swift.
         traceSink: ((String) -> Unit)? = null,
+        // HRV & Autonomic test-mode sink (#141). null = byte-identical default. When non-null, the nightly
+        // per-5-min-window RMSSDs (tagged by sleep stage) + a whole-night vs deep-only vs last-SWS summary
+        // are forwarded so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages lift it.
+        hrvTraceSink: ((String) -> Unit)? = null,
+        // Whether to emit the ~90 per-window `hrv window …` lines (vs just the 1-line summary). The caller
+        // sets it TRUE only for the most-recent night so the 5000-line ring buffer isn't flooded (21 nights ×
+        // ~90 windows would evict the always-on diagnostics); the 1-line `hrv nightSummary` is kept for EVERY
+        // night so the whole-night-vs-deep pattern is still visible across the week.
+        hrvWindowDetail: Boolean = false,
+        // #141: when true, the nightly HRV is RMSSD over DEEP-sleep windows only (WHOOP-style), instead of
+        // the whole-night mean. Display-only preference threaded from the caller (UnitPrefs.hrvWindow). The
+        // default (false) is byte-identical to the historical whole-night value.
+        deepHrvWindow: Boolean = false,
     ): DayResult {
 
         // ── Sleep detection + staging ─────────────────────────────────────────
@@ -293,7 +312,19 @@ object AnalyticsEngine {
         // Daily resting HR = lowest per-session resting HR across matched sessions.
         val restingHRDaily: Int? = matched.mapNotNull { it.restingHR }.minOrNull()
         // Daily avg HRV = in-bed-weighted mean of per-session avg HRV.
-        val avgHRVDaily: Double? = run {
+        val avgHRVDaily: Double? = if (deepHrvWindow) {
+            // #141: WHOOP-style HRV — pool RMSSD over DEEP-stage 5-min windows only (slow-wave sleep),
+            // instead of the whole-night mean below. Reuses the SAME sessionHrvWindows the HRV trace is
+            // built from, so the displayed value equals the `deepOnly` figure the trace logs. rr is sorted
+            // (RMSSD = successive diffs). null when the night has no detected deep sleep (WHOOP-4.0 staging
+            // can be sparse) — the caller then shows calibrating, never a fabricated number.
+            val rrSorted = rr.sortedBy { it.ts }
+            val deep = matched.flatMap { s ->
+                SleepStager.sessionHrvWindows(s.start, s.end, rrSorted, s.stages)
+                    .filter { it.stage == "deep" }.mapNotNull { it.rmssd }
+            }
+            if (deep.isEmpty()) null else deep.sum() / deep.size
+        } else run {
             val pairs = matched.mapNotNull { s ->
                 s.avgHRV?.let { it to (s.end - s.start).toDouble() }
             }
@@ -304,6 +335,46 @@ object AnalyticsEngine {
                 val weight = pairs.sumOf { it.second }
                 if (weight > 0) total / weight else null
             }
+        }
+
+        // ── HRV & Autonomic nightly trace (#141) ──────────────────────────────
+        // Per-5-min-window RMSSD tagged by the sleep stage at its center, then a night summary comparing
+        // NOOP's whole-night mean (what it reports) against a deep-only mean and a WHOOP-style
+        // last-slow-wave-sleep value — so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages
+        // lift it, and lets a deep-sleep-windowed fix be validated before it ships. Reuses the SAME
+        // sessionHrvWindows the value is built from (can't diverge). Zero cost when the sink is null.
+        if (hrvTraceSink != null) {
+            // sessionHrvWindows requires ts-sorted rr (RMSSD = successive diffs); the value path passes the
+            // stager's pre-sorted rrS, so sort our own copy of the day's raw rr once here for the re-window.
+            val rrSorted = rr.sortedBy { it.ts }
+            val allWin = ArrayList<SleepStager.HrvWindow>()
+            for (s in matched) {
+                val wins = SleepStager.sessionHrvWindows(s.start, s.end, rrSorted, s.stages)
+                if (hrvWindowDetail) {
+                    for (w in wins) {
+                        hrvTraceSink(
+                            "hrv window t=${(w.startTs - s.start) / 60}min stage=${w.stage} " +
+                                "beats=${w.cleanBeats} rmssd=${w.rmssd?.let { "${round2(it)}ms" } ?: "nil"}",
+                        )
+                    }
+                }
+                allWin.addAll(wins)
+            }
+            fun meanMs(ws: List<SleepStager.HrvWindow>): String {
+                val v = ws.mapNotNull { it.rmssd }
+                return if (v.isEmpty()) "nil" else "${round2(v.sum() / v.size)}ms"
+            }
+            val withR = allWin.filter { it.rmssd != null }
+            val deepW = withR.filter { it.stage == "deep" }
+            val lastSws = SleepStager.lastDeepRun(allWin).filter { it.rmssd != null }
+            // `reported` is the value NOOP actually displays (duration-weighted session-mean-of-means);
+            // `wholeNight` is the pooled-window mean it equals on single-session nights and the apples-to-
+            // apples baseline for the deepOnly/lastSWS comparison (all three are pooled window means).
+            hrvTraceSink(
+                "hrv nightSummary reported=${avgHRVDaily?.let { "${round2(it)}ms" } ?: "nil"} " +
+                    "wholeNight=${meanMs(withR)} deepOnly=${meanMs(deepW)} " +
+                    "lastSWS=${meanMs(lastSws)} nWin=${withR.size} nDeep=${deepW.size}",
+            )
         }
 
         // Nightly APPROXIMATE respiratory rate (breaths/min) from the R-R stream via
@@ -332,6 +403,12 @@ object AnalyticsEngine {
         val skinTempDevC: Double? = nightlySkinTempC?.let { v ->
             baselines.skinTemp?.takeIf { it.usable }?.let { round2(Baselines.deviation(v, it).delta) }
         }
+
+        // ── Raw SpO2 (WHOOP 4.0 v24 PPG ADC) ──────────────────────────────────
+        // Nightly red/IR ADC means over the detected in-bed spans, or null when the night carried no raw
+        // SpO2 samples in any span. Baseline-independent (unlike skin temp): a RAW device reading banked
+        // as-is for the Health "Raw SpO2" tile — NOT a calibrated blood-oxygen %. (#93)
+        val nightlySpo2Raw = nightlySpo2RawMeans(matched, spo2)
 
         // ── Rest (sleep_performance composite, 0–100) ─────────────────────────
         // Replaces the bare efficiency proxy: duration-vs-personal-need 0.50 + efficiency 0.20 +
@@ -488,6 +565,8 @@ object AnalyticsEngine {
             respRateBpm = respRateDaily,
             steps = stepsTotal,
             activeKcalEst = activeKcalEst,
+            spo2Red = nightlySpo2Raw?.first,
+            spo2Ir = nightlySpo2Raw?.second,
         )
 
         // ── Per-score confidence tiers (mirror Swift ScoreConfidence.derive decisions) ──
@@ -573,6 +652,34 @@ object AnalyticsEngine {
         family: DeviceFamily = DeviceFamily.WHOOP5,
         minSamples: Int = MIN_SKIN_TEMP_SAMPLES_INLINE,
     ): Double? = skinTempFunnel(sessions, hr, skinTemp, family, minSamples).mean
+
+    /**
+     * Nightly means of the WHOOP 4.0 raw SpO2 PPG channels (red/IR ADC) over the detected in-bed
+     * [sessions], or null when no raw SpO2 sample fell inside any span. A sample counts when its
+     * timestamp lies within a session's [start, end]. WHOOP 4.0 banks these as raw PPG ADC values
+     * (spo2_red@68 / spo2_ir@70 on the v24 historical layout) but NOT a calibrated blood-oxygen % —
+     * computing one needs WHOOP's proprietary curve, so we surface the RAW means only. Deliberately NO
+     * wear gate (unlike skin temp): the strap only streams SpO2 on-wrist, so there is no off-charger
+     * drift to exclude, and the value is surfaced honestly as raw ADC — never scored — so there is
+     * nothing to poison into a fake %. Pure + deterministic; twin of the Swift `nightlySpo2RawMeans`. (#93)
+     */
+    internal fun nightlySpo2RawMeans(
+        sessions: List<DetectedSleep>,
+        spo2: List<Spo2Sample>,
+    ): Pair<Int, Int>? {
+        if (sessions.isEmpty() || spo2.isEmpty()) return null
+        var redSum = 0L
+        var irSum = 0L
+        var kept = 0
+        for (s in spo2) {
+            if (sessions.none { s.ts in it.start..it.end }) continue
+            redSum += s.red
+            irSum += s.ir
+            kept++
+        }
+        if (kept == 0) return null
+        return (redSum / kept).toInt() to (irSum / kept).toInt()
+    }
 
     /** Plausible worn skin-temperature range (°C). Off-wrist/charging samples drift to ambient and are
      *  excluded; the strap's own decode gate is the looser 20–45. (PR #85) */

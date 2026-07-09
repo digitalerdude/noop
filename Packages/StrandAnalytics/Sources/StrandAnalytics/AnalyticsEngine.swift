@@ -264,6 +264,12 @@ public enum AnalyticsEngine {
                                   // keeps every 5/MG + pure-function caller byte-identical;
                                   // IntelligenceEngine passes the day owner's real family.
                                   skinTempFamily: DeviceFamily = .whoop5,
+                                  // WHOOP 4.0 raw SpO2 PPG ADC samples (red/IR) for the night window
+                                  // (#93). The nightly red/IR means over detected sleep are banked on the
+                                  // DailyMetric as RAW ADC — honest "the sensor decoded" data, NOT a
+                                  // calibrated blood-oxygen % (that needs WHOOP's proprietary curve).
+                                  // Default empty keeps pure-function callers/tests + non-4.0 nights nil.
+                                  spo2: [SpO2Sample] = [],
                                   profile: UserProfile,
                                   baselines: ProfileBaselines = ProfileBaselines(),
                                   maxHROverride: Double? = nil,
@@ -319,7 +325,21 @@ public enum AnalyticsEngine {
                                   // Sleep & Rest test-mode trace sink (zero-cost default nil = byte-identical).
                                   // When non-nil, the gate trace from detectSleep and the Rest sub-score line
                                   // are forwarded line-by-line. Side-effect-only; never alters the DayResult.
-                                  traceSink: ((String) -> Void)? = nil) -> DayResult {
+                                  traceSink: ((String) -> Void)? = nil,
+                                  // HRV & Autonomic test-mode sink (#141). nil = byte-identical default. When
+                                  // non-nil, the nightly per-5-min-window RMSSDs (tagged by sleep stage) + a
+                                  // whole-night vs deep-only vs last-SWS summary are forwarded so an "HRV reads
+                                  // ~2x higher than WHOOP" report shows WHICH stages lift it.
+                                  hrvTraceSink: ((String) -> Void)? = nil,
+                                  // Whether to emit the ~90 per-window `hrv window …` lines (vs just the 1-line
+                                  // summary). The caller sets it TRUE only for the most-recent night so the
+                                  // 5000-line ring buffer isn't flooded (21 nights × ~90 windows would evict the
+                                  // always-on diagnostics); the 1-line `hrv nightSummary` is kept for EVERY night.
+                                  hrvWindowDetail: Bool = false,
+                                  // #141: when true, the nightly HRV is RMSSD over DEEP-sleep windows only
+                                  // (WHOOP-style), instead of the whole-night mean. Threaded from the caller
+                                  // (UnitPrefs.hrvWindowKey). Default false = byte-identical whole-night value.
+                                  deepHrvWindow: Bool = false) -> DayResult {
 
         // Precompute the day's UTC bounds ONCE (#996). `dayString(ts, offsetSec:)` formats the UTC
         // calendar day of (ts + offset) with a FIXED offset, so "== day" is exactly membership in
@@ -441,6 +461,19 @@ public enum AnalyticsEngine {
         let restingHRDaily = matched.compactMap { $0.restingHR }.min()
         // Daily avg HRV = in-bed-weighted mean of per-session avg HRV.
         let avgHRVDaily: Double? = {
+            if deepHrvWindow {
+                // #141: WHOOP-style HRV — pool RMSSD over DEEP-stage 5-min windows only (slow-wave sleep),
+                // instead of the whole-night mean. Reuses the SAME sessionHrvWindows the HRV trace is built
+                // from, so the displayed value equals the `deepOnly` figure the trace logs. rr sorted (RMSSD
+                // = successive diffs). nil when no deep sleep is detected (WHOOP-4.0 staging can be sparse) —
+                // the caller shows calibrating, never a fabricated number.
+                let rrSorted = rr.sorted { $0.ts < $1.ts }
+                let deep = matched.flatMap { s in
+                    SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)
+                        .filter { $0.stage == "deep" }.compactMap { $0.rmssd }
+                }
+                return deep.isEmpty ? nil : deep.reduce(0, +) / Double(deep.count)
+            }
             let pairs = matched.compactMap { s -> (Double, Double)? in
                 s.avgHRV.map { ($0, Double(s.end - s.start)) }
             }
@@ -449,6 +482,42 @@ public enum AnalyticsEngine {
             let weight = pairs.reduce(0.0) { $0 + $1.1 }
             return weight > 0 ? total / weight : nil
         }()
+
+        // ── HRV & Autonomic nightly trace (#141) ──────────────────────────────
+        // Per-5-min-window RMSSD tagged by the sleep stage at its center, then a night summary comparing
+        // NOOP's whole-night mean (what it reports) against a deep-only mean and a WHOOP-style
+        // last-slow-wave-sleep value — so an "HRV reads ~2x higher than WHOOP" report shows WHICH stages
+        // lift it, and lets a deep-sleep-windowed fix be validated before it ships. Reuses the SAME
+        // sessionHrvWindows the value is built from (can't diverge). Zero cost when the sink is nil.
+        if let hrvTraceSink {
+            func r2(_ x: Double) -> Double { (x * 100).rounded() / 100 }
+            // sessionHrvWindows requires ts-sorted rr (RMSSD = successive diffs); the value path passes the
+            // stager's pre-sorted rrS, so sort our own copy of the day's raw rr once here for the re-window.
+            let rrSorted = rr.sorted { $0.ts < $1.ts }
+            var allWin: [SleepStager.HrvWindow] = []
+            for s in matched {
+                let wins = SleepStager.sessionHrvWindows(start: s.start, end: s.end, rr: rrSorted, stages: s.stages)
+                if hrvWindowDetail {
+                    for w in wins {
+                        let rm = w.rmssd.map { "\(r2($0))ms" } ?? "nil"
+                        hrvTraceSink("hrv window t=\((w.startTs - s.start) / 60)min stage=\(w.stage) beats=\(w.cleanBeats) rmssd=\(rm)")
+                    }
+                }
+                allWin.append(contentsOf: wins)
+            }
+            func meanMs(_ ws: [SleepStager.HrvWindow]) -> String {
+                let v = ws.compactMap { $0.rmssd }
+                return v.isEmpty ? "nil" : "\(r2(v.reduce(0, +) / Double(v.count)))ms"
+            }
+            let withR = allWin.filter { $0.rmssd != nil }
+            let deepW = withR.filter { $0.stage == "deep" }
+            let lastSws = SleepStager.lastDeepRun(allWin).filter { $0.rmssd != nil }
+            // `reported` is the value NOOP actually displays (duration-weighted session-mean-of-means);
+            // `wholeNight` is the pooled-window mean it equals on single-session nights and the apples-to-
+            // apples baseline for the deepOnly/lastSWS comparison (all three are pooled window means).
+            let reported = avgHRVDaily.map { "\(r2($0))ms" } ?? "nil"
+            hrvTraceSink("hrv nightSummary reported=\(reported) wholeNight=\(meanMs(withR)) deepOnly=\(meanMs(deepW)) lastSWS=\(meanMs(lastSws)) nWin=\(withR.count) nDeep=\(deepW.count)")
+        }
 
         // Nightly APPROXIMATE respiratory rate (breaths/min) from the R-R stream via
         // RSA. WHOOP5 v18 carries no raw resp ADC, so this is an on-device estimate,
@@ -476,6 +545,12 @@ public enum AnalyticsEngine {
             guard let b = baselines.skinTemp, b.usable else { return nil }
             return round2(Baselines.deviation(v, state: b).delta)
         }
+
+        // ── Raw SpO2 (WHOOP 4.0 v24 PPG ADC) ──────────────────────────────────
+        // Nightly red/IR ADC means over the detected in-bed spans, or nil when the night carried no raw
+        // SpO2 samples in any span. Baseline-independent (unlike skin temp): a RAW device reading, banked
+        // as-is for the Health "Raw SpO₂" tile — NOT a calibrated blood-oxygen %. (#93)
+        let nightlySpo2Raw = nightlySpo2RawMeans(matched, spo2: spo2)
 
         // ── Recovery / "Charge" ───────────────────────────────────────────────
         var recovery: Double? = nil
@@ -601,7 +676,9 @@ public enum AnalyticsEngine {
             skinTempDevC: skinTempDevC,
             respRateBpm: respRateDaily,
             steps: stepsTotal,
-            activeKcalEst: activeKcalEst)
+            activeKcalEst: activeKcalEst,
+            spo2Red: nightlySpo2Raw?.red,
+            spo2Ir: nightlySpo2Raw?.ir)
         _ = sleepStart; _ = sleepEnd  // available for callers wiring sleep_start/end columns
 
         // ── Cache rows ────────────────────────────────────────────────────────
@@ -787,6 +864,25 @@ public enum AnalyticsEngine {
                                      family: DeviceFamily = .whoop5,
                                      minSamples: Int = minSkinTempSamples) -> Double? {
         skinTempFunnel(sessions, hr: hr, skinTemp: skinTemp, family: family, minSamples: minSamples).mean
+    }
+
+    /// Nightly means of the WHOOP 4.0 raw SpO2 PPG channels (red/IR ADC) over the detected in-bed
+    /// `sessions`, or nil when no raw SpO2 sample fell inside any span. A sample counts when its
+    /// timestamp lies within a session's [start, end]. RAW device output — the red/IR optical means are
+    /// banked as-is (unit "raw_adc"); this is NOT a calibrated blood-oxygen %, which needs WHOOP's
+    /// proprietary curve. Unlike skin temp there is deliberately no worn-HR / plausible-range gate: the
+    /// value is surfaced honestly as raw ADC, never scored, so there's nothing to poison into a fake %.
+    /// No wear gate (unlike skin temp): the strap streams SpO2 only on-wrist, so there's nothing to
+    /// exclude, and this name — matching the Kotlin `nightlySpo2RawMeans` twin — avoids the "worn"
+    /// prefix's false implication of a gate. (#93)
+    static func nightlySpo2RawMeans(_ sessions: [SleepSession], spo2: [SpO2Sample]) -> (red: Int, ir: Int)? {
+        guard !sessions.isEmpty, !spo2.isEmpty else { return nil }
+        var redSum = 0, irSum = 0, kept = 0
+        for s in spo2 where sessions.contains(where: { $0.start <= s.ts && s.ts <= $0.end }) {
+            redSum += s.red; irSum += s.ir; kept += 1
+        }
+        guard kept > 0 else { return nil }
+        return (red: redSum / kept, ir: irSum / kept)
     }
 
     // MARK: - Skin-temp funnel diagnostic (#752)
