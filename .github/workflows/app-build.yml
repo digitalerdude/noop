@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -48,9 +48,13 @@ jobs:
           - scheme: Strand
             destination: 'generic/platform=macOS'
             extra_args: 'ARCHS="x86_64 arm64" ONLY_ACTIVE_ARCH=NO'
+            runner: macos-15
+          # iOS 26 Liquid Glass (glassEffect) needs the iOS 26 SDK → Xcode 26 → macos-26 (mirrors the
+          # fork-testing-build.yml / fork-release.yml iOS jobs).
           - scheme: NOOPiOS
             destination: 'generic/platform=iOS Simulator'
             extra_args: ''
+            runner: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v4
