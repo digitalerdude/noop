@@ -247,10 +247,18 @@ struct SettingsView: View {
     /// iOS 16+ and macOS 13+ (NOOP's floor), so the same control serves both platforms — no
     /// availability gating needed. The photo is stored only on this device (NOOP is fully offline).
     private var profilePhotoCard: some View {
-        SettingsSection(
+        // The blurb interpolates `Platform.deviceNounPhrase`, itself an already-resolved localized
+        // String ("this iPhone" / "dieses iPhone"). Interpolating a resolved String directly into a
+        // `LocalizedStringKey` literal (the `blurb:` parameter's inferred type) confused SwiftUI's
+        // text-measurement pass: the blurb rendered with zero trailing margin, running edge-to-edge
+        // instead of wrapping inside the card's padding (#left/right edge clipping). Resolving the
+        // whole sentence through `String(localized:)` first, then handing SwiftUI the plain String via
+        // `LocalizedStringKey(_:)`, sidesteps the nested-nested-localization measurement bug.
+        let blurbText = String(localized: "Optional. Add a photo for the avatar in the top-left. Stored only on this \(Platform.deviceNoun). NOOP is offline, so it's never uploaded.")
+        return SettingsSection(
             icon: "person.crop.circle",
             title: "Profile photo",
-            blurb: "Optional. Add a photo for the avatar in the top-left. Stored only on \(Platform.deviceNounPhrase). NOOP is offline, so it's never uploaded."
+            blurb: LocalizedStringKey(blurbText)
         ) {
             HStack(spacing: 16) {
                 ProfileAvatarView(imageData: profile.avatarImageData, size: 64)
@@ -268,7 +276,6 @@ struct SettingsView: View {
                             .accessibilityHint("Reverts to the default profile icon")
                     }
                 }
-                .frame(maxWidth: .infinity)
             }
         }
         // Load the picked photo's bytes, then hand them to the store (which downscales + persists).
@@ -599,21 +606,21 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .fixedSize()
                     .accessibilityLabel("Measurement system")
                 }
                 rowDivider
                 FormRow(label: "Temperature") {
-                    // Three-way: "Match" follows the system above; °C / °F pin it explicitly. Stored as
-                    // an empty string ("match") or the TemperatureUnit raw value.
+                    // Three-way: "Auto" follows the measurement system above; °C / °F pin it explicitly.
+                    // Stored as an empty string ("match") or the TemperatureUnit raw value. Label kept
+                    // short ("Auto", not "Match"/"Übereinstimmung") so all three segments fit the row
+                    // without truncating once the picker sizes to the FormRow width (see #43 note above).
                     Picker("Temperature", selection: $temperatureRaw) {
-                        Text("Match").tag("")
+                        Text("Auto").tag("")
                         Text("°C").tag(TemperatureUnit.celsius.rawValue)
                         Text("°F").tag(TemperatureUnit.fahrenheit.rawValue)
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .fixedSize()
                     .accessibilityLabel("Temperature unit")
                 }
                 rowDivider
@@ -626,7 +633,6 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .fixedSize()
                     .accessibilityLabel("Effort scale")
                 }
             }
@@ -653,7 +659,6 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .fixedSize()
                     .accessibilityLabel("Theme")
                 }
                 rowDivider   // #79: the segmented rows sat flush against each other (missing separator)
@@ -667,7 +672,6 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .fixedSize()
                     .accessibilityLabel("Chart colours")
                 }
                 #if os(iOS)
@@ -679,7 +683,6 @@ struct SettingsView: View {
                     }
                     .labelsHidden()
                     .pickerStyle(.segmented)
-                    .fixedSize()
                     .accessibilityLabel("App icon")
                     .onChangeCompat(of: useNavyIcon) { applyAppIcon($0) }
                 }
