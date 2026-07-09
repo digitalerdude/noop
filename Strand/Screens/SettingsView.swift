@@ -607,22 +607,22 @@ struct SettingsView: View {
                         Text("Imperial").tag(UnitSystem.imperial.rawValue)
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("Measurement system")
                 }
                 rowDivider
                 FormRow(label: "Temperature") {
-                    // Three-way: "Auto" follows the measurement system above; °C / °F pin it explicitly.
-                    // Stored as an empty string ("match") or the TemperatureUnit raw value. Label kept
-                    // short ("Auto", not "Match"/"Übereinstimmung") so all three segments fit the row
-                    // without truncating once the picker sizes to the FormRow width (see #43 note above).
+                    // Three-way: "Match" follows the measurement system above; °C / °F pin it explicitly.
+                    // Stored as an empty string ("match") or the TemperatureUnit raw value.
                     Picker("Temperature", selection: $temperatureRaw) {
-                        Text("Auto").tag("")
+                        Text("Match").tag("")
                         Text("°C").tag(TemperatureUnit.celsius.rawValue)
                         Text("°F").tag(TemperatureUnit.fahrenheit.rawValue)
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("Temperature unit")
                 }
                 rowDivider
@@ -634,7 +634,8 @@ struct SettingsView: View {
                         Text("0-21").tag(EffortScale.whoop.rawValue)
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("Effort scale")
                 }
             }
@@ -660,7 +661,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("Theme")
                 }
                 rowDivider   // #79: the segmented rows sat flush against each other (missing separator)
@@ -673,7 +675,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("Chart colours")
                 }
                 rowDivider
@@ -686,7 +689,8 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("Trend chart style")
                 }
                 #if os(iOS)
@@ -697,7 +701,8 @@ struct SettingsView: View {
                         Text("Navy").tag(true)
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("App icon")
                     .onChangeCompat(of: useNavyIcon) { applyAppIcon($0) }
                 }
@@ -893,7 +898,8 @@ struct SettingsView: View {
                         Text("Deep sleep").tag(HrvWindow.deep.rawValue)
                     }
                     .labelsHidden()
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
                     .accessibilityLabel("HRV window")
                     .onChangeCompat(of: hrvWindowRaw) { _ in
                         // The new window shifts every night's avgHrv, so the HRV BASELINE must re-learn or

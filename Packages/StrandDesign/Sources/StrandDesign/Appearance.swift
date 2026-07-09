@@ -56,7 +56,7 @@ public enum AppearanceMode: String, CaseIterable, Identifiable, Sendable {
     /// Human label for the Settings control.
     public var label: String {
         switch self {
-        case .system: return String(localized: "Auto", bundle: .module)
+        case .system: return String(localized: "System", bundle: .module)
         case .light:  return String(localized: "Light", bundle: .module)
         case .dark:   return String(localized: "Dark", bundle: .module)
         }
