@@ -712,8 +712,22 @@ private struct ProfileStep: View {
             VStack(spacing: 16) {
                 StrandCard {
                     VStack(spacing: 18) {
-                        Stepper(value: $profile.age, in: 13...100) {
-                            FieldRow(label: String(localized: "Age"), value: String(localized: "\(profile.age) yrs"))
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Date of Birth").strandOverline()
+                            HStack {
+                                DatePicker(
+                                    "",
+                                    selection: $profile.dateOfBirth,
+                                    in: ProfileStore.dateOfBirthRange,
+                                    displayedComponents: [.date]
+                                )
+                                .labelsHidden()
+                                .datePickerStyle(.compact)
+                                Spacer()
+                                Text(String(localized: "\(profile.age) yrs"))
+                                    .font(StrandFont.bodyNumber)
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                            }
                         }
 
                         Divider().overlay(StrandPalette.hairline)
