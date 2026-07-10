@@ -1,6 +1,7 @@
 package com.noop.ble
 
 import com.noop.data.DeviceBrandCatalog
+import com.noop.data.SourceKind
 
 /**
  * CLEAN-ROOM best-effort recognition of the EXPERIMENTAL band families from an advertised device name.
@@ -30,6 +31,17 @@ enum class ExperimentalBrand(val displayBrand: String) {
      *  open live stream — so the wizard routes it to import). false if the catalog row is somehow missing. */
     val canStreamLiveHR: Boolean
         get() = DeviceBrandCatalog.specForBrand(displayBrand)?.canStreamLiveHR ?: false
+
+    /** Routing kind stored on a device of this brand (from the catalog); liveBLE fallback (a standard-HR
+     *  strap — never steals the WHOOP path). */
+    val sourceKind: SourceKind
+        get() = DeviceBrandCatalog.specForBrand(displayBrand)?.sourceKind ?: SourceKind.liveBLE
+
+    /** Registry id prefix for a device of this brand (from the catalog); "strap" fallback. The device id
+     *  (== sample deviceId) is "<idPrefix>-<address>", so this MUST stay byte-identical to the value the
+     *  wizard previously hardcoded — a test pins each experimental brand's prefix. */
+    val idPrefix: String
+        get() = DeviceBrandCatalog.specForBrand(displayBrand)?.idPrefix ?: "strap"
 
     companion object {
         /** Best-effort brand from an advertised name. Returns null for an unrecognised name, OR for a name

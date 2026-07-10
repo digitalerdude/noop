@@ -53,6 +53,19 @@ public enum ExperimentalBrand: String, CaseIterable, Sendable, Equatable {
         DeviceBrandCatalog.spec(forBrand: displayBrand)?.canStreamLiveHR ?? false
     }
 
+    /// The routing kind stored on a device of this brand (from the catalog). Drives `SourceCoordinator`.
+    /// Falls back to `.liveBLE` (a standard-HR strap — never steals the WHOOP path) if the row is missing.
+    public var sourceKind: SourceKind {
+        DeviceBrandCatalog.spec(forBrand: displayBrand)?.sourceKind ?? .liveBLE
+    }
+
+    /// The registry id prefix for a device of this brand (from the catalog); "strap" fallback. The device
+    /// `id` (== sample deviceId) is `"<idPrefix>-<uuid>"`, so this MUST stay byte-identical to the value the
+    /// wizard previously hardcoded — a test pins each experimental brand's prefix.
+    public var idPrefix: String {
+        DeviceBrandCatalog.spec(forBrand: displayBrand)?.idPrefix ?? "strap"
+    }
+
     /// Map a catalog brand string back to the typed case (nil for a non-experimental brand).
     private init?(displayBrand brand: String) {
         switch brand {
