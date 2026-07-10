@@ -157,6 +157,13 @@ fun DevicesScreen(
                 device = device,
                 isActive = device.status == DeviceStatus.active.name,
                 isLiveConnected = device.status == DeviceStatus.active.name && live.connected,
+                // #221: data is actually FLOWING — a genuine WHOOP bond, the 5/MG live-HR-over-unbonded
+                // shortcut (#69, which flips `bonded` true), or a streaming Oura ring. Only this claims
+                // "Live"; a bare BLE link (bond refused / still settling) must not.
+                isLiveStreaming = device.status == DeviceStatus.active.name && live.connected && (live.bonded || live.streamingLiveHR),
+                // #221: BLE-connected but the strap is REFUSING the encrypted bond (`pairingHint` set —
+                // the WHOOP app or a stale pairing holds it, so no HR/biometrics flow).
+                pairingBlocked = device.status == DeviceStatus.active.name && live.connected && live.pairingHint != null,
                 // Reboot in flight + link currently down → "Reconnecting…" (#166).
                 isReconnecting = device.status == DeviceStatus.active.name && live.rebootInProgress && !live.connected,
                 // The live battery belongs to whichever device is ACTIVE + connected (WHOOP, a generic
@@ -319,6 +326,14 @@ private fun DeviceCard(
     device: PairedDeviceRow,
     isActive: Boolean,
     isLiveConnected: Boolean,
+    /** #221: data is actually FLOWING on the active link — a genuine WHOOP encrypted bond, the 5/MG
+     *  live-HR-over-unbonded-profile shortcut (#69), or a streaming Oura ring. Distinct from
+     *  [isLiveConnected] (BLE link up, also true before/without a bond): only this claims "Live". */
+    isLiveStreaming: Boolean = false,
+    /** #221: the active strap is BLE-connected but REFUSING the encrypted bond (`pairingHint` set — held
+     *  by the official WHOOP app or a stale pairing). No HR/biometrics flow, so the card reads
+     *  "Not paired" instead of a misleading "Live". */
+    pairingBlocked: Boolean = false,
     /** The active strap's link dropped for a user-initiated reboot and NOOP is auto-reconnecting (#166).
      *  Drives the transient "Reconnecting…" pill; false for every non-reboot state. */
     isReconnecting: Boolean = false,
@@ -383,7 +398,7 @@ private fun DeviceCard(
                     StatePill("Beta", tone = StrandTone.Warning, showsDot = false)
                     Spacer(Modifier.width(6.dp))
                 }
-                StatePill(device, isActive, isLiveConnected, isReconnecting)
+                StatePill(device, isActive, isLiveConnected, isLiveStreaming, pairingBlocked, isReconnecting)
             }
 
             // Honest local-takeover state row for an adopted Oura ring that is paired but not the
@@ -492,6 +507,8 @@ private fun StatePill(
     device: PairedDeviceRow,
     isActive: Boolean,
     isLiveConnected: Boolean,
+    isLiveStreaming: Boolean = false,
+    pairingBlocked: Boolean = false,
     isReconnecting: Boolean = false,
 ) {
     when {
@@ -501,12 +518,19 @@ private fun StatePill(
         // as intentional rather than a silent drop to "Active"; clears to "Active · Live" once the link is back.
         isActive && isReconnecting ->
             StatePill("Reconnecting…", tone = StrandTone.Warning, pulsing = true)
+        // Data is genuinely flowing (bond or a streaming ring) — the only state that earns "Live".
+        isActive && isLiveStreaming ->
+            StatePill("Active · Live", tone = StrandTone.Positive, pulsing = true)
+        // #221: the BLE link is up but NOTHING is streaming. The old code showed "Active · Live" here —
+        // keyed on the link alone — which read as working when no HR/biometrics flow. Refusing the bond
+        // (`pairingBlocked`, held by the WHOOP app / a stale pairing) → the honest "Not paired"; otherwise
+        // the bond is still settling → "Connecting…".
+        isActive && isLiveConnected && pairingBlocked ->
+            StatePill("Active · Not paired", tone = StrandTone.Warning)
+        isActive && isLiveConnected ->
+            StatePill("Active · Connecting…", tone = StrandTone.Warning, pulsing = true)
         isActive ->
-            StatePill(
-                if (isLiveConnected) "Active · Live" else "Active",
-                tone = StrandTone.Positive,
-                pulsing = isLiveConnected,
-            )
+            StatePill("Active", tone = StrandTone.Positive)
         else -> StatePill("Paired", tone = StrandTone.Neutral)
     }
 }

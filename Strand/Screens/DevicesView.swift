@@ -92,6 +92,13 @@ private struct DevicesContent: View {
                     device: device,
                     isActive: device.status == .active,
                     isLiveConnected: device.status == .active && live.connected,
+                    // #221: data is actually FLOWING — a genuine WHOOP bond, the 5/MG live-HR-over-unbonded
+                    // shortcut (#69, which flips `bonded` true), or a streaming Oura ring. Only this claims
+                    // "Live"; a bare BLE link (bond refused / still settling) must not.
+                    isLiveStreaming: device.status == .active && live.connected && (live.bonded || live.streamingLiveHR),
+                    // #221: BLE-connected but the strap is REFUSING the encrypted bond (`pairingHint` set —
+                    // the WHOOP app or a stale iOS pairing holds it, so no HR/biometrics flow).
+                    pairingBlocked: device.status == .active && live.connected && live.pairingHint != nil,
                     // Reboot in flight + link currently down → "Reconnecting…" (#166).
                     isReconnecting: device.status == .active && live.rebootInProgress && !live.connected,
                     // The live battery belongs to whichever device is ACTIVE + connected (the WHOOP, a
@@ -288,6 +295,14 @@ private struct DeviceCard: View {
     let device: PairedDevice
     let isActive: Bool
     let isLiveConnected: Bool
+    /// #221: data is actually FLOWING on the active link — a genuine WHOOP encrypted bond, the 5/MG
+    /// live-HR-over-unbonded-profile shortcut (#69), or a streaming Oura ring. Distinct from
+    /// `isLiveConnected` (BLE link up, which is also true before/without a bond): only this claims "Live".
+    var isLiveStreaming: Bool = false
+    /// #221: the active strap is BLE-connected but REFUSING the encrypted bond (`pairingHint` set — held
+    /// by the official WHOOP app or a stale iOS pairing). No HR/biometrics flow, so the card reads
+    /// "Not paired" (pointing at the pairing-mode guidance) instead of a misleading "Live".
+    var pairingBlocked: Bool = false
     /// The active strap's link dropped for a user-initiated reboot and NOOP is auto-reconnecting (#166).
     /// Drives the transient "Reconnecting…" pill; false for every non-reboot state.
     var isReconnecting: Bool = false
@@ -491,9 +506,21 @@ private struct DeviceCard: View {
                 // the instant the link is back.
                 if isReconnecting {
                     StatePill("Reconnecting…", tone: .warning, pulsing: true)
+                } else if isLiveStreaming {
+                    // Data is genuinely flowing (bond or a streaming ring) — the only state that earns "Live".
+                    StatePill("Active · Live", tone: .positive, pulsing: true)
+                } else if isLiveConnected {
+                    // #221: the BLE link is up but NOTHING is streaming. The old code showed "Active · Live"
+                    // here — keyed on the link alone — which read as working when no HR/biometrics flow.
+                    // Refusing the bond (`pairingBlocked`, held by the WHOOP app / a stale pairing) → the
+                    // honest "Not paired"; otherwise the bond is still settling → "Connecting…".
+                    if pairingBlocked {
+                        StatePill("Active · Not paired", tone: .warning)
+                    } else {
+                        StatePill("Active · Connecting…", tone: .warning, pulsing: true)
+                    }
                 } else {
-                    StatePill(isLiveConnected ? "Active · Live" : "Active",
-                              tone: .positive, pulsing: isLiveConnected)
+                    StatePill("Active", tone: .positive)
                 }
             } else {
                 StatePill("Paired", tone: .neutral)
@@ -785,7 +812,7 @@ struct DeviceCardCatalog: View {
                        topBackground: liquidScaffoldSky()) {
             VStack(spacing: NoopMetrics.gap) {
                 DeviceCard(device: Self.dev("whoop-4d", "WHOOP", "4.0", Self.whoopCaps),
-                           isActive: true, isLiveConnected: true,
+                           isActive: true, isLiveConnected: true, isLiveStreaming: true,
                            onMakeActive: {}, onRename: {}, onRemove: nil)
                 DeviceCard(device: Self.dev("whoop-5d", "WHOOP", "5.0 MG",
                                             Self.whoopCaps.union([.steps])),
@@ -818,9 +845,9 @@ struct OuraDeviceDemoScreen: View {
                        subtitle: "A locally-adopted Oura ring, in beta.",
                        topBackground: liquidScaffoldSky()) {
             VStack(spacing: NoopMetrics.gap) {
-                // Active + connected so the card shows "Active · Live" + a live battery readout.
+                // Active + connected + streaming so the card shows "Active · Live" + a live battery readout.
                 DeviceCard(device: DeviceCardCatalog.oura("Oura Ring 3"),
-                           isActive: true, isLiveConnected: true, liveBatteryPct: 71,
+                           isActive: true, isLiveConnected: true, isLiveStreaming: true, liveBatteryPct: 71,
                            onMakeActive: {}, onRename: {}, onRemove: {})
                 // A second, paired-but-not-connected gen-4 ring so the honest local-state note + per-gen
                 // copy render in the same shot.
