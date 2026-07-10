@@ -1460,17 +1460,10 @@ struct AddDeviceWizard: View {
         .padding(.top, 10)
     }
 
-    /// Best-effort brand from the advertised name; neutral fallback for unknown straps.
+    /// Best-effort brand from the advertised name; neutral fallback for unknown straps. Delegates to the
+    /// pure `DeviceBrandCatalog` (single source of truth), so the token table lives once.
     private func brandGuess(from name: String) -> String {
-        let lower = name.lowercased()
-        if lower.contains("polar") { return "Polar" }
-        if lower.contains("wahoo") || lower.contains("tickr") { return "Wahoo" }
-        if lower.contains("coospo") { return "Coospo" }
-        if lower.contains("garmin") || lower.contains("hrm") { return "Garmin" }
-        if lower.contains("scosche") || lower.contains("rhythm") { return "Scosche" }
-        if lower.contains("magene") { return "Magene" }
-        if lower.contains("amazfit") || lower.contains("helio") || lower.contains("zepp") { return "Amazfit" }
-        return String(localized: "Heart-rate strap")
+        DeviceBrandCatalog.spec(forAdvertisedName: name)?.brand ?? String(localized: "Heart-rate strap")
     }
 }
 
@@ -1527,15 +1520,7 @@ private struct HRPickList: View {
     }
 
     private func brandGuess(from name: String) -> String {
-        let lower = name.lowercased()
-        if lower.contains("polar") { return "Polar" }
-        if lower.contains("wahoo") || lower.contains("tickr") { return "Wahoo" }
-        if lower.contains("coospo") { return "Coospo" }
-        if lower.contains("garmin") || lower.contains("hrm") { return "Garmin" }
-        if lower.contains("scosche") || lower.contains("rhythm") { return "Scosche" }
-        if lower.contains("magene") { return "Magene" }
-        if lower.contains("amazfit") || lower.contains("helio") || lower.contains("zepp") { return "Amazfit" }
-        return String(localized: "Heart-rate strap")
+        DeviceBrandCatalog.spec(forAdvertisedName: name)?.brand ?? String(localized: "Heart-rate strap")
     }
 }
 
