@@ -83,14 +83,13 @@ final class DecoderOracleTests: XCTestCase {
                     let gy = parsed["gravity_y"]?.doubleValue
                     let gz = parsed["gravity_z"]?.doubleValue
                     XCTAssertNotNil(gx, "\(frame.name): gravity did not decode")
-                    // Broken into named sub-expressions: the single-line nested-optional-coalescing form
-                    // occasionally blew the type-checker's time budget in CI ("unable to type-check this
-                    // expression in reasonable time"), a Swift compiler perf cliff, not a real ambiguity.
+                    // Typed sub-terms: the one-liner ((gx ?? 0)*(gx ?? 0) + …).squareRoot() made Swift's
+                    // type-checker time out ("unable to type-check in reasonable time") — six `?? 0` literals
+                    // over the multiply/add tree. Binding explicit Doubles removes the inference blow-up.
                     let x: Double = gx ?? 0
                     let y: Double = gy ?? 0
                     let z: Double = gz ?? 0
-                    let sumSquares: Double = x * x + y * y + z * z
-                    let mag = sumSquares.squareRoot()
+                    let mag = (x * x + y * y + z * z).squareRoot()
                     XCTAssertEqual(mag, wantMag, accuracy: 0.1, "\(frame.name): |gravity|")
                 default:
                     switch expected {
