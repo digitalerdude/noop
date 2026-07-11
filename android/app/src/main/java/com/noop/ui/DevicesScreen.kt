@@ -163,6 +163,15 @@ fun DevicesScreen(
                 device = device,
                 isActive = device.status == DeviceStatus.active.name,
                 isLiveConnected = device.status == DeviceStatus.active.name && live.connected,
+                // #221: a WHOOP 5/MG can be BLE-connected yet have its ENCRYPTED bond refused (the WHOOP
+                // app, or a stale pairing, holds the single-app bond) — no HR/biometric data flows even
+                // though the link is up, so "Active · Live" overstates it. pairingHint is set only once
+                // that refusal is genuinely detected (#78), never during a normal connect, so this can't
+                // false-alarm a working 4.0 (its pairingHint stays null) or a fresh 5/MG connect.
+                bondRefused = device.status == DeviceStatus.active.name && live.connected && live.pairingHint != null,
+                // The full #78 how-to-fix guidance, surfaced on the card itself when bondRefused so the
+                // fix is self-service instead of buried in the strap log.
+                pairingHint = if (device.status == DeviceStatus.active.name) live.pairingHint else null,
                 // Reboot in flight + link currently down → "Reconnecting…" (#166).
                 isReconnecting = device.status == DeviceStatus.active.name && live.rebootInProgress && !live.connected,
                 // The live battery belongs to whichever device is ACTIVE + connected (WHOOP, a generic
@@ -341,6 +350,14 @@ private fun DeviceCard(
     device: PairedDeviceRow,
     isActive: Boolean,
     isLiveConnected: Boolean,
+    /** #221: the active+connected strap is BLE-linked but its encrypted bond was refused (#78 state) — no
+     *  HR/biometric data flows despite the link being up. Drives the "Connected · not paired" pill (which
+     *  takes priority over "Active · Live") and the honest subtitle. False for every non-WHOOP source and
+     *  for a normal connect. */
+    bondRefused: Boolean = false,
+    /** #221: the full #78 pairing-refusal guidance (bonded-elsewhere / pairing-mode / forget-device
+     *  steps), shown on the card when [bondRefused] so the fix is self-service. null otherwise. */
+    pairingHint: String? = null,
     /** The active strap's link dropped for a user-initiated reboot and NOOP is auto-reconnecting (#166).
      *  Drives the transient "Reconnecting…" pill; false for every non-reboot state. */
     isReconnecting: Boolean = false,
@@ -408,7 +425,7 @@ private fun DeviceCard(
                     StatePill("Beta", tone = StrandTone.Warning, showsDot = false)
                     Spacer(Modifier.width(6.dp))
                 }
-                StatePill(device, isActive, isLiveConnected, isReconnecting)
+                StatePill(device, isActive, isLiveConnected, bondRefused, isReconnecting)
             }
 
             // Honest local-takeover state row for an adopted Oura ring that is paired but not the
@@ -432,6 +449,12 @@ private fun DeviceCard(
                 Text(profile.footnote, style = NoopType.footnote, color = Palette.textTertiary)
             }
 
+            // #221: the full #78 pairing-refusal guidance, self-service right on the card instead of
+            // buried in the strap log — only when the bond was genuinely refused.
+            if (bondRefused && pairingHint != null) {
+                Text(pairingHint, style = NoopType.footnote, color = Palette.statusWarning)
+            }
+
             // Live battery as a small liquid TUBE — the active+connected device's reported % (WHOOP, a
             // generic strap or an FTMS machine all funnel into live.batteryPct). A genuine single-value
             // progress bar, so a static (posed) LiquidTube is exactly right; it replaces the "· Battery x%"
@@ -442,7 +465,7 @@ private fun DeviceCard(
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    lastSeenLine(device, isLiveConnected) +
+                    lastSeenLine(device, isLiveConnected, bondRefused) +
                         (liveFirmware?.let { " · FW $it" } ?: ""),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
@@ -518,6 +541,7 @@ private fun StatePill(
     device: PairedDeviceRow,
     isActive: Boolean,
     isLiveConnected: Boolean,
+    bondRefused: Boolean = false,
     isReconnecting: Boolean = false,
 ) {
     when {
@@ -527,6 +551,10 @@ private fun StatePill(
         // as intentional rather than a silent drop to "Active"; clears to "Active · Live" once the link is back.
         isActive && isReconnecting ->
             StatePill("Reconnecting…", tone = StrandTone.Warning, pulsing = true)
+        // #221: BLE-connected but the encrypted bond was refused — no data flows, so this must not read
+        // as "Active · Live".
+        isActive && bondRefused ->
+            StatePill("Connected · not paired", tone = StrandTone.Warning)
         isActive ->
             StatePill(
                 if (isLiveConnected) "Active · Live" else "Active",
@@ -1038,8 +1066,9 @@ private fun OuraLocalStateNote() {
     }
 }
 
-private fun lastSeenLine(device: PairedDeviceRow, isLiveConnected: Boolean): String = when {
+private fun lastSeenLine(device: PairedDeviceRow, isLiveConnected: Boolean, bondRefused: Boolean = false): String = when {
     device.status == DeviceStatus.archived.name -> "Removed · data kept"
+    bondRefused -> "Connected, but not paired — tap ⋯ for help"
     isLiveConnected -> "Connected now"
     else -> "Last seen ${relativeAgo(device.lastSeenAt)}"
 }
