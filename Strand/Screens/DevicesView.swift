@@ -312,6 +312,30 @@ private struct DevicesContent: View {
     }
 }
 
+// MARK: - Device card pill state (pure, testable)
+
+/// The device card's state-pill label/tone/pulsing, as a priority-ordered pure decision (#221): archived
+/// beats everything; on the active card, reconnecting > bond-refused > live > plain active; a non-active
+/// card is "Paired". Mirrors the Kotlin `devicePillState` in DevicesScreen.kt exactly (see
+/// `DevicePillStateTests` / the Kotlin `DevicePillStateTest`), so a future edit to either side can't
+/// silently reorder "Connected · not paired" vs "Active · Live" without a test catching it.
+struct DevicePillState: Equatable {
+    let label: String
+    let tone: StrandTone
+    var pulsing: Bool = false
+    var showsDot: Bool = true
+
+    static func resolve(isArchived: Bool, isActive: Bool, isReconnecting: Bool,
+                         bondRefused: Bool, isLiveConnected: Bool) -> DevicePillState {
+        if isArchived { return DevicePillState(label: "Removed", tone: .neutral, showsDot: false) }
+        guard isActive else { return DevicePillState(label: "Paired", tone: .neutral) }
+        if isReconnecting { return DevicePillState(label: "Reconnecting…", tone: .warning, pulsing: true) }
+        if bondRefused { return DevicePillState(label: "Connected · not paired", tone: .warning) }
+        if isLiveConnected { return DevicePillState(label: "Active · Live", tone: .positive, pulsing: true) }
+        return DevicePillState(label: "Active", tone: .positive)
+    }
+}
+
 // MARK: - Device card
 
 /// One paired device as a card: name, brand/model, capabilities line, a state pill, last-seen, and a
@@ -534,28 +558,19 @@ private struct DeviceCard: View {
         pct < 15 ? StrandPalette.statusCritical : pct < 35 ? StrandPalette.statusWarning : StrandPalette.chargeColor
     }
 
+    /// The pure `DevicePillState.resolve` priority (#221): reboot's "Reconnecting…" beats a bond refusal's
+    /// "Connected · not paired", which beats "Active · Live" — pinned by `DevicePillStateTests` instead of
+    /// only verified visually.
+    private var pillState: DevicePillState {
+        DevicePillState.resolve(isArchived: device.status == .archived, isActive: isActive,
+                                 isReconnecting: isReconnecting, bondRefused: bondRefused,
+                                 isLiveConnected: isLiveConnected)
+    }
+
     private var statePill: some View {
-        Group {
-            if device.status == .archived {
-                StatePill("Removed", tone: .neutral, showsDot: false)
-            } else if isActive {
-                // Reboot window (#166): the user's Restart dropped the link and NOOP is auto-reconnecting.
-                // Show it as intentional rather than a silent drop to "Active"; clears to "Active · Live"
-                // the instant the link is back.
-                if isReconnecting {
-                    StatePill("Reconnecting…", tone: .warning, pulsing: true)
-                } else if bondRefused {
-                    // #221: BLE-connected but the encrypted bond was refused — no data flows, so this
-                    // must not read as "Active · Live".
-                    StatePill("Connected · not paired", tone: .warning)
-                } else {
-                    StatePill(isLiveConnected ? "Active · Live" : "Active",
-                              tone: .positive, pulsing: isLiveConnected)
-                }
-            } else {
-                StatePill("Paired", tone: .neutral)
-            }
-        }
+        let state = pillState
+        return StatePill(LocalizedStringKey(state.label), tone: state.tone,
+                          showsDot: state.showsDot, pulsing: state.pulsing)
     }
 
     private var actionsMenu: some View {
@@ -633,7 +648,10 @@ private struct DeviceCard: View {
 
     private var lastSeenLine: String {
         if device.status == .archived { return String(localized: "Removed · data kept") }
-        if bondRefused { return String(localized: "Connected, but not paired — tap ⋯ for help") }
+        // No "tap ⋯" pointer here (#221 review) — the full how-to-fix guidance is already inline on the
+        // card just below, so pointing at the menu would send the user looking for help that's already
+        // on screen.
+        if bondRefused { return String(localized: "Connected, but not paired") }
         if isLiveConnected { return String(localized: "Connected now") }
         return String(localized: "Last seen \(relativeAgo(TimeInterval(device.lastSeenAt)))")
     }

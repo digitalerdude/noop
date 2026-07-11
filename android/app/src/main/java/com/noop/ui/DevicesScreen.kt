@@ -536,6 +536,39 @@ private fun BatteryTube(pct: Int) {
     }
 }
 
+/**
+ * The device card's state-pill label + tone, as a priority-ordered pure decision (#221): archived beats
+ * everything; on the active card, reconnecting > bond-refused > live > plain active; a non-active card is
+ * "Paired". Mirrors the Swift `DevicePillState.resolve` in DevicesView.swift exactly (see
+ * `DevicePillStateTest` / the Swift `DevicePillStateTests`), so a future edit to either side can't
+ * silently reorder "Connected · not paired" vs "Active · Live" without a test catching it.
+ */
+internal data class DevicePillState(
+    val label: String,
+    val tone: StrandTone,
+    val pulsing: Boolean = false,
+    val showsDot: Boolean = true,
+)
+
+internal fun devicePillState(
+    isArchived: Boolean,
+    isActive: Boolean,
+    isReconnecting: Boolean,
+    bondRefused: Boolean,
+    isLiveConnected: Boolean,
+): DevicePillState = when {
+    isArchived -> DevicePillState("Removed", StrandTone.Neutral, showsDot = false)
+    !isActive -> DevicePillState("Paired", StrandTone.Neutral)
+    // Reboot window (#166): the user's Restart dropped the link and NOOP is auto-reconnecting. Show it
+    // as intentional rather than a silent drop to "Active"; clears to "Active · Live" once the link is back.
+    isReconnecting -> DevicePillState("Reconnecting…", StrandTone.Warning, pulsing = true)
+    // #221: BLE-connected but the encrypted bond was refused — no data flows, so this must not read
+    // as "Active · Live".
+    bondRefused -> DevicePillState("Connected · not paired", StrandTone.Warning)
+    isLiveConnected -> DevicePillState("Active · Live", StrandTone.Positive, pulsing = true)
+    else -> DevicePillState("Active", StrandTone.Positive)
+}
+
 @Composable
 private fun StatePill(
     device: PairedDeviceRow,
@@ -544,25 +577,14 @@ private fun StatePill(
     bondRefused: Boolean = false,
     isReconnecting: Boolean = false,
 ) {
-    when {
-        device.status == DeviceStatus.archived.name ->
-            StatePill("Removed", tone = StrandTone.Neutral, showsDot = false)
-        // Reboot window (#166): the user's Restart dropped the link and NOOP is auto-reconnecting. Show it
-        // as intentional rather than a silent drop to "Active"; clears to "Active · Live" once the link is back.
-        isActive && isReconnecting ->
-            StatePill("Reconnecting…", tone = StrandTone.Warning, pulsing = true)
-        // #221: BLE-connected but the encrypted bond was refused — no data flows, so this must not read
-        // as "Active · Live".
-        isActive && bondRefused ->
-            StatePill("Connected · not paired", tone = StrandTone.Warning)
-        isActive ->
-            StatePill(
-                if (isLiveConnected) "Active · Live" else "Active",
-                tone = StrandTone.Positive,
-                pulsing = isLiveConnected,
-            )
-        else -> StatePill("Paired", tone = StrandTone.Neutral)
-    }
+    val state = devicePillState(
+        isArchived = device.status == DeviceStatus.archived.name,
+        isActive = isActive,
+        isReconnecting = isReconnecting,
+        bondRefused = bondRefused,
+        isLiveConnected = isLiveConnected,
+    )
+    StatePill(state.label, tone = state.tone, showsDot = state.showsDot, pulsing = state.pulsing)
 }
 
 @Composable
@@ -1068,7 +1090,9 @@ private fun OuraLocalStateNote() {
 
 private fun lastSeenLine(device: PairedDeviceRow, isLiveConnected: Boolean, bondRefused: Boolean = false): String = when {
     device.status == DeviceStatus.archived.name -> "Removed · data kept"
-    bondRefused -> "Connected, but not paired — tap ⋯ for help"
+    // No "tap ⋯" pointer here (#221 review) — the full how-to-fix guidance is already inline on the card
+    // just below, so pointing at the menu would send the user looking for help that's already on screen.
+    bondRefused -> "Connected, but not paired"
     isLiveConnected -> "Connected now"
     else -> "Last seen ${relativeAgo(device.lastSeenAt)}"
 }
