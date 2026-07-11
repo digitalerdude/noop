@@ -195,3 +195,23 @@ Per `CLAUDE.md`, know the coverage before claiming it works:
    Takeout file shapes for those signals. The deeper unbuilt lanes are the *live* ones in
    `DEVICE_SUPPORT_ROADMAP.md` (Polar PMD ECG/PPG, Xiaomi live-BLE sync), which would be the first real
    new drivers built on the Phase 1 `LiveHRSource` abstraction.
+
+## On-strap smoke test — the Phase 1 merge gate
+
+The Phase 1 refactor is byte-identical *by construction* (driver logic untouched, WHOOP-first isolation
+and churn guards preserved), and it compiles on both platforms, but **BLE behaviour cannot be CI- or
+Linux-tested** (`docs/CONTRIBUTING.md` §BLE). Run this once on real hardware before merging, and record
+the result on the PR:
+
+1. **Single-WHOOP zero-regression** (the default, dormant path): launch with only the WHOOP paired.
+   Confirm it connects, bonds, and streams live HR exactly as before — the coordinator must issue no
+   scan / disconnect / re-point (`activeSource` stays nil; it is a pure no-op for one WHOOP).
+2. **WHOOP → generic strap**: pair a standard 0x180D strap (Polar / Wahoo / Coospo / Garmin HRM), make
+   it active. Confirm the WHOOP link tears down and the strap streams live HR under its own device id,
+   with battery + strap-log lines appearing where the WHOOP's do.
+3. **Strap → WHOOP (back)**: make the WHOOP active again. Confirm the strap source stops cleanly and the
+   WHOOP reconnects and resumes — no lingering strap stream, no double connection.
+4. **Idempotence**: re-select the already-active device; confirm nothing churns (no reconnect flap).
+
+If an experimental band (Amazfit/Huami or an Oura ring) is on hand, repeat 2–3 for it to exercise the
+`makeSource` Huami/Oura arms; otherwise the standard-strap pass covers the abstraction's hot path.
