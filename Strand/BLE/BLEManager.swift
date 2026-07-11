@@ -2775,10 +2775,13 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             // iOS+macOS up to that parity rather than adding a new behaviour.
             switch central.state {
             case .unauthorized:
+                // #295: an unsigned/ad-hoc build's code identity changes on every release, so a Bluetooth
+                // toggle that already reads "on" from a PRIOR build's grant may not carry over — the
+                // message needs to tell the user to re-toggle it, not just check that it's on.
                 #if os(macOS)
-                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Turn it on in System Settings → Privacy & Security → Bluetooth, then reopen NOOP."
+                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open System Settings → Privacy & Security → Bluetooth — if NOOP is already listed there, toggle it off and back on (a new NOOP build needs a fresh grant), then quit and reopen NOOP."
                 #else
-                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Turn it on in iPhone Settings → NOOP → Bluetooth, then reopen NOOP."
+                state.lastSyncError = "NOOP isn't allowed to use Bluetooth. Open iPhone Settings → NOOP → Bluetooth — if it's already on, toggle it off and back on, then quit and reopen NOOP."
                 #endif
                 log("Bluetooth permission not granted (unauthorized) — cannot scan or connect")
                 radioStateErrorShown = true
