@@ -145,7 +145,8 @@ final class Whoop5HistoricalTests: XCTestCase {
 
         // Cross-device: on the SECOND strap, HR=57 decodes fine yet the optical channel is 128/128 — proof
         // that 128 is a per-CHANNEL invalid marker independent of HR validity (HR is derived elsewhere),
-        // while HR=63 on the same strap carries a valid pair (36/28).
+        // while HR=63 on the same strap carries a valid pair (36/28). (A third capture — a history backfill —
+        // reconfirmed the pairing + 128 sentinel but NOT any HR correlation, so the fields stay unnamed.)
         let d2a = parseFrame(bytes(secondDeviceHR57), family: .whoop5).parsed
         XCTAssertEqual(d2a["heart_rate"]?.intValue, 57)
         XCTAssertEqual(d2a["optical_amp_a"]?.intValue, 128)

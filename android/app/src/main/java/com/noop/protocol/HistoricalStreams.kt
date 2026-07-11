@@ -344,10 +344,11 @@ private fun decodeWhoop5Historical(frame: ByteArray): Map<String, Any?>? {
     // SpO2/respiratory reference), so each is carried RAW. Mirror of Swift decodeWhoop5Historical.
     // @106 an analog u16 optical/ADC baseline: wanders overnight, reads 0 only off-wrist; raw, not pinned.
     frame.histU16(106)?.let { out["optical_baseline_106"] = it }
-    // @108/@109 a tightly-coupled PAIR (equal ~24% of records, within ±2 ~80%). Both rise monotonically
-    // with HR/motion and read 128 as a per-CHANNEL invalid sentinel — seen off-wrist AND on worn records
-    // that still carry a valid HR. Amplitude/quality-like; carried raw, NOT named SpO2/perfusion without
-    // on-device ground truth.
+    // @108/@109 a tightly-coupled PAIR (equal ~24–36% of records, within ±2 ~80%, across three captures)
+    // that both read 128 as a per-CHANNEL invalid sentinel — seen off-wrist AND on worn records that still
+    // carry a valid HR. A low-amplitude signal-quality/perfusion-like byte: an apparent HR correlation on
+    // one night did NOT reproduce on a second, so no HR/motion meaning is asserted. Carried raw, NOT named
+    // SpO2/perfusion without on-device ground truth.
     frame.histU8(108)?.let { out["optical_amp_a"] = it }
     frame.histU8(109)?.let { out["optical_amp_b"] = it }
     // @113 a float32 (observed range ~ -5.3..0, 0 = unset); purpose unknown, carried raw. EMPIRICAL.

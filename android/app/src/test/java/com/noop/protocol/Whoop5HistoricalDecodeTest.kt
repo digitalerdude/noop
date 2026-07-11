@@ -260,7 +260,8 @@ class Whoop5HistoricalDecodeTest {
         assertEquals(128, off["optical_amp_a"])
         assertEquals(128, off["optical_amp_b"])
         // Cross-device: HR=57 decodes fine yet the optical channel is 128/128 (per-channel invalid,
-        // independent of HR validity); HR=63 on the same strap carries a valid 36/28 pair.
+        // independent of HR validity); HR=63 on the same strap carries a valid 36/28 pair. (A third capture,
+        // a history backfill, reconfirmed the pairing + 128 sentinel but NOT any HR correlation.)
         val d57 = decodeHistorical(bytes(secondDeviceHR57), DeviceFamily.WHOOP5)!!
         assertEquals(57, d57["heart_rate"])
         assertEquals(128, d57["optical_amp_a"])

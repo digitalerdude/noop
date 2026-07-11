@@ -497,18 +497,19 @@ private func decodeWhoop5Historical(_ frame: [UInt8], fb: FieldBuilder, payloadE
         fb.add(106, 2, "optical_baseline_106", "optical", value: .int(v),
                note: "u16 LE analog optical/ADC baseline; wanders overnight, 0 = off-wrist; raw, not pinned")
     }
-    // @108/@109 are a tightly-coupled PAIR (equal in 23.5% of records, within ±2 in ~80%). Both rise
-    // monotonically with heart rate (mean ~34 at HR 40–49 → ~58 at HR 80–89) and with motion, and both
-    // read 128 as a per-channel INVALID sentinel — observed off-wrist AND on some worn records that still
-    // carry a valid HR (the optical channel can be invalid while HR is derived elsewhere). Amplitude- or
-    // signal-quality-like; carried raw, NOT named SpO2/perfusion without on-device ground truth.
+    // @108/@109 are a tightly-coupled PAIR (equal in ~24–36% of records, within ±2 in ~80%, across three
+    // captures) and both read 128 as a per-channel INVALID sentinel — observed off-wrist AND on worn
+    // records that still carry a valid HR (the optical channel can be invalid while HR is derived
+    // elsewhere). A low-amplitude signal-quality/perfusion-like byte: an apparent HR correlation on one
+    // night did NOT reproduce on a second (flat ~34 across HR there), so NO HR/motion meaning is asserted.
+    // Carried raw, NOT named SpO2/perfusion without on-device ground truth.
     if let a = readDType(frame, 108, "u8") {
         fb.add(108, 1, "optical_amp_a", "optical", value: .int(a),
-               note: "paired optical channel A (≈ optical_amp_b@109); rises with HR/motion; 128 = channel invalid; raw")
+               note: "paired optical channel A (≈ optical_amp_b@109); 128 = channel invalid; raw, meaning not pinned")
     }
     if let b = readDType(frame, 109, "u8") {
         fb.add(109, 1, "optical_amp_b", "optical", value: .int(b),
-               note: "paired optical channel B (see optical_amp_a@108); 128 = channel invalid; raw")
+               note: "paired optical channel B (see optical_amp_a@108); 128 = channel invalid; raw, meaning not pinned")
     }
     if let d = readF32(frame, 113), d.isFinite {
         // A float32 at @113 (observed range ~ -5.3…0, 0 = unset); purpose unknown, carried raw.
