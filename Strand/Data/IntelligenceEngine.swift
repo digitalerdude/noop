@@ -549,6 +549,10 @@ final class IntelligenceEngine: ObservableObject {
                 // #93: WHOOP 4.0 raw SpO2 PPG samples for the night; analyzeDay banks the nightly red/IR ADC
                 // means on the DailyMetric. Empty on a 5/MG (no v24 spo2 channels) → the raw means stay nil.
                 let spo2 = (try? await store.spo2Samples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
+                // #103: PPG-derived per-burst respiratory rate from the WHOOP 5.0 v26 optical buffer.
+                // analyzeDay prefers this over the R-R/RSA estimate per session when it has enough burst
+                // coverage. Empty on a WHOOP 4.0 / v18-only night → falls back to RSA as before.
+                let ppgResp = (try? await store.ppgRespSamples(deviceId: owner, from: from, to: to, limit: 200_000)) ?? []
                 // #938: the strap family that WROTE this owner's skin-temp rows, so analyzeDay converts the raw
                 // register on the right scale (5/MG banks centidegrees, a WHOOP 4.0 v24 banks a raw ADC). The
                 // registry knows each device's model; unknown/non-WHOOP owners fall back to `.whoop5` (the prior
@@ -686,6 +690,7 @@ final class IntelligenceEngine: ObservableObject {
                                                      skinTempFamily: skinFamily,   // #938
                                                      skinTempAnchorRaw: skinAnchorRaw,   // #938 second capture
                                                      spo2: spo2,                   // #93
+                                                     ppgResp: ppgResp,             // #103
                                                      profile: up, baselines: baselines1, maxHROverride: maxHR,
                                                      tzOffsetSeconds: tzOffset, wristOff: wristOff,
                                                      habitualMidsleepSec: habitualMidsleepSec,

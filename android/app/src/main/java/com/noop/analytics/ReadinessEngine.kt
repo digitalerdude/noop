@@ -190,11 +190,16 @@ object ReadinessEngine {
         if (rhrSignal != null) signals.add(rhrSignal)
 
         // Respiratory-rate drift (illness early signal) ----------------------
-        // respRateBpm may be a clean cloud value OR a higher-variance on-device RSA estimate
-        // (WHOOP5 BLE-only) and carries no source flag, so gate conservatively for BOTH: keep the
-        // minBaseline + sd>0 guard, only act on physiologically plausible sleeping-RR (~8-25 bpm),
-        // and use wider resp-only z thresholds (WATCH 1.5 / BAD 2.0) so a single noisy night can't
-        // reach BAD (which would feed recoveryDown), while a sustained genuine rise still flags.
+        // respRateBpm may be a clean cloud value, a higher-variance on-device RSA estimate, OR (#103)
+        // a PPG-derived estimate preferred over RSA per-session when available — and carries no source
+        // flag, so gate conservatively for ALL: keep the minBaseline + sd>0 guard, only act on
+        // physiologically plausible sleeping-RR (~8-25 bpm), and use wider resp-only z thresholds
+        // (WATCH 1.5 / BAD 2.0) so a single noisy night can't reach BAD (which would feed
+        // recoveryDown), while a sustained genuine rise still flags. The WATCH/BAD thresholds were
+        // sized for RSA's noise floor specifically; #103's real-capture validation (n=2 nights)
+        // suggests PPG is tighter, which would make these thresholds conservative on PPG-heavy nights
+        // — not retuned here for lack of data, but worth revisiting once the real-world PPG/RSA mix
+        // ratio is observable.
         val rr = latest.respRateBpm
         if (rr != null && rr in respPlausibleRange) {
             val base = history.takeLast(baselineWindow).mapNotNull { it.respRateBpm }

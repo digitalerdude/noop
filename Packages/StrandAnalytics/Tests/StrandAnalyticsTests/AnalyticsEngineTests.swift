@@ -200,6 +200,57 @@ final class AnalyticsEngineTests: XCTestCase {
         XCTAssertGreaterThan(try XCTUnwrap(result.daily.skinTempDevC), 0.2)
     }
 
+    /// #103: when the PPG-derived stream has enough burst coverage, `respRateDaily` must reflect the
+    /// PPG value, NOT the RSA one — the two estimators are given fixtures that recover clearly
+    /// DIFFERENT rates (RSA's planted 15 bpm vs PPG's planted 12 bpm) so a silent fallback to RSA
+    /// would fail this test loudly rather than passing by coincidence.
+    func testAnalyzeDayPrefersPpgRespRateOverRsaWhenAvailable() throws {
+        let day = "2021-06-21"
+        let n = night(endDay: day, hours: 7)
+        var rr: [RRInterval] = []
+        var tSec = 0.0
+        while tSec < Double(n.end - n.start) {
+            let rrMs = 1200.0 + 40.0 * sin(2.0 * Double.pi * 0.25 * tSec)   // planted 15 bpm
+            tSec += rrMs / 1000.0
+            rr.append(RRInterval(ts: n.start + Int(tSec), rrMs: Int(rrMs)))
+        }
+        // 12 high-confidence PPG bursts (well above minPpgBurstsForEstimate) spread across the night,
+        // all agreeing on 12 bpm — clearly distinct from RSA's planted 15 bpm above.
+        let ppgResp = (0..<12).map {
+            PpgRespSample(ts: n.start + $0 * 600, bpm: 12.0, conf: 20.0)
+        }
+        let result = AnalyticsEngine.analyzeDay(
+            day: day, hr: n.hr, rr: rr, gravity: n.gravity, ppgResp: ppgResp,
+            profile: UserProfile(age: 30))
+        XCTAssertEqual(result.sleepSessions.count, 1)
+        XCTAssertEqual(try XCTUnwrap(result.daily.respRateBpm), 12.0, accuracy: 0.5,
+                       "expected the PPG estimate (12 bpm) to be preferred over RSA's planted 15 bpm")
+    }
+
+    /// #103: with too few PPG bursts to clear `SleepStager.minPpgBurstsForEstimate`, the fusion must
+    /// fall back to RSA exactly as before the feature existed — this is the expected COMMON case
+    /// (v26 PPG coverage is a sparse minority of any given night).
+    func testAnalyzeDayFallsBackToRsaWhenPpgCoverageIsInsufficient() throws {
+        let day = "2021-06-21"
+        let n = night(endDay: day, hours: 7)
+        var rr: [RRInterval] = []
+        var tSec = 0.0
+        while tSec < Double(n.end - n.start) {
+            let rrMs = 1200.0 + 40.0 * sin(2.0 * Double.pi * 0.25 * tSec)   // planted 15 bpm
+            tSec += rrMs / 1000.0
+            rr.append(RRInterval(ts: n.start + Int(tSec), rrMs: Int(rrMs)))
+        }
+        // Only 3 PPG bursts (well below minPpgBurstsForEstimate) — must not override RSA.
+        let sparsePpgResp = (0..<3).map {
+            PpgRespSample(ts: n.start + $0 * 600, bpm: 12.0, conf: 20.0)
+        }
+        let result = AnalyticsEngine.analyzeDay(
+            day: day, hr: n.hr, rr: rr, gravity: n.gravity, ppgResp: sparsePpgResp,
+            profile: UserProfile(age: 30))
+        XCTAssertEqual(try XCTUnwrap(result.daily.respRateBpm), 15.0, accuracy: 3.0,
+                       "expected fallback to the RSA estimate (~15 bpm) when PPG coverage is too sparse")
+    }
+
     /// End-to-end for the wake-time-edit feature (#318): the REAL stager detects a night and assigns it
     /// a startTs; a hand-correction keyed by THAT startTs must flow through `dailyAggregateHonoringEdits`
     /// and lower the day's total sleep. Proves the edit's key actually lines up with genuine stager

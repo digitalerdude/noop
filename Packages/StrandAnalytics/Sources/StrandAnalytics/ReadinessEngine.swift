@@ -160,10 +160,19 @@ public enum ReadinessEngine {
         if let s = rhrSignal { signals.append(s) }
 
         // Respiratory-rate drift (illness early signal) ----------------------
-        // respRateBpm may be a clean cloud value OR a higher-variance on-device RSA estimate, so gate
-        // BOTH the latest value and the baseline mean to the plausible sleeping-RR band (8–25 bpm) and
-        // use wider resp-only z thresholds (WATCH 1.5 / BAD 2.0) than HRV/RHR so a single noisy night
-        // can't flip RUNDOWN. Mirrors the Kotlin reference (#78) for cross-platform parity.
+        // respRateBpm may be a clean cloud value, a higher-variance on-device RSA estimate, OR (#103) a
+        // PPG-derived estimate preferred over RSA per-session when available — so gate BOTH the latest
+        // value and the baseline mean to the plausible sleeping-RR band (8–25 bpm) and use wider
+        // resp-only z thresholds (WATCH 1.5 / BAD 2.0) than HRV/RHR so a single noisy night can't flip
+        // RUNDOWN. Mirrors the Kotlin reference (#78) for cross-platform parity. The WATCH/BAD
+        // thresholds were sized for RSA's noise floor specifically; #103's real-capture validation (n=2
+        // nights) suggests PPG is tighter, which would make these thresholds conservative on PPG-heavy
+        // nights — not retuned here for lack of data, but worth revisiting once the real-world PPG/RSA
+        // mix ratio is observable.
+        //
+        // Bare `Double?`, no provenance — this is deliberate: value-plausibility + rolling-baseline
+        // z-score doesn't need to know WHICH estimator produced the number, and #103 confirmed this
+        // gate doesn't either.
         if let rr = latest.respRateBpm, SleepStager.respPlausibleRangeBpm.contains(rr) {
             let base = history.suffix(baselineWindow).compactMap { $0.respRateBpm }
             if base.count >= minBaseline, let m = mean(base),

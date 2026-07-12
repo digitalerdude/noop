@@ -4,6 +4,7 @@ import com.noop.data.DailyMetric
 import com.noop.data.EventRow
 import com.noop.data.GravitySample
 import com.noop.data.HrSample
+import com.noop.data.PpgRespSample
 import com.noop.data.SkinTempSample
 import com.noop.data.Spo2Sample
 import com.noop.data.RespSample
@@ -182,6 +183,13 @@ object AnalyticsEngine {
         // decoded" data, NOT a calibrated blood-oxygen % (that needs WHOOP's proprietary curve). Default
         // empty keeps pure-function callers/tests + non-4.0 nights null.
         spo2: List<Spo2Sample> = emptyList(),
+        // PPG-derived per-burst respiratory rate from the WHOOP 5.0 v26 optical buffer (#103,
+        // com.noop.protocol.PpgResp). Per matched sleep session, tried FIRST for respRateDaily below
+        // (more accurate per 2-night real-capture validation when it has enough burst coverage),
+        // falling back to the R-R/RSA estimate when it's empty/insufficient — v26 coverage is a sparse
+        // minority of any given night, so NaN here is the common case, not a bug. Default empty keeps
+        // pure-function callers/tests + WHOOP4/no-v26 nights on the existing RSA-only path unchanged.
+        ppgResp: List<PpgRespSample> = emptyList(),
         profile: UserProfile,
         baselines: ProfileBaselines = ProfileBaselines(),
         maxHROverride: Double? = null,
@@ -403,15 +411,30 @@ object AnalyticsEngine {
             )
         }
 
-        // Nightly APPROXIMATE respiratory rate (breaths/min) from the R-R stream via
-        // RSA. WHOOP5 v18 carries no raw resp ADC, so this is an on-device estimate,
-        // NOT a cloud/clinical respiration value. Per matched in-bed session, estimate
-        // over [start, end]; the night's value = median of finite per-session
-        // estimates; null only when no session yields a finite estimate.
+        // Nightly APPROXIMATE respiratory rate (breaths/min); NOT a cloud/clinical respiration value.
+        // Per matched in-bed session: PREFER the PPG-derived estimate (SleepStager.respRateFromPpg,
+        // #103, WHOOP5 v26 optical buffer) when it has enough burst coverage — landed within 2-6% of
+        // the WHOOP app's own reading on 2 real overnight captures, vs. the R-R/RSA estimate's 6-11%
+        // low bias on the SAME nights — else fall back to the R-R/RSA estimate (respRateFromRR,
+        // WHOOP5 v18-only, no raw resp ADC on this family). NOT a blend of the two: blending two
+        // estimates of different, uncharacterized accuracy risks being confidently wrong in a new way
+        // neither alone is (see #103 for the full honesty caveat — thin, 2-night, low-variance-subject
+        // evidence). The night's value = median of finite per-session estimates; null only when no
+        // session yields one. Which estimator fired per session is traced through hrvTraceSink (the
+        // existing per-day diagnostic hook) when active, for future debugging/re-tuning.
         val respRateDaily: Double? = run {
-            val perSession = matched
-                .map { SleepStager.respRateFromRR(rr, it.start, it.end) }
-                .filter { it.isFinite() }
+            val perSession = matched.mapNotNull { session ->
+                val ppg = SleepStager.respRateFromPpg(ppgResp, session.start, session.end)
+                if (ppg.isFinite()) {
+                    hrvTraceSink?.invoke("respRate session start=${session.start} source=ppg value=$ppg")
+                    return@mapNotNull ppg
+                }
+                val rsa = SleepStager.respRateFromRR(rr, session.start, session.end)
+                if (rsa.isFinite()) {
+                    hrvTraceSink?.invoke("respRate session start=${session.start} source=rsa value=$rsa")
+                }
+                if (rsa.isFinite()) rsa else null
+            }
             if (perSession.isEmpty()) null else HrvAnalyzer.median(perSession)
         }
 
