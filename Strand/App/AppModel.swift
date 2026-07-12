@@ -273,9 +273,20 @@ final class AppModel: ObservableObject {
         // strap was away never reached it , the send is gated on bond , so the strap kept the OLD time
         // and fired at it (#59). removeDuplicates() fires once per bond; gated on enabled so a disabled
         // alarm doesn't disarm on every reconnect.
+        //
+        // #34: dispatched via `.main.async`, NOT inline. `state.bonded` is a `@Published` set from INSIDE
+        // BLEManager's connect-handshake continuation (the bonding-confirm write's didWriteValueFor), and
+        // Combine delivers to this sink SYNCHRONOUSLY on that same call stack — so an inline call here
+        // nested armStrapAlarm()'s SET_CLOCK/SET_ALARM_TIME/GET_ALARM_TIME burst in the MIDDLE of that
+        // continuation, ahead of its own sendSetClockBothForms()/GET_CLOCK/notify-resubscribe. A strap log
+        // (#34 v8.6.2) confirmed the result: the alarm arm's GET_ALARM_TIME readback got no reply at all
+        // (dropped — the cmd-notify characteristic wasn't confirmed subscribed yet at that point in the
+        // handshake) and the handshake's own SET_CLOCK ran a beat AFTER the alarm's, redundantly. Deferring
+        // one runloop turn lets the connect handshake finish first — clock set once, notify channel active
+        // — before the alarm arms on a settled link. No BLE bytes/commands change, only send order.
         live.$bonded.removeDuplicates().sink { [weak self] bonded in
             guard let self, bonded, self.behavior.smartAlarmEnabled else { return }
-            self.applySmartAlarm()
+            DispatchQueue.main.async { [weak self] in self?.applySmartAlarm() }
         }.store(in: &hrCancellables)
         // The firmware alarm is a single absolute instant with no recurrence, and was re-armed ONLY on
         // a (re)bond or a settings change. A strap that stays continuously bonded (a Mac in range) would
