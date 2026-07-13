@@ -104,6 +104,22 @@ enum PuffinExperiment {
     /// Test Centre view via @AppStorage on this key. Mirrors the Android `PuffinExperiment.KEY_HRV_READINESS`.
     static let hrvReadinessKey = "noopHrvReadiness"
 
+    /// Opt-in "PPG-derived respiratory rate" (default off, #103): when enabled, `AnalyticsEngine` prefers a
+    /// spectral estimate off the WHOOP5 v26 optical PPG buffer (`PpgResp`, top-confidence-burst aggregation)
+    /// over the shipped R-R/RSA estimate (`SleepStager.respRateFromRR`) per sleep session, feeding
+    /// `DailyMetric.respRateBpm` and the ReadinessEngine illness-detection signal. Validated on only 2 real
+    /// overnight captures from ONE subject whose own night-to-night respiratory rate barely moves (stdev
+    /// ~0.56 bpm) — exactly the single-stable-night validation trap the project's derived-biosignal standard
+    /// warns about (a record-period artifact can coincidentally match a subject on a stable night). Default
+    /// OFF keeps the shipped RSA-only path byte-identical; the app-layer call site (`IntelligenceEngine`)
+    /// reads this flag and only supplies the real `ppgResp` stream to `analyzeDay` when it's on — the pure
+    /// `AnalyticsEngine`/`SleepStager` functions are unaware of the toggle and stay pure. `ppgResp` is still
+    /// decoded + persisted (`ppgRespSample`) unconditionally as instrumentation, so opting in later needs no
+    /// backfill. Mirrors the Android `PuffinExperiment.KEY_PPG_RESP_RATE`.
+    static let ppgRespRateKey = "noopPpgRespRate"
+
+    static var ppgRespRateEnabled: Bool { UserDefaults.standard.bool(forKey: ppgRespRateKey) }
+
     /// Opt-in "Auto-detect workouts": after a sync / on Today appear, scan the last day or two of HR for a
     /// SUSTAINED-ELEVATED window (resting HR + 30 bpm held ≥ 12 min) that doesn't overlap a saved workout,
     /// and surface ONE dismissible Today card offering to save it as a manual-style workout. Pure read +

@@ -471,6 +471,7 @@ private fun ExperimentalAlgorithmsCard(vm: AppViewModel) {
     val puffin = remember { PuffinExperiment.from(context) }
     var ppgHrSubLag by remember { mutableStateOf(puffin.ppgHrSubLagInterp) }
     var hrvReadiness by remember { mutableStateOf(puffin.hrvReadiness) }
+    var ppgRespRate by remember { mutableStateOf(puffin.ppgRespRate) }
     // The SAME nightly HRV series the recovery UI reads (repo-merged DailyMetric.avgHrv, oldest-first), fed
     // into the pure HRVReadiness engine ONLY to render the toggle's own reading inline below — the default
     // Charge ring / analyzeDay path is never touched, and this feeds no downstream gate.
@@ -502,6 +503,18 @@ private fun ExperimentalAlgorithmsCard(vm: AppViewModel) {
             // The toggle's OWN effect, shown in place: when on, the live Plews/Altini reading. Nothing renders
             // when off, so the flag off is zero behaviour change and feeds no downstream gate.
             if (hrvReadiness) HrvReadinessReadoutTC(recentDays)
+            ToggleRowTC(
+                title = "PPG-derived respiratory rate (#103)",
+                description = "Prefer a spectral respiratory-rate estimate off the WHOOP5 v26 optical PPG " +
+                    "buffer over the shipped R-R estimate, per sleep session with enough burst coverage. " +
+                    "Unlike the read-only toggles above, this changes a stored value: DailyMetric.respRateBpm " +
+                    "and the illness-detection signal it feeds. Validated on only 2 real nights from one " +
+                    "subject whose own respiratory rate barely varies night to night - not yet proven to " +
+                    "track a varying value. Off by default; the R-R estimate stays the shipped default until " +
+                    "this earns wider validation.",
+                checked = ppgRespRate,
+                onCheckedChange = { ppgRespRate = it; puffin.ppgRespRate = it },
+            )
         }
     }
 }
