@@ -2824,6 +2824,18 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
             // iOS+macOS up to that parity rather than adding a new behaviour.
             switch central.state {
             case .unauthorized:
+                // #391: CoreBluetooth on macOS can transiently report `.unauthorized` during the cold-start
+                // settling window (before the central finishes connecting to bluetoothd) even when the TCC
+                // grant is fine — the state then advances to .poweredOff/.poweredOn on the next callback and
+                // the strap connects. `central.authorization` reads the grant DIRECTLY, independent of that
+                // transient state, so use it to tell a genuine denial (#280/#295) from the settling case.
+                // Only a real .denied/.restricted should latch the re-grant banner; a granted-but-transient
+                // `.unauthorized` is left alone like .unknown/.resetting below, and the next state update
+                // resolves it. (#391: users were pushed to toggle Bluetooth off/on to clear a false banner.)
+                guard central.authorization == .denied || central.authorization == .restricted else {
+                    log("Central reported unauthorized but Bluetooth is granted — transient cold-start state; waiting for the radio to settle")
+                    break
+                }
                 // #295: an unsigned/ad-hoc build's code identity changes on every release, so a Bluetooth
                 // toggle that already reads "on" from a PRIOR build's grant may not carry over — the
                 // message needs to tell the user to re-toggle it, not just check that it's on.
