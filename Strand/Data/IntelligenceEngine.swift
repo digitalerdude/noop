@@ -770,9 +770,9 @@ final class IntelligenceEngine: ObservableObject {
         // ── Seed the baseline from the UNION of imported nightly history + the values just computed.
         // THIS is the BLE-only recovery fix: the "-noop" nightly avgHrv/restingHr finally feed the
         // baseline so a strap-only user crosses Baselines.minNightsSeed and recovery lights up.
-        // IMPORTED values win per day: write them first, then fill ONLY days the import doesn't cover
-        // (Swift has no putIfAbsent , `dict[day] == nil` is true only when the KEY is absent, so a day
-        // imported with a nil avgHrv stays imported, not overwritten by the computed value).
+        // A REAL imported value wins per day; a day the import left BLANK (key absent OR present-but-nil)
+        // takes the on-device value so a strap+Health-Connect user's computed HRV/RHR can seed the baseline
+        // (#393). See NightlyBaselineMerge for the rule; byte-identical to the Kotlin twin.
         var histHrvByDay: [String: Double?] = [:]
         var histRhrByDay: [String: Double?] = [:]
         var histRespByDay: [String: Double?] = [:]
@@ -781,9 +781,9 @@ final class IntelligenceEngine: ObservableObject {
             histRhrByDay[d.day] = d.restingHr.map(Double.init)
             histRespByDay[d.day] = d.respRateBpm
         }
-        for (day, v) in nightlyHrvByDay where histHrvByDay[day] == nil { histHrvByDay[day] = v }
-        for (day, v) in nightlyRhrByDay where histRhrByDay[day] == nil { histRhrByDay[day] = v }
-        for (day, v) in nightlyRespByDay where histRespByDay[day] == nil { histRespByDay[day] = v }
+        NightlyBaselineMerge.fillBlankNights(&histHrvByDay, nightlyHrvByDay)
+        NightlyBaselineMerge.fillBlankNights(&histRhrByDay, nightlyRhrByDay)
+        NightlyBaselineMerge.fillBlankNights(&histRespByDay, nightlyRespByDay)
         // rhr/resp/skin honour the Charge-wide recalibration epoch (noop.recoveryBaselineEpoch); 0 = no-op,
         // so this is byte-identical to the plain fold until the user taps Recalibrate, at which point the
         // whole Charge build-up (HRV + resting HR + resp + skin) re-anchors together.

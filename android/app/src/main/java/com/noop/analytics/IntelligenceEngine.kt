@@ -649,17 +649,12 @@ object IntelligenceEngine {
             histRhrByDay[d.day] = d.restingHr?.toDouble()
             histRespByDay[d.day] = d.respRateBpm
         }
-        // Imported (cloud) nightly values WIN per day: the on-device estimate only fills days the
-        // import doesn't cover AT ALL, so an import user's baseline is unchanged. Use a key-absence
-        // check, NOT putIfAbsent: Java's putIfAbsent treats a key mapped to NULL as absent, so an
-        // imported day whose avgHrv/restingHr is blank would be REPLACED by the computed estimate —
-        // diverging from the Swift mirror (`histHrvByDay[day] == nil` is true only when the KEY is
-        // absent), which keeps that imported day as a missing night. HRV/RHR are the dominant
-        // recovery drivers (~60%/~20%), so this substitution skewed Charge vs iOS. (The author already
-        // fixed this for the low-weight resp term below; HRV/RHR were missed.)
-        for ((day, v) in nightlyHrvByDay) if (day !in histHrvByDay) histHrvByDay[day] = v
-        for ((day, v) in nightlyRhrByDay) if (day !in histRhrByDay) histRhrByDay[day] = v
-        for ((day, v) in nightlyRespByDay) if (day !in histRespByDay) histRespByDay[day] = v
+        // A REAL imported (cloud) nightly value WINS per day; a day the import left BLANK (key absent OR
+        // present-but-null) takes the on-device value so a strap+Health-Connect user's computed HRV/RHR can
+        // seed the baseline (#393). See NightlyBaselineMerge for the rule; byte-identical to the Swift twin.
+        NightlyBaselineMerge.fillBlankNights(histHrvByDay, nightlyHrvByDay)
+        NightlyBaselineMerge.fillBlankNights(histRhrByDay, nightlyRhrByDay)
+        NightlyBaselineMerge.fillBlankNights(histRespByDay, nightlyRespByDay)
         // Sort once so the HRV values + their "yyyy-MM-dd" day keys stay parallel (same order/length) for
         // the recalibration-aware foldHistory below.
         val hrvSorted = histHrvByDay.entries.sortedBy { it.key }
