@@ -160,19 +160,17 @@ public enum ReadinessEngine {
         if let s = rhrSignal { signals.append(s) }
 
         // Respiratory-rate drift (illness early signal) ----------------------
-        // respRateBpm may be a clean cloud value, a higher-variance on-device RSA estimate, OR (#103) a
-        // PPG-derived estimate preferred over RSA per-session when available — so gate BOTH the latest
-        // value and the baseline mean to the plausible sleeping-RR band (8–25 bpm) and use wider
-        // resp-only z thresholds (WATCH 1.5 / BAD 2.0) than HRV/RHR so a single noisy night can't flip
-        // RUNDOWN. Mirrors the Kotlin reference (#78) for cross-platform parity. The WATCH/BAD
-        // thresholds were sized for RSA's noise floor specifically; #103's real-capture validation (n=2
-        // nights) suggests PPG is tighter, which would make these thresholds conservative on PPG-heavy
-        // nights — not retuned here for lack of data, but worth revisiting once the real-world PPG/RSA
-        // mix ratio is observable.
+        // respRateBpm may be a clean cloud value OR a higher-variance on-device RSA estimate, so gate
+        // BOTH the latest value and the baseline mean to the plausible sleeping-RR band (8–25 bpm) and
+        // use wider resp-only z thresholds (WATCH 1.5 / BAD 2.0) than HRV/RHR so a single noisy night
+        // can't flip RUNDOWN. Mirrors the Kotlin reference (#78) for cross-platform parity.
         //
-        // Bare `Double?`, no provenance — this is deliberate: value-plausibility + rolling-baseline
-        // z-score doesn't need to know WHICH estimator produced the number, and #103 confirmed this
-        // gate doesn't either.
+        // #103 explicitly does NOT reach here: an experimental PPG-derived respiratory-rate estimate
+        // exists (SleepStager.respRateFromPpg) but is deliberately never mixed into respRateBpm — a
+        // series that silently switches estimator night to night injects a ~1-1.5 bpm step that alone
+        // can brush the WATCH threshold for a stable sleeper, a false signal from the estimator
+        // flipping, not physiology. This gate only ever sees one consistent estimator (RSA), by
+        // construction, so it doesn't need — and must not be given — provenance.
         if let rr = latest.respRateBpm, SleepStager.respPlausibleRangeBpm.contains(rr) {
             let base = history.suffix(baselineWindow).compactMap { $0.respRateBpm }
             if base.count >= minBaseline, let m = mean(base),

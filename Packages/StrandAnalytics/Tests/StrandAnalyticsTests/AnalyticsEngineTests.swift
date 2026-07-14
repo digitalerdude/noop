@@ -200,11 +200,13 @@ final class AnalyticsEngineTests: XCTestCase {
         XCTAssertGreaterThan(try XCTUnwrap(result.daily.skinTempDevC), 0.2)
     }
 
-    /// #103: when the PPG-derived stream has enough burst coverage, `respRateDaily` must reflect the
-    /// PPG value, NOT the RSA one — the two estimators are given fixtures that recover clearly
-    /// DIFFERENT rates (RSA's planted 15 bpm vs PPG's planted 12 bpm) so a silent fallback to RSA
-    /// would fail this test loudly rather than passing by coincidence.
-    func testAnalyzeDayPrefersPpgRespRateOverRsaWhenAvailable() throws {
+    /// #103 review: `respRateDaily`/`DailyMetric.respRateBpm` must ALWAYS reflect RSA, never the
+    /// PPG-derived estimate, even when PPG has ample high-confidence burst coverage — the two
+    /// estimators are given fixtures that recover clearly DIFFERENT rates (RSA's planted 15 bpm vs
+    /// PPG's planted 12 bpm) so an accidental override would fail this test loudly rather than
+    /// passing by coincidence. Feeding a series that silently switches estimator night to night into
+    /// the illness-detection gate is exactly the bug this pins against (see ReadinessEngine.swift).
+    func testAnalyzeDayRespRateAlwaysUsesRsaEvenWithAmplePpgData() throws {
         let day = "2021-06-21"
         let n = night(endDay: day, hours: 7)
         var rr: [RRInterval] = []
@@ -223,14 +225,13 @@ final class AnalyticsEngineTests: XCTestCase {
             day: day, hr: n.hr, rr: rr, gravity: n.gravity, ppgResp: ppgResp,
             profile: UserProfile(age: 30))
         XCTAssertEqual(result.sleepSessions.count, 1)
-        XCTAssertEqual(try XCTUnwrap(result.daily.respRateBpm), 12.0, accuracy: 0.5,
-                       "expected the PPG estimate (12 bpm) to be preferred over RSA's planted 15 bpm")
+        XCTAssertEqual(try XCTUnwrap(result.daily.respRateBpm), 15.0, accuracy: 3.0,
+                       "respRateBpm must stay RSA-only (~15 bpm) regardless of contradicting PPG data")
     }
 
-    /// #103: with too few PPG bursts to clear `SleepStager.minPpgBurstsForEstimate`, the fusion must
-    /// fall back to RSA exactly as before the feature existed — this is the expected COMMON case
-    /// (v26 PPG coverage is a sparse minority of any given night).
-    func testAnalyzeDayFallsBackToRsaWhenPpgCoverageIsInsufficient() throws {
+    /// The PPG-vs-RSA comparison trace fires only when `ppgResp` is supplied (the caller's toggle-
+    /// gated opt-in) and only through `hrvTraceSink` — never touching `respRateBpm`.
+    func testAnalyzeDayLogsPpgComparisonWithoutAffectingRespRateBpm() throws {
         let day = "2021-06-21"
         let n = night(endDay: day, hours: 7)
         var rr: [RRInterval] = []
@@ -240,15 +241,14 @@ final class AnalyticsEngineTests: XCTestCase {
             tSec += rrMs / 1000.0
             rr.append(RRInterval(ts: n.start + Int(tSec), rrMs: Int(rrMs)))
         }
-        // Only 3 PPG bursts (well below minPpgBurstsForEstimate) — must not override RSA.
-        let sparsePpgResp = (0..<3).map {
-            PpgRespSample(ts: n.start + $0 * 600, bpm: 12.0, conf: 20.0)
-        }
+        let ppgResp = (0..<12).map { PpgRespSample(ts: n.start + $0 * 600, bpm: 12.0, conf: 20.0) }
+        var traceLines: [String] = []
         let result = AnalyticsEngine.analyzeDay(
-            day: day, hr: n.hr, rr: rr, gravity: n.gravity, ppgResp: sparsePpgResp,
-            profile: UserProfile(age: 30))
-        XCTAssertEqual(try XCTUnwrap(result.daily.respRateBpm), 15.0, accuracy: 3.0,
-                       "expected fallback to the RSA estimate (~15 bpm) when PPG coverage is too sparse")
+            day: day, hr: n.hr, rr: rr, gravity: n.gravity, ppgResp: ppgResp,
+            profile: UserProfile(age: 30), hrvTraceSink: { traceLines.append($0) })
+        XCTAssertEqual(try XCTUnwrap(result.daily.respRateBpm), 15.0, accuracy: 3.0)
+        XCTAssertTrue(traceLines.contains { $0.hasPrefix("respRate session") && $0.contains("used=rsa") },
+                      "expected a respRate comparison line logging rsa/ppg/used, got: \(traceLines)")
     }
 
     /// End-to-end for the wake-time-edit feature (#318): the REAL stager detects a night and assigns it

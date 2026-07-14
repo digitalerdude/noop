@@ -42,11 +42,21 @@ final class PpgRespTests: XCTestCase {
     }
 
     func testEstimateRecoversASlowBreathingRate() throws {
-        // Near the low end of the band (10 breaths/min = 0.1667 Hz) — must not fold to the high end.
-        let records = breathingBurst(breathBpm: 10)
+        // Near the low end of the band (11 breaths/min = 0.1833 Hz, clear of the bandEdgeGuardHz
+        // margin around the 9 breaths/min floor) — must not fold to the high end.
+        let records = breathingBurst(breathBpm: 11)
         let sig = records.flatMap { $0.samples }
         let est = try XCTUnwrap(PpgResp.estimate(sig))
-        XCTAssertEqual(est.bpm, 10, accuracy: 1.0)
+        XCTAssertEqual(est.bpm, 11, accuracy: 1.0)
+    }
+
+    func testEstimateRecoversAFastBreathingRate() throws {
+        // Near the high end of the band (19 breaths/min = 0.3167 Hz) — exercises the upper half of
+        // the 0.15-0.40 Hz search, not just the low/mid values the other tests cover.
+        let records = breathingBurst(breathBpm: 19)
+        let sig = records.flatMap { $0.samples }
+        let est = try XCTUnwrap(PpgResp.estimate(sig))
+        XCTAssertEqual(est.bpm, 19, accuracy: 1.0)
     }
 
     func testDeriveRespRateOneSamplePerBurst() {

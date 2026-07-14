@@ -10,9 +10,11 @@ import org.junit.Test
 import kotlin.math.sin
 
 /**
- * [AnalyticsEngine.analyzeDay] end-to-end: the prefer-PPG-else-RSA respiratory-rate fusion (#103).
- * Mirrors the Swift AnalyticsEngineTests.testAnalyzeDayPrefersPpgRespRateOverRsaWhenAvailable /
- * testAnalyzeDayFallsBackToRsaWhenPpgCoverageIsInsufficient.
+ * [AnalyticsEngine.analyzeDay] end-to-end: respRateBpm must always come from RSA, never the PPG
+ * estimate, even with ample contradicting PPG data (#103 review — a silently switching estimator
+ * would corrupt the ReadinessEngine illness gate). Mirrors the Swift
+ * AnalyticsEngineTests.testAnalyzeDayRespRateAlwaysUsesRsaEvenWithAmplePpgData /
+ * testAnalyzeDayLogsPpgComparisonWithoutAffectingRespRateBpm.
  */
 class AnalyticsEngineRespRateFusionTest {
     private val deviceId = "my-whoop"
@@ -40,7 +42,7 @@ class AnalyticsEngineRespRateFusionTest {
     }
 
     @Test
-    fun analyzeDayPrefersPpgRespRateOverRsaWhenAvailable() {
+    fun analyzeDayRespRateAlwaysUsesRsaEvenWithAmplePpgData() {
         val day = "2021-06-21"
         val (start, end, hg) = night(day, 7)
         val (hr, grav) = hg
@@ -56,29 +58,29 @@ class AnalyticsEngineRespRateFusionTest {
         assertEquals(1, result.sleepSessions.size)
         val resp = assertNotNullAndGet(result.daily.respRateBpm)
         assertEquals(
-            "expected the PPG estimate (12 bpm) to be preferred over RSA's planted 15 bpm",
-            12.0, resp, 0.5,
+            "respRateBpm must stay RSA-only (~15 bpm) regardless of contradicting PPG data",
+            15.0, resp, 3.0,
         )
     }
 
     @Test
-    fun analyzeDayFallsBackToRsaWhenPpgCoverageIsInsufficient() {
+    fun analyzeDayLogsPpgComparisonWithoutAffectingRespRateBpm() {
         val day = "2021-06-21"
         val (start, end, hg) = night(day, 7)
         val (hr, grav) = hg
         val rr = plantedRr(start, end)
-        // Only 3 PPG bursts (well below minPpgBurstsForEstimate) — must not override RSA.
-        val sparsePpgResp = (0 until 3).map {
+        val ppgResp = (0 until 12).map {
             PpgRespSample(deviceId = deviceId, ts = start + it * 600, bpm = 12.0, conf = 20.0)
         }
+        val traceLines = ArrayList<String>()
         val result = AnalyticsEngine.analyzeDay(
-            day = day, hr = hr, rr = rr, gravity = grav, ppgResp = sparsePpgResp, profile = UserProfile(),
+            day = day, hr = hr, rr = rr, gravity = grav, ppgResp = ppgResp, profile = UserProfile(),
+            hrvTraceSink = { traceLines.add(it) },
         )
         val resp = assertNotNullAndGet(result.daily.respRateBpm)
-        assertEquals(
-            "expected fallback to the RSA estimate (~15 bpm) when PPG coverage is too sparse",
-            15.0, resp, 3.0,
-        )
+        assertEquals(15.0, resp, 3.0)
+        val hasComparison = traceLines.any { it.startsWith("respRate session") && it.contains("used=rsa") }
+        assertEquals("expected a respRate comparison line logging rsa/ppg/used, got: $traceLines", true, hasComparison)
     }
 
     private fun assertNotNullAndGet(v: Double?): Double {

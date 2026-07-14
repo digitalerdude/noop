@@ -268,11 +268,11 @@ struct TestCentreView: View {
                 Divider().overlay(StrandPalette.hairline)
 
                 Toggle(isOn: $ppgRespRateEnabled) {
-                    Text("PPG-derived respiratory rate (#103)")
+                    Text("PPG-derived respiratory rate diagnostic (#103)")
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch).tint(StrandPalette.accent)
-                Text("Prefer a spectral respiratory-rate estimate off the WHOOP5 v26 optical PPG buffer over the shipped R-R estimate, per sleep session with enough burst coverage. Unlike the read-only toggles above, this changes a stored value: DailyMetric.respRateBpm and the illness-detection signal it feeds. Validated on only 2 real nights from one subject whose own respiratory rate barely varies night to night - not yet proven to track a varying value. Off by default; the R-R estimate stays the shipped default until this earns wider validation.")
+                Text("Logs a spectral respiratory-rate estimate off the WHOOP5 v26 optical PPG buffer alongside the shipped R-R estimate, for comparison. Read-only, like HRV readiness above: it never overrides DailyMetric.respRateBpm or the illness-detection signal, which always reads the R-R estimate only - a value that silently switched estimator night to night could fake an illness warning on its own. Validated on only 2 real nights from one subject whose own respiratory rate barely varies night to night. Off by default; the log line only appears when this is on.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }

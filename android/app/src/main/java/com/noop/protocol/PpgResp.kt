@@ -51,8 +51,25 @@ object PpgResp {
      *  spectral search — removes sub-~0.08 Hz drift (perfusion/posture, not breathing). */
     const val DETREND_WINDOW_SAMPLES = 300
 
-    /** Frequency step (Hz) for the band scan below — 0.004 Hz = 0.24 breaths/min resolution. */
+    /** Frequency step (Hz) for the band scan below. Does NOT itself add resolution beyond a ~40 s
+     *  burst's native ~0.025 Hz (~1.5 breaths/min) DFT bin spacing (fs/n) — it only interpolates the
+     *  direct-sum DTFT more finely between those bins, avoiding the ~1.5 bpm quantization steps a
+     *  bin-quantized search would report. Matches the step used by the validated Python
+     *  proof-of-concept this mirrors. */
     const val RESP_FREQ_STEP_HZ = 0.004
+
+    /** Reject a peak found within this many Hz of the band edge (loHz/hiHz) — a real breathing peak
+     *  is a local maximum with power falling off on both sides, but low-frequency drift (perfusion/
+     *  posture) that leaked past the high-pass detrend has power that only INCREASES toward 0 Hz, so
+     *  within a bounded search it deterministically "wins" at whichever edge is closest to 0 Hz
+     *  regardless of real physiology. Confirmed on real data (#103 review): without this guard,
+     *  32%/15% of bursts across the two validation nights landed exactly at the band floor (9
+     *  breaths/min) — far more than plausible slow breathing — and top-confidence-burst aggregation
+     *  was measurably CLOSER to the WHOOP app's ground truth with the guard than without it (14.52 vs
+     *  14.04 breaths/min against a 14.6 truth). A rejected edge peak returns null for that channel
+     *  (RIAV or RIIV), same honest-no-data handling as everywhere else in this estimator. Mirrors the
+     *  Swift PpgResp.bandEdgeGuardHz. */
+    const val BAND_EDGE_GUARD_HZ = 0.02
 
     /** Reject a burst whose best channel's peak isn't at least this many times the band's median
      *  power — a flat/noisy burst must not fabricate a rate. Mirrors [PpgHr.MIN_CONFIDENCE]'s role;
@@ -102,11 +119,9 @@ object PpgResp {
     /**
      * Direct-DFT power spectrum over [loHz, hiHz] on a DC-removed, uniformly-sampled ([fs] Hz)
      * signal, scanned at a FIXED [RESP_FREQ_STEP_HZ] step rather than bin-quantized to the burst's
-     * own length: a single ~40 s burst is only ~960 samples, so its native DFT bin spacing
-     * (fs/n ≈ 1.5 breaths/min) is too coarse to report a meaningful rate. Evaluating the direct-sum
-     * DTFT at a fixed step instead (independent of n) is still cheap — ~63 frequencies × n samples
-     * for the full band — and matches the resolution of the validated Python proof-of-concept this
-     * mirrors. Returns the peak's (frequencyHz, power/medianPower), or null when degenerate.
+     * own length (see that constant's doc for why). Returns the peak's (frequencyHz,
+     * power/medianPower), or null when the signal/band is degenerate or the peak falls within
+     * [BAND_EDGE_GUARD_HZ] of an edge (see that constant's doc).
      */
     private fun bandPeak(x: DoubleArray, fs: Double, loHz: Double, hiHz: Double): Pair<Double, Double>? {
         val n = x.size
@@ -135,7 +150,9 @@ object PpgResp {
         for (i in powers.indices) if (powers[i] > powers[peakIdx]) peakIdx = i
         val median = powers.sorted()[powers.size / 2]
         if (median <= 0.0) return null
-        return freqs[peakIdx] to (powers[peakIdx] / median)
+        val peakHz = freqs[peakIdx]
+        if (peakHz < loHz + BAND_EDGE_GUARD_HZ || peakHz > hiHz - BAND_EDGE_GUARD_HZ) return null
+        return peakHz to (powers[peakIdx] / median)
     }
 
     /**

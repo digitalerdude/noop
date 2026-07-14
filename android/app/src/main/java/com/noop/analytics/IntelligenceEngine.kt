@@ -495,10 +495,11 @@ object IntelligenceEngine {
             // means on the DailyMetric. Empty on a 5/MG (no v24 spo2 channels) → the raw means stay null.
             val spo2 = repo.spo2Samples(owner, from, to, STREAM_LIMIT)
             // #103: PPG-derived per-burst respiratory rate from the WHOOP 5.0 v26 optical buffer.
-            // analyzeDay prefers this over the R-R/RSA estimate per session when it has enough burst
-            // coverage. Gated behind ppgRespRateEnabled (default false) — validated on only 2 real
-            // nights from one low-resp-variance subject, so the shipped RSA-only path stays
-            // byte-identical unless a user opts in; the stream is still persisted unconditionally.
+            // analyzeDay NEVER lets this override DailyMetric.respRateBpm (always RSA, so the
+            // illness-detection gate never sees an estimator switch) — it only logs a comparison
+            // against RSA when both this array is non-empty AND the diagnostic trace is active. Gated
+            // behind ppgRespRateEnabled (default false) — validated on only 2 real nights from one
+            // low-resp-variance subject. The stream is still persisted unconditionally.
             val ppgResp = if (ppgRespRateEnabled) repo.ppgRespSamples(owner, from, to, STREAM_LIMIT) else emptyList()
             // #938: the strap family that WROTE this owner's skin-temp rows, so analyzeDay converts the raw
             // register on the right scale (5/MG banks centidegrees, a WHOOP 4.0 v24 banks a raw ADC). The

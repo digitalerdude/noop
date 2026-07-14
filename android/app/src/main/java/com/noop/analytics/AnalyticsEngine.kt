@@ -184,11 +184,11 @@ object AnalyticsEngine {
         // empty keeps pure-function callers/tests + non-4.0 nights null.
         spo2: List<Spo2Sample> = emptyList(),
         // PPG-derived per-burst respiratory rate from the WHOOP 5.0 v26 optical buffer (#103,
-        // com.noop.protocol.PpgResp). Per matched sleep session, tried FIRST for respRateDaily below
-        // (more accurate per 2-night real-capture validation when it has enough burst coverage),
-        // falling back to the R-R/RSA estimate when it's empty/insufficient — v26 coverage is a sparse
-        // minority of any given night, so NaN here is the common case, not a bug. Default empty keeps
-        // pure-function callers/tests + WHOOP4/no-v26 nights on the existing RSA-only path unchanged.
+        // com.noop.protocol.PpgResp). NEVER overrides respRateDaily below (that always comes from
+        // R-R/RSA, so the illness-detection gate never sees an estimator switch) — when non-empty,
+        // it's only computed alongside RSA for a diagnostic comparison logged through hrvTraceSink.
+        // Default empty keeps pure-function callers/tests + WHOOP4/no-v26/opted-out nights identical
+        // (no comparison computed, nothing logged).
         ppgResp: List<PpgRespSample> = emptyList(),
         profile: UserProfile,
         baselines: ProfileBaselines = ProfileBaselines(),
@@ -411,27 +411,29 @@ object AnalyticsEngine {
             )
         }
 
-        // Nightly APPROXIMATE respiratory rate (breaths/min); NOT a cloud/clinical respiration value.
-        // Per matched in-bed session: PREFER the PPG-derived estimate (SleepStager.respRateFromPpg,
-        // #103, WHOOP5 v26 optical buffer) when it has enough burst coverage — landed within 2-6% of
-        // the WHOOP app's own reading on 2 real overnight captures, vs. the R-R/RSA estimate's 6-11%
-        // low bias on the SAME nights — else fall back to the R-R/RSA estimate (respRateFromRR,
-        // WHOOP5 v18-only, no raw resp ADC on this family). NOT a blend of the two: blending two
-        // estimates of different, uncharacterized accuracy risks being confidently wrong in a new way
-        // neither alone is (see #103 for the full honesty caveat — thin, 2-night, low-variance-subject
-        // evidence). The night's value = median of finite per-session estimates; null only when no
-        // session yields one. Which estimator fired per session is traced through hrvTraceSink (the
-        // existing per-day diagnostic hook) when active, for future debugging/re-tuning.
+        // Nightly APPROXIMATE respiratory rate (breaths/min) from the R-R stream via RSA; NOT a
+        // cloud/clinical respiration value. This is the ONLY estimator that ever reaches
+        // DailyMetric.respRateBpm / the ReadinessEngine illness-detection gate — see #103 review: an
+        // earlier version of this preferred a PPG-derived estimate (SleepStager.respRateFromPpg,
+        // WHOOP5 v26 optical buffer) per session when available, but that let the persisted value
+        // silently switch estimator night to night. RSA and PPG read ~1-1.5 bpm apart even when both
+        // are "right," so for a stable sleeper (resp SD ~1 bpm) a night that merely SWITCHES which
+        // estimator fired injects a step large enough to brush the illness WATCH z-threshold — a false
+        // signal from the estimator flipping, not physiology. So the gate-facing value now always
+        // comes from one consistent estimator (RSA), full stop. The night's value = median of finite
+        // per-session RSA estimates; null only when no session yields one.
+        //
+        // The PPG estimate is still computed for comparison (never stored, never gates anything) when
+        // ppgResp is non-empty — i.e. only when the caller's Experimental toggle supplied it — and
+        // logged alongside RSA through hrvTraceSink (the existing per-day diagnostic hook) when
+        // active, so opt-in nights keep generating the RSA-vs-PPG evidence #103 needs to eventually
+        // trust PPG on its own.
         val respRateDaily: Double? = run {
             val perSession = matched.mapNotNull { session ->
-                val ppg = SleepStager.respRateFromPpg(ppgResp, session.start, session.end)
-                if (ppg.isFinite()) {
-                    hrvTraceSink?.invoke("respRate session start=${session.start} source=ppg value=$ppg")
-                    return@mapNotNull ppg
-                }
                 val rsa = SleepStager.respRateFromRR(rr, session.start, session.end)
-                if (rsa.isFinite()) {
-                    hrvTraceSink?.invoke("respRate session start=${session.start} source=rsa value=$rsa")
+                if (ppgResp.isNotEmpty()) {
+                    val ppg = SleepStager.respRateFromPpg(ppgResp, session.start, session.end)
+                    hrvTraceSink?.invoke("respRate session start=${session.start} rsa=$rsa ppg=$ppg used=rsa")
                 }
                 if (rsa.isFinite()) rsa else null
             }

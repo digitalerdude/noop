@@ -87,18 +87,32 @@ public enum PpgResp {
         return out
     }
 
-    /// Frequency step (Hz) for the band scan below — 0.004 Hz = 0.24 breaths/min resolution.
+    /// Frequency step (Hz) for the band scan below. Does NOT itself add resolution beyond a ~40 s
+    /// burst's native ~0.025 Hz (~1.5 breaths/min) DFT bin spacing (fs/n) — it only interpolates the
+    /// direct-sum DTFT more finely between those bins, avoiding the ~1.5 bpm quantization steps a
+    /// bin-quantized search would report. Matches the step used by the validated Python
+    /// proof-of-concept this ports.
     static let respFreqStepHz = 0.004
+
+    /// Reject a peak found within this many Hz of the band edge (`loHz`/`hiHz`) — a real breathing
+    /// peak is a local maximum with power falling off on both sides, but low-frequency drift
+    /// (perfusion/posture) that leaked past the high-pass detrend has power that only INCREASES
+    /// toward 0 Hz, so within a bounded search it deterministically "wins" at whichever edge is
+    /// closest to 0 Hz regardless of real physiology. Confirmed on real data (#103 review): without
+    /// this guard, 32%/15% of bursts across the two validation nights landed exactly at the band
+    /// floor (9 breaths/min) — far more than plausible slow breathing — and top-confidence-burst
+    /// aggregation was measurably CLOSER to the WHOOP app's ground truth with the guard than without
+    /// it (14.52 vs 14.04 breaths/min against a 14.6 truth). A rejected edge peak returns nil for that
+    /// channel (RIAV or RIIV), same honest-no-data handling as everywhere else in this estimator.
+    static let bandEdgeGuardHz = 0.02
 
     /// Direct-DFT power spectrum over `[loHz, hiHz]` on a DC-removed, uniformly-sampled (`fs` Hz)
     /// signal — the same hand-rolled, no-FFT-library technique `StrandAnalytics.SleepStagerV2
     /// .respRegularity` uses one layer up (ported here, not imported, since this package can't depend
     /// on StrandAnalytics), but scanned at a FIXED `respFreqStepHz` step rather than bin-quantized to
-    /// the burst's own length: a single ~40 s burst is only ~960 samples, so its native DFT bin spacing
-    /// (fs/n ≈ 1.5 breaths/min) is too coarse to report a meaningful rate. Evaluating the direct-sum
-    /// DTFT at a fixed step instead (independent of n) is still cheap — ~63 frequencies × n samples for
-    /// the full band — and matches the resolution of the validated Python proof-of-concept this ports.
-    /// Returns the peak's (frequencyHz, power/medianPower), or nil when the signal or band is degenerate.
+    /// the burst's own length (see that constant's doc for why). Returns the peak's
+    /// (frequencyHz, power/medianPower), or nil when the signal/band is degenerate or the peak falls
+    /// within `bandEdgeGuardHz` of an edge (see that constant's doc).
     static func bandPeak(_ x: [Double], fs: Double, loHz: Double, hiHz: Double) -> (hz: Double, prominence: Double)? {
         let n = x.count
         guard n > 1, hiHz > loHz else { return nil }
@@ -120,6 +134,7 @@ public enum PpgResp {
         guard let peak = powers.max(by: { $0.p < $1.p }) else { return nil }
         let median = powers.map(\.p).sorted()[powers.count / 2]
         guard median > 0 else { return nil }
+        guard peak.hz >= loHz + bandEdgeGuardHz, peak.hz <= hiHz - bandEdgeGuardHz else { return nil }
         return (hz: peak.hz, prominence: peak.p / median)
     }
 

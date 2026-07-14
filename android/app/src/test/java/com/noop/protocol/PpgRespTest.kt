@@ -50,9 +50,18 @@ class PpgRespTest {
 
     @Test
     fun recoversASlowBreathingRate() {
-        // Near the low end of the band (10 breaths/min = 0.1667 Hz) — must not fold to the high end.
-        val (bpm, _) = PpgResp.estimate(breathingBurst(10.0).map { it.value })!!
-        assertTrue("bpm $bpm not within 10±1", bpm in 9.0..11.0)
+        // Near the low end of the band (11 breaths/min = 0.1833 Hz, clear of the BAND_EDGE_GUARD_HZ
+        // margin around the 9 breaths/min floor) — must not fold to the high end.
+        val (bpm, _) = PpgResp.estimate(breathingBurst(11.0).map { it.value })!!
+        assertTrue("bpm $bpm not within 11±1", bpm in 10.0..12.0)
+    }
+
+    @Test
+    fun recoversAFastBreathingRate() {
+        // Near the high end of the band (19 breaths/min = 0.3167 Hz) — exercises the upper half of
+        // the 0.15-0.40 Hz search, not just the low/mid values the other tests cover.
+        val (bpm, _) = PpgResp.estimate(breathingBurst(19.0).map { it.value })!!
+        assertTrue("bpm $bpm not within 19±1", bpm in 18.0..20.0)
     }
 
     @Test
