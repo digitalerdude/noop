@@ -3,11 +3,11 @@ import GRDB
 import WhoopProtocol
 @testable import WhoopStore
 
-/// v26-ppg-resp-sample migration + dedicated reader: PPG-derived respiratory rate from the WHOOP 5.0
+/// v28-ppg-resp-sample migration + dedicated reader: PPG-derived respiratory rate from the WHOOP 5.0
 /// v26 optical buffer (#103). Unlike `ppgHrSample` (COALESCEd into `hrSample` reads), this stream has
 /// its own reader — see `PpgHrSampleTests.swift` for the sibling HR-side migration tests.
 final class PpgRespSampleTests: XCTestCase {
-    func testV26CreatesPpgRespTable() async throws {
+    func testV28CreatesPpgRespTable() async throws {
         let store = try await WhoopStore.inMemory()
         let tables = try await store.tableNames()
         XCTAssertTrue(tables.contains("ppgRespSample"))

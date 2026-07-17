@@ -5,8 +5,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Guards the additive v18 -> v19 Room migration (the `ppgRespSample` table, #103), the Android twin
- * of the Swift WhoopStore v26-ppg-resp-sample migration. This environment has no Robolectric / Room-
+ * Guards the additive v20 -> v21 Room migration (the `ppgRespSample` table, #103), the Android twin
+ * of the Swift WhoopStore v28-ppg-resp-sample migration. This environment has no Robolectric / Room-
  * testing, so the migration's SQL is exposed as an internal constant
  * ([WhoopDatabase.PPG_RESP_SAMPLE_MIGRATION_SQL]) and pinned here to Room's generated shape for
  * [PpgRespSample]:
@@ -43,9 +43,9 @@ class PpgRespSampleMigrationTest {
     }
 
     @Test
-    fun migration_versionPair_is18to19() {
-        assertEquals(18, WhoopDatabase.MIGRATION_18_19.startVersion)
-        assertEquals(19, WhoopDatabase.MIGRATION_18_19.endVersion)
+    fun migration_versionPair_is20to21() {
+        assertEquals(20, WhoopDatabase.MIGRATION_20_21.startVersion)
+        assertEquals(21, WhoopDatabase.MIGRATION_20_21.endVersion)
     }
 
     @Test
