@@ -504,7 +504,7 @@ private fun ExperimentalAlgorithmsCard(vm: AppViewModel) {
             // when off, so the flag off is zero behaviour change and feeds no downstream gate.
             if (hrvReadiness) HrvReadinessReadoutTC(recentDays)
             ToggleRowTC(
-                title = "PPG-derived respiratory rate diagnostic (#103)",
+                title = uiString(R.string.l10n_test_centre_screen_ppg_derived_respiratory_rate_diagnostic_103_7a24fb36),
                 description = "Logs a spectral respiratory-rate estimate off the WHOOP5 v26 optical PPG " +
                     "buffer alongside the shipped R-R estimate, for comparison. Read-only, like HRV " +
                     "readiness above: it never overrides DailyMetric.respRateBpm or the illness-detection " +
