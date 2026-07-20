@@ -44,6 +44,7 @@ import com.noop.ingest.HealthConnectWriter
 import com.noop.ingest.LiftingImporter
 import com.noop.notif.IllnessAlertNotifier
 import com.noop.notif.ScheduledReportNotifier
+import com.noop.notif.StrainTargetNotifier
 import com.noop.notif.ScheduledReportPolicy
 import com.noop.notif.scorePctOrNull
 import com.noop.protocol.CommandNumber
@@ -57,6 +58,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -70,6 +72,10 @@ import kotlin.math.roundToInt
  * daily metrics. Mirrors the macOS AppModel responsibilities (LiveState bridge,
  * `bpm` smoothing, health-alert string) without any networking.
  */
+/** Last Health Connect writeback outcome for the Data Sources UI (#660). [code] is a PII-safe
+ *  category (see [NoopPrefs.HC_WB_OK] etc.); "" = never attempted. */
+data class HcWritebackStatus(val code: String, val atMs: Long, val written: Int)
+
 class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Process-wide context for prefs + the background-connection service. */
@@ -243,6 +249,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  failure too. Mirrors Swift `AppModel.ouraNeedsPairing`. */
     val ouraNeedsPairing: StateFlow<String?> = noopApp.sourceCoordinator.ouraNeedsPairing
 
+    /** The active Oura ring's live wear/charge state (worn / charging / off), or null when no Oura source
+     *  is live. The Live screen prefers this for its On-wrist / Off-wrist read (#628). Mirrors iOS
+     *  `LiveState.ouraWearState`. */
+    val ouraWearState: StateFlow<com.noop.oura.OuraWearState?> =
+        noopApp.sourceCoordinator.ouraWearState
+
+    /** #656: a journal day-offset (daysBack; -1 = Tomorrow) the Today journal widget asks the journal
+     *  (Insights) to open at, so tapping a SPECIFIC day's bar lands on THAT day instead of always today.
+     *  InsightsScreen consumes it on open and clears it via [requestJournalDay]`(null)`. */
+    private val _pendingJournalDayOffset = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    val pendingJournalDayOffset: StateFlow<Long?> = _pendingJournalDayOffset
+    fun requestJournalDay(offset: Long?) { _pendingJournalDayOffset.value = offset }
+
     /**
      * Point the WHOOP scan at a specific family, then present nearby straps WITHOUT auto-connecting (the
      * Add-a-device wizard's WHOOP path). [WhoopBleClient.prepareForPresentScan] KEEPS a live same-model
@@ -310,6 +329,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Live connection + biometric snapshot, surfaced straight from the BLE client. */
     val live: StateFlow<LiveState> = ble.state
+    /** Low-frequency projection for history consumers that need to refresh after an offload without
+     *  collecting the full live state (which republishes every heart-rate packet). */
+    val lastHistorySyncAt: StateFlow<Long?> = live
+        .map { it.lastSyncAt }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, live.value.lastSyncAt)
 
     /** Which strap the user is pairing — drives the scan filter in [connect]. Defaults to WHOOP 4.0. */
     private val _selectedModel = MutableStateFlow(WhoopModel.WHOOP4)
@@ -646,10 +670,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     if (todayRow.totalSleepMin != null) {
                         ScheduledReportNotifier.onMorning(
                             context = appContext,
+                            // Key the once-per-recap gate on the banked NIGHT's day, not the calendar day —
+                            // otherwise the midnight rollover re-fires last night's recap for late-nighters (#567).
+                            reportDay = todayRow.day,
                             chargePct = todayRow.recovery.scorePctOrNull(),
                             restPct = RestScorer.restFromDaily(todayRow).scorePctOrNull(),
                         )
                     }
+                    // #593: once-a-day optimal-strain-reached nudge. Convert the stored 0-100 Effort to the
+                    // 0-21 coupled axis with the SHIPPED formatter (so it matches every Effort read-out), and
+                    // gate against the LOW end of today's recovery-derived optimal band (#43). The notifier's
+                    // persisted day gate makes this safe to fire on every republish; null recovery (calibrating)
+                    // yields a null band → no target → no notification.
+                    StrainTargetNotifier.onStrainTarget(
+                        context = appContext,
+                        day = todayRow.day,
+                        dayStrain21 = todayRow.strain?.let { UnitFormatter.effortValue(it, EffortScale.WHOOP) },
+                        target21 = optimalStrainRange(todayRow.recovery)?.low,
+                    )
                 }
                 // v5 skin-temp suite: run the Cycle / Body-clock / Illness-heads-up engines over the same
                 // cached history and publish their RESULTS for the Health hub. The richer IllnessSignalEngine
@@ -870,6 +908,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // update) break the analysis loop.
                 if (_hcWriteback.value) {
                     runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
+                    refreshHcWritebackStatus()   // #660: reflect the outcome the writer just persisted
                 }
                 // 15-min backstop cadence, but wake EARLY on an app-resume kick (#386 self-heal) so a
                 // night the overnight tick was killed before scoring catches up the moment the user opens
@@ -892,12 +931,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         autoReconnectOnLaunch()
     }
 
-    /** Push the persisted #477 Power-saving prefs to the BLE client. The offload-cadence stretch uses the
-     *  battery-% threshold (0 = off when the master is off); the HRV pause is its own Battery-Saver toggle.
-     *  The riskier connection-priority idle throttle is deliberately NOT exposed here — it stays dormant
-     *  pending on-strap validation (#478). */
+    /** Push the persisted BLE-behaviour prefs to the client. The #477 Power-saving levers: the
+     *  offload-cadence stretch uses the battery-% threshold (0 = off when the master is off); the HRV pause
+     *  is its own Battery-Saver toggle. The riskier connection-priority idle throttle is deliberately NOT
+     *  exposed here — it stays dormant pending on-strap validation (#478). Also pushes the independent
+     *  #533 "Faster history sync" experiment (its own toggle, NOT gated on the Power-saving master: it is a
+     *  sync-speed lever, not a power-saving one). */
     private fun applyPowerSaving() {
         val on = NoopPrefs.powerSaving(appContext)
+        // #533: the SAFE half of #477's connection-priority management shipped fully implemented but
+        // DORMANT — nothing ever called this, so refreshConnectionPriority early-returned and EVERY
+        // historical offload ran at the stack default. Behind the experimental toggle it escalates to HIGH
+        // for the bounded offload burst (faster backlog drain). The RISKY idle→LOW_POWER half stays at 0
+        // (still dormant, #478), and live-HR does not escalate (see WhoopBleClient.escalateForLiveHr) —
+        // realtimeArmed covers the overnight capture window, which would otherwise hold HIGH for hours.
+        ble.setConnectionPriorityManagement(
+            enabled = NoopPrefs.fastHistorySync(appContext),
+            idleThrottleBatteryPct = 0,
+        )
+        // #533: the second, orthogonal sync-speed lever — prefer LE 2M around the offload burst. Also
+        // independent of the Power-saving master, and its own toggle so a field report can tell the two
+        // apart (they have opposite battery profiles). No-op unless on.
+        ble.setFastLinkPhy(NoopPrefs.fastLinkPhy(appContext))
         ble.setLowBatteryOffloadThrottle(if (on) NoopPrefs.powerSavingBatteryPct(appContext) else 0)
         // HRV pause is a sub-option: only effective while the master is on (defaults on when it is), and
         // now battery-%-aware like the offload lever — pass the same threshold.
@@ -922,6 +977,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Flip "Pause HRV capture in Battery Saver" (Settings). Persists + applies immediately. */
     fun setPauseHrvOnPowerSave(enabled: Boolean) {
         NoopPrefs.setPauseHrvOnPowerSave(appContext, enabled)
+        applyPowerSaving()
+    }
+
+    /** Flip the experimental "Faster history sync" (#533). Persists + applies immediately, so the next
+     *  offload burst uses the new priority without waiting for a reconnect. */
+    fun setFastHistorySync(enabled: Boolean) {
+        NoopPrefs.setFastHistorySync(appContext, enabled)
+        applyPowerSaving()
+    }
+
+    /** Flip the experimental LE 2M PHY preference (#533). Persists + pushes it to the client; it applies
+     *  at the next offload burst, and switching it off releases an already-2M link back to 1M. */
+    fun setFastLinkPhy(enabled: Boolean) {
+        NoopPrefs.setFastLinkPhy(appContext, enabled)
         applyPowerSaving()
     }
 
@@ -1276,6 +1345,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         rescoreAfterEdit()
     }
 
+    /** Re-open one deliberately deleted sleep window (#515): remove its durable tombstone first, then
+     *  immediately run the normal detector/scorer over the stored raw data. Unlike optimistic edits, this
+     *  returns false when the marker could not be removed — rescoring while it is still present would keep
+     *  suppressing the night and make a successful-looking button a no-op. */
+    suspend fun recomputeDeletedSleep(marker: com.noop.data.DismissedSleep): Boolean {
+        val cleared = runCatching {
+            repository.allowSleepReDetection(marker.deviceId, marker.startTs)
+        }.isSuccess
+        if (!cleared) return false
+        rescoreAfterEdit()
+        return true
+    }
+
     /** Manually add a missed nap as its OWN session (#508) — staged from raw, written under the computed
      *  source with userEdited=true so the recompute guard keeps it and it's never folded into main sleep —
      *  then re-score the affected day immediately so the day's aggregates pick up the new session, matching
@@ -1478,6 +1560,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return if (minutes.any { it > 0.0 }) minutes else null
     }
 
+    /** HRR for one workout (#516), derived from a narrow workout-end + post-workout HR read. The pure
+     *  engine owns the intensity and coverage gates, so a disconnect after exercise returns null rather
+     *  than an interpolated value. Mirrors macOS Repository.workoutHeartRateRecovery. */
+    suspend fun workoutHeartRateRecovery(from: Long, to: Long): com.noop.analytics.HeartRateRecovery.Result? {
+        if (to <= from) return null
+        val readFrom = maxOf(from, to - com.noop.analytics.HeartRateRecovery.eligibilityLookbackSeconds)
+        val readTo = to + 5 * 60 + com.noop.analytics.HeartRateRecovery.measurementToleranceSeconds
+        val samples = runCatching {
+            repository.hrSamplesUnion(activeStrapId, readFrom, readTo, limit = 2_000)
+        }.getOrDefault(emptyList())
+        return com.noop.analytics.HeartRateRecovery.calculate(
+            samples = samples,
+            workoutStart = from,
+            workoutEnd = to,
+            maxHr = profileStore.hrMax.toDouble(),
+        )
+    }
+
     /** Steps over a manual-workout window `[from, to]` from the strap's own `step_motion_counter@57`
      *  (#398): the shared wrap-aware `StepsCounter` delta-sum, then the per-user `stepTicksPerStep`
      *  calibration the daily total applies (#139, floor 0.5). null when no strap counter covers the window
@@ -1611,6 +1711,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      *  in DevicesScreen; finds the real 4.0 reboot frame when the production one is ignored (#235). */
     fun rebootProbe(variant: com.noop.protocol.RebootProbeVariant) = ble.rebootProbe(variant)
 
+    /** #592 opcode probe: read-only GET_EXTENDED_BATTERY_INFO(98) with a full raw-response dump to the
+     *  strap log. Confirmation-gated in DevicesScreen (Test Centre → Connection); settles the disputed
+     *  battery-info opcode (98 vs an APK decompile's 87) from a normal strap-log export. */
+    fun probeExtendedBatteryInfo() = ble.probeExtendedBatteryInfo()
+
+    /** #592 probe result text (null until a reply lands; " waiting" sentinel while in flight). */
+    val extendedBatteryProbe = ble.extendedBatteryProbe
+
+    fun clearExtendedBatteryProbe() = ble.clearExtendedBatteryProbe()
+
     /**
      * Flip the "keep connected in the background" preference (driven by Settings). Turning it on
      * while a strap is live promotes to the foreground immediately; turning it off drops the
@@ -1720,6 +1830,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _hcWriteback = MutableStateFlow(NoopPrefs.hcWriteback(appContext))
     val hcWriteback: StateFlow<Boolean> = _hcWriteback.asStateFlow()
 
+    // Last writeback outcome (#660). Read from prefs (the writer persists it — including on the
+    // background BLE path, which never touches this VM), so Data Sources shows a failing share
+    // instead of a healthy-looking toggle. [refreshHcWritebackStatus] re-reads after each attempt.
+    private val _hcWritebackStatus = MutableStateFlow(readHcWritebackStatus())
+    val hcWritebackStatus: StateFlow<HcWritebackStatus> = _hcWritebackStatus.asStateFlow()
+    private fun readHcWritebackStatus() = HcWritebackStatus(
+        code = NoopPrefs.hcWritebackStatus(appContext),
+        atMs = NoopPrefs.hcWritebackAt(appContext),
+        written = NoopPrefs.hcWritebackWritten(appContext),
+    )
+    /** Re-read the persisted writeback outcome (a background BLE-path write updates prefs, not this VM). */
+    fun refreshHcWritebackStatus() { _hcWritebackStatus.value = readHcWritebackStatus() }
+
     init {
         // On app open, catch up the Health Connect sync if it's overdue. This on-open import is the
         // ONLY auto-sync path: we deliberately skip a true-background worker — it needs a sensitive
@@ -1766,6 +1889,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             withContext(Dispatchers.IO) {
                 runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
             }
+            refreshHcWritebackStatus()   // #660: surface the just-recorded outcome in Data Sources
         }
     }
 

@@ -107,6 +107,10 @@ struct SettingsView: View {
     /// Nothing is ever created automatically. Mirrors the Android `NoopPrefs.KEY_AUTO_DETECT_WORKOUTS`.
     @AppStorage(PuffinExperiment.autoDetectWorkoutsKey) private var autoDetectWorkoutsEnabled = false
 
+    /// "Journal reminder" (#627, default ON). When ON, Today shows the persistent journal widget
+    /// (last-7-days strip + tap-through). Mirrors the Android `NoopPrefs.KEY_JOURNAL_REMINDER_ENABLED`.
+    @AppStorage(PuffinExperiment.journalReminderKey) private var journalReminderEnabled = true
+
     /// Opt-in "Keep screen on during a workout" (default OFF, #703). When ON, the live-workout view
     /// holds the screen awake while a manual recording is running so you can glance at your live HR
     /// without the device dimming. The live-workout view reads this same key. The string is shared
@@ -1180,6 +1184,15 @@ struct SettingsView: View {
                     InfoButton(text: "After a sync, NOOP looks over your recent heart rate for a sustained, raised stretch that looks like exercise and offers to save it. Deliberately conservative, so the odd workout may be missed. On \(Platform.deviceNounPhrase) only.")
                 }
                 Text("It only ever suggests. Nothing is saved until you tap Save, and you can dismiss any suggestion.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Divider().overlay(StrandPalette.hairline)
+
+                SettingsToggleRow(title: "Journal reminder", isOn: $journalReminderEnabled,
+                                  accessibilityHint: "Show a Today card reminding you to log your journal")
+                Text("Show a Today card reminding you to log your journal")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
