@@ -546,6 +546,8 @@ internal class InsightsHubViewModel {
     data class Snapshot(
         val loaded: Boolean = false,
         val behaviours: Map<String, Set<String>> = emptyMap(),
+        /** behaviour question → set of days it was actually asked/answered (yes OR no); #631. */
+        val askedBehaviours: Map<String, Set<String>> = emptyMap(),
         val outcomeByKey: Map<String, Map<String, Double>> = emptyMap(),
         val doseCards: List<DoseCardData> = emptyList(),
     )
@@ -577,13 +579,19 @@ internal class InsightsHubViewModel {
     }
 
     suspend fun load(vm: AppViewModel, days: List<DailyMetric>) {
-        // Journal → behaviour → days (imported ∪ native, native wins; only "yes" counts).
+        // Journal → behaviour → days ("yes" days) + askedBehaviours (yes OR no days; #631 — a day
+        // never asked/answered must not silently count as "without"). imported ∪ native, native wins.
         val imported = vm.repo.journal("my-whoop", "0000-01-01", "9999-12-31")
         val native = vm.repo.journal(JOURNAL_DEVICE_ID, "0000-01-01", "9999-12-31")
         val entries = mergeJournalEntries(imported, native)
         val byBehaviour = HashMap<String, MutableSet<String>>()
-        for (e in entries) if (e.answeredYes) byBehaviour.getOrPut(e.question) { mutableSetOf() }.add(e.day)
+        val byAskedBehaviour = HashMap<String, MutableSet<String>>()
+        for (e in entries) {
+            byAskedBehaviour.getOrPut(e.question) { mutableSetOf() }.add(e.day)
+            if (e.answeredYes) byBehaviour.getOrPut(e.question) { mutableSetOf() }.add(e.day)
+        }
         val behaviours = byBehaviour.mapValues { it.value.toSet() }
+        val askedBehaviours = byAskedBehaviour.mapValues { it.value.toSet() }
 
         // Outcome series straight off the cached DailyMetric rows (the guaranteed Android source).
         val outcomeByKey = HashMap<String, Map<String, Double>>()
@@ -615,6 +623,7 @@ internal class InsightsHubViewModel {
         _state.value = Snapshot(
             loaded = true,
             behaviours = behaviours,
+            askedBehaviours = askedBehaviours,
             outcomeByKey = outcomeByKey,
             doseCards = doseCards,
         )
@@ -624,7 +633,7 @@ internal class InsightsHubViewModel {
     fun rankFor(snapshot: Snapshot, outcome: InsightsOutcome): List<RankedEffect> {
         if (!snapshot.loaded) return emptyList()
         val outcomeDays = snapshot.outcomeByKey[outcome.key] ?: emptyMap()
-        return EffectRanker.rank(snapshot.behaviours, outcomeDays, outcome.outcomeName)
+        return EffectRanker.rank(snapshot.behaviours, snapshot.askedBehaviours, outcomeDays, outcome.outcomeName)
     }
 }
 

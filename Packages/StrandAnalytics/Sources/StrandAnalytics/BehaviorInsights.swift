@@ -78,18 +78,25 @@ public enum BehaviorInsights {
     // MARK: - Single behavior effect
 
     /// Compute the effect of `behavior` on `outcome`. Days are partitioned into
-    /// "with" (day ∈ behaviorDays) and "without" (day ∉ behaviorDays), restricted
-    /// to days that have an outcome value in `outcomeByDay`.
+    /// "with" (day ∈ behaviorDays) and "without" (day ∈ askedDays, day ∉ behaviorDays),
+    /// restricted to days that have an outcome value in `outcomeByDay`. A day that was never
+    /// asked/answered (day ∉ behaviorDays ∪ askedDays) counts in NEITHER group — a day just
+    /// missing a journal answer is not the same as an explicit "no" (issue #631).
+    ///
+    /// `behaviorDays` is expected to be a subset of `askedDays`; the check below is an OR so a
+    /// "with" day is never dropped even if a caller's askedDays build has a gap.
     ///
     /// Returns nil unless BOTH groups are non-empty AND the total is large enough
     /// to form a variance estimate (at least 1 value per side and ≥ 3 total).
     public static func effect(behaviorDays: Set<String>,
+                              askedDays: Set<String>,
                               outcomeByDay: [String: Double],
                               behavior: String,
                               outcome: String) -> BehaviorEffect? {
         var withVals: [Double] = []
         var withoutVals: [Double] = []
         for (day, value) in outcomeByDay {
+            guard behaviorDays.contains(day) || askedDays.contains(day) else { continue }
             if behaviorDays.contains(day) { withVals.append(value) }
             else { withoutVals.append(value) }
         }
@@ -125,11 +132,13 @@ public enum BehaviorInsights {
     /// return them sorted by |cohensD| descending, with significant effects first.
     /// Behaviors that don't yield a computable effect are dropped.
     public static func rank(behaviors: [String: Set<String>],
+                            asked: [String: Set<String>],
                             outcomeByDay: [String: Double],
                             outcome: String) -> [BehaviorEffect] {
         var effects: [BehaviorEffect] = []
         for (name, days) in behaviors {
-            if let e = effect(behaviorDays: days, outcomeByDay: outcomeByDay,
+            let askedDays = asked[name] ?? days
+            if let e = effect(behaviorDays: days, askedDays: askedDays, outcomeByDay: outcomeByDay,
                               behavior: name, outcome: outcome) {
                 effects.append(e)
             }

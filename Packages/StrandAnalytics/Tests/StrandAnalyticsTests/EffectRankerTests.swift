@@ -36,8 +36,10 @@ final class EffectRankerTests: XCTestCase {
             let dip = 2 + 4 * i   // day-of-month of anchor+1 (2,6,10,14,18,22)
             outcome[ymd(2026, 6, dip)] = 50 + jitter(dip)
         }
+        let askedDays = Set(outcome.keys)   // reproduce old semantics: every outcome day was "asked"
 
         let out = EffectRanker.rank(behaviors: ["Alcohol": behaviorDays],
+                                    asked: ["Alcohol": askedDays],
                                     outcomeByDay: outcome, outcome: "Charge")
         let r = row(out, "Alcohol")
         XCTAssertNotNil(r)
@@ -52,18 +54,46 @@ final class EffectRankerTests: XCTestCase {
         // Lag 1 must dominate lag 0 and lag 2 in |cohensD|. Read each lag's effect directly via
         // the same internal alignment the engine uses.
         let d1 = abs(r!.effect.cohensD)
-        let d0 = abs(effectAtLag(behaviorDays, outcome, 0)!.cohensD)
-        let d2 = abs(effectAtLag(behaviorDays, outcome, 2)!.cohensD)
+        let d0 = abs(effectAtLag(behaviorDays, askedDays, outcome, 0)!.cohensD)
+        let d2 = abs(effectAtLag(behaviorDays, askedDays, outcome, 2)!.cohensD)
         XCTAssertGreaterThan(d1, d0)
         XCTAssertGreaterThan(d1, d2)
     }
 
     /// Test-only: the BehaviorEffect at a specific lag, via the engine's own shift alignment.
-    private func effectAtLag(_ behaviorDays: Set<String>, _ outcome: [String: Double],
-                             _ lag: Int) -> BehaviorEffect? {
+    private func effectAtLag(_ behaviorDays: Set<String>, _ askedDays: Set<String>,
+                             _ outcome: [String: Double], _ lag: Int) -> BehaviorEffect? {
         let shifted = EffectRanker.shiftedOutcome(outcome, byLag: lag)
-        return BehaviorInsights.effect(behaviorDays: behaviorDays, outcomeByDay: shifted,
+        return BehaviorInsights.effect(behaviorDays: behaviorDays, askedDays: askedDays,
+                                       outcomeByDay: shifted,
                                        behavior: "Alcohol", outcome: "Charge")
+    }
+
+    // MARK: - askedDays membership does not shift with the lag (#631)
+
+    /// `askedDays`/`behaviorDays` live in the fixed "behaviour day" keyspace; only `outcomeByDay`
+    /// gets re-keyed per lag. Outcome is defined for a full flat range so a shifted value always
+    /// exists, isolating whether askedDays membership itself is (incorrectly) being re-keyed.
+    func testAskedDaysNotShiftedAcrossLags() {
+        var outcome: [String: Double] = [:]
+        for d in 1...40 { outcome[ymd(2026, 6, d)] = 70 + jitter(d) }
+        // 5 spaced-out "yes" days and 5 spaced-out "no" days, far enough apart that no lag in
+        // {0,1,2} makes one resolve into the other.
+        var behaviorDays: Set<String> = []
+        var askedNo: Set<String> = []
+        for i in 0..<5 {
+            behaviorDays.insert(ymd(2026, 6, 1 + 6 * i))     // 1,7,13,19,25
+            askedNo.insert(ymd(2026, 6, 3 + 6 * i))          // 3,9,15,21,27
+        }
+        let askedDays = behaviorDays.union(askedNo)
+
+        for lag in EffectRanker.lagSet {
+            let shifted = EffectRanker.shiftedOutcome(outcome, byLag: lag)
+            let e = BehaviorInsights.effect(behaviorDays: behaviorDays, askedDays: askedDays,
+                                            outcomeByDay: shifted, behavior: "X", outcome: "Charge")!
+            XCTAssertEqual(e.nWith, 5, "lag \(lag)")
+            XCTAssertEqual(e.nWithout, 5, "lag \(lag)")   // must stay 5, not shift with the lag
+        }
     }
 
     // MARK: - Group gate suppresses thin behaviours
@@ -82,6 +112,7 @@ final class EffectRankerTests: XCTestCase {
         for d in 1...8 { outcome[ymd(2026, 7, d)] = 70 + jitter(d) }   // plenty of "without"
 
         let out = EffectRanker.rank(behaviors: ["Sparse": thin],
+                                    asked: ["Sparse": Set(outcome.keys)],
                                     outcomeByDay: outcome, outcome: "Charge")
         XCTAssertTrue(out.isEmpty)
     }
@@ -108,8 +139,10 @@ final class EffectRankerTests: XCTestCase {
         }
         // Shared "without" baseline at 70 (a block neither behaviour touches at any lag).
         for d in 10...20 { outcome[ymd(2026, 5, d)] = 70 + jitter(d) }
+        let askedDays = Set(outcome.keys)
 
         let out = EffectRanker.rank(behaviors: ["Big": big, "Small": small],
+                                    asked: ["Big": askedDays, "Small": askedDays],
                                     outcomeByDay: outcome, outcome: "Charge")
         XCTAssertEqual(out.map { $0.behavior }, ["Big", "Small"])   // |d| Big > Small
         XCTAssertEqual(row(out, "Big")!.lag, 0)                     // both are same-day effects

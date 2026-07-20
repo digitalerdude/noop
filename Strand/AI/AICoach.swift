@@ -563,12 +563,17 @@ final class AICoachEngine: ObservableObject {
         // 1. Strongest behaviour→outcome associations (EffectRanker over the journal × Charge).
         let entries = await repo.journalEntries()
         var byBehaviour: [String: Set<String>] = [:]
-        for e in entries where e.answeredYes { byBehaviour[e.question, default: []].insert(e.day) }
+        var byAskedBehaviour: [String: Set<String>] = [:]
+        for e in entries {
+            byAskedBehaviour[e.question, default: []].insert(e.day)
+            if e.answeredYes { byBehaviour[e.question, default: []].insert(e.day) }
+        }
         if !byBehaviour.isEmpty {
             let outcomeByDay = Dictionary(
                 repo.days.compactMap { d in d.recovery.map { (d.day, $0) } },
                 uniquingKeysWith: { _, last in last })
-            let ranked = EffectRanker.rank(behaviors: byBehaviour, outcomeByDay: outcomeByDay, outcome: "Charge")
+            let ranked = EffectRanker.rank(behaviors: byBehaviour, asked: byAskedBehaviour,
+                                           outcomeByDay: outcomeByDay, outcome: "Charge")
                 .filter { $0.effect.significant }
                 .prefix(3)
             if !ranked.isEmpty {

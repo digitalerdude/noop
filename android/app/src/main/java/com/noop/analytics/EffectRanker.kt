@@ -114,18 +114,24 @@ object EffectRanker {
      * best lag. Mirrors Swift's ordering on the surviving rows.
      *
      * @param behaviors per behaviour name, the SET of "yyyy-MM-dd" days it was logged (dose ≥ 1).
+     * @param asked per behaviour name, the SET of "yyyy-MM-dd" days it was actually asked/answered
+     *   (yes OR no). A day outside this set (and outside [behaviors]) counts in neither with nor
+     *   without — a missing journal answer is not an implicit "no" (#631). Falls back to the
+     *   behaviour's own days when a key is missing.
      * @param outcomeByDay the daily outcome series keyed "yyyy-MM-dd".
      * @param outcome the outcome label carried onto each RankedEffect.
      */
     fun rank(
         behaviors: Map<String, Set<String>>,
+        asked: Map<String, Set<String>>,
         outcomeByDay: Map<String, Double>,
         outcome: String,
     ): List<RankedEffect> {
         val rows = ArrayList<RankedEffect>()
         for (name in behaviors.keys.sorted()) {
             val days = behaviors.getValue(name)
-            val r = bestLag(days, outcomeByDay, name, outcome)
+            val askedDays = asked[name] ?: days
+            val r = bestLag(days, askedDays, outcomeByDay, name, outcome)
             if (r != null) rows.add(r)
         }
         return sorted(rows)
@@ -134,6 +140,7 @@ object EffectRanker {
     /** Find the best-lag RankedEffect for ONE behaviour against ONE outcome, or null. */
     fun bestLag(
         behaviorDays: Set<String>,
+        askedDays: Set<String>,
         outcomeByDay: Map<String, Double>,
         behavior: String,
         outcome: String,
@@ -142,7 +149,9 @@ object EffectRanker {
         var bestEffect: BehaviorEffect? = null
         for (lag in lagSet) {
             val shifted = shiftedOutcome(outcomeByDay, lag)
-            val e = effect(behaviorDays, shifted, behavior, outcome) ?: continue
+            // askedDays/behaviorDays already live in behaviour-day space — only the outcome
+            // series gets re-keyed per lag, never the asked/behaviour sets.
+            val e = effect(behaviorDays, askedDays, shifted, behavior, outcome) ?: continue
             if (minOf(e.nWith, e.nWithout) < minGroupForSignificance) continue
 
             val cur = bestEffect
@@ -183,11 +192,18 @@ object EffectRanker {
 
     /**
      * Compute the effect of [behavior] on [outcome]. Days are partitioned into "with"
-     * (day ∈ behaviorDays) and "without", restricted to days with an outcome value. Returns
-     * null unless both groups are non-empty AND there are ≥ 3 points total.
+     * (day ∈ behaviorDays) and "without" (day ∈ askedDays, day ∉ behaviorDays), restricted to
+     * days with an outcome value. A day never asked/answered (day ∉ behaviorDays ∪ askedDays)
+     * counts in NEITHER group — a missing journal answer is not an implicit "no" (#631).
+     *
+     * [behaviorDays] is expected to be a subset of [askedDays]; the check below is an OR so a
+     * "with" day is never dropped even if a caller's askedDays build has a gap.
+     *
+     * Returns null unless both groups are non-empty AND there are ≥ 3 points total.
      */
     internal fun effect(
         behaviorDays: Set<String>,
+        askedDays: Set<String>,
         outcomeByDay: Map<String, Double>,
         behavior: String,
         outcome: String,
@@ -195,6 +211,7 @@ object EffectRanker {
         val withVals = ArrayList<Double>()
         val withoutVals = ArrayList<Double>()
         for ((day, value) in outcomeByDay) {
+            if (!behaviorDays.contains(day) && !askedDays.contains(day)) continue
             if (behaviorDays.contains(day)) withVals.add(value) else withoutVals.add(value)
         }
 

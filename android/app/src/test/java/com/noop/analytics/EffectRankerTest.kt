@@ -24,8 +24,8 @@ class EffectRankerTest {
     private fun jitter(dayOfMonth: Int): Double = ((dayOfMonth * 7) % 5 - 2).toDouble()
 
     /** Test-only: the BehaviorEffect at a specific lag, via the engine's own shift alignment. */
-    private fun effectAtLag(behaviorDays: Set<String>, outcome: Map<String, Double>, lag: Int) =
-        EffectRanker.effect(behaviorDays, EffectRanker.shiftedOutcome(outcome, lag), "Alcohol", "Charge")
+    private fun effectAtLag(behaviorDays: Set<String>, askedDays: Set<String>, outcome: Map<String, Double>, lag: Int) =
+        EffectRanker.effect(behaviorDays, askedDays, EffectRanker.shiftedOutcome(outcome, lag), "Alcohol", "Charge")
 
     // Planted lag-1 effect is found at L=1 and beats L=0/L=2
 
@@ -42,8 +42,9 @@ class EffectRankerTest {
             val dip = 2 + 4 * i
             outcome[ymd(2026, 6, dip)] = 50.0 + jitter(dip)
         }
+        val askedDays = outcome.keys.toSet()   // reproduce old semantics: every outcome day was "asked"
 
-        val out = EffectRanker.rank(mapOf("Alcohol" to behaviorDays), outcome, "Charge")
+        val out = EffectRanker.rank(mapOf("Alcohol" to behaviorDays), mapOf("Alcohol" to askedDays), outcome, "Charge")
         val r = row(out, "Alcohol")
         assertNotNull(r)
         assertEquals(1, r!!.lag)
@@ -54,10 +55,77 @@ class EffectRankerTest {
         assertTrue(r.effect.meanWithout > 65)
 
         val d1 = abs(r.effect.cohensD)
-        val d0 = abs(effectAtLag(behaviorDays, outcome, 0)!!.cohensD)
-        val d2 = abs(effectAtLag(behaviorDays, outcome, 2)!!.cohensD)
+        val d0 = abs(effectAtLag(behaviorDays, askedDays, outcome, 0)!!.cohensD)
+        val d2 = abs(effectAtLag(behaviorDays, askedDays, outcome, 2)!!.cohensD)
         assertTrue(d1 > d0)
         assertTrue(d1 > d2)
+    }
+
+    // askedDays membership does not shift with the lag (#631)
+
+    @Test
+    fun askedDaysNotShiftedAcrossLags() {
+        val outcome = HashMap<String, Double>()
+        for (d in 1..40) outcome[ymd(2026, 6, d)] = 70.0 + jitter(d)
+        val behaviorDays = HashSet<String>()
+        val askedNo = HashSet<String>()
+        for (i in 0 until 5) {
+            behaviorDays.add(ymd(2026, 6, 1 + 6 * i))     // 1,7,13,19,25
+            askedNo.add(ymd(2026, 6, 3 + 6 * i))          // 3,9,15,21,27
+        }
+        val askedDays = behaviorDays + askedNo
+
+        for (lag in EffectRanker.lagSet) {
+            val shifted = EffectRanker.shiftedOutcome(outcome, lag)
+            val e = EffectRanker.effect(behaviorDays, askedDays, shifted, "X", "Charge")!!
+            assertEquals("lag $lag", 5, e.nWith)
+            assertEquals("lag $lag", 5, e.nWithout)   // must stay 5, not shift with the lag
+        }
+    }
+
+    // effect() partition — never-asked days (#631: a missing journal answer is not an implicit "no")
+
+    @Test
+    fun effectExcludesUnaskedDaysFromBothGroups() {
+        // "z" has an outcome value but was never asked (not in behaviorDays or askedDays) →
+        // dropped entirely, not counted as "without".
+        val outcome = mapOf("a" to 60.0, "b" to 62.0, "c" to 70.0, "d" to 72.0, "z" to 65.0)
+        val e = EffectRanker.effect(setOf("a", "b"), setOf("a", "b", "c", "d"), outcome, "X", "Recovery")!!
+        assertEquals(2, e.nWith)      // a, b
+        assertEquals(2, e.nWithout)   // c, d — "z" excluded, not counted as without
+    }
+
+    @Test
+    fun effectAskedNoStillCountsAsWithout() {
+        // A day that WAS asked and explicitly answered "no" still counts as "without" — the fix
+        // only excludes NEVER-asked days.
+        val outcome = mapOf("a" to 60.0, "b" to 61.0, "c" to 70.0, "d" to 71.0, "e" to 72.0)
+        val e = EffectRanker.effect(setOf("a", "b"), setOf("a", "b", "c", "d", "e"), outcome, "X", "Recovery")!!
+        assertEquals(2, e.nWith)
+        assertEquals(3, e.nWithout)
+    }
+
+    @Test
+    fun effectBehaviorDayNotInAskedStillCountsAsWith() {
+        // Defensive OR: a "yes" day missing from askedDays (a caller build gap) is never dropped
+        // from "with".
+        val outcome = mapOf("a" to 80.0, "b" to 60.0, "c" to 61.0)
+        val e = EffectRanker.effect(setOf("a"), setOf("b", "c"), outcome, "X", "Recovery")!!
+        assertEquals(1, e.nWith)      // "a" still counted despite the askedDays gap
+        assertEquals(2, e.nWithout)
+    }
+
+    @Test
+    fun effectRealisticSparseJournalQuestion() {
+        // #631 shape: a rarely-asked question logged "yes" on 3 days and "no" on 2 days, out of
+        // 300 total outcome-days. The other 295 days must be excluded, not lumped into "without".
+        val outcome = HashMap<String, Double>()
+        for (i in 0 until 300) outcome["d$i"] = (60 + i % 10).toDouble()
+        val behaviorDays = setOf("d0", "d1", "d2")
+        val askedDays = behaviorDays + setOf("d3", "d4")
+        val e = EffectRanker.effect(behaviorDays, askedDays, outcome, "Travelled in a car or train?", "Charge")!!
+        assertEquals(3, e.nWith)
+        assertEquals(2, e.nWithout)   // NOT 297
     }
 
     // Group gate suppresses thin behaviours
@@ -74,7 +142,7 @@ class EffectRankerTest {
         }
         for (d in 1..8) outcome[ymd(2026, 7, d)] = 70.0 + jitter(d)
 
-        val out = EffectRanker.rank(mapOf("Sparse" to thin), outcome, "Charge")
+        val out = EffectRanker.rank(mapOf("Sparse" to thin), mapOf("Sparse" to outcome.keys.toSet()), outcome, "Charge")
         assertTrue(out.isEmpty())
     }
 
@@ -96,8 +164,13 @@ class EffectRankerTest {
             outcome[day] = 66.0 + jitter(d)
         }
         for (d in 10..20) outcome[ymd(2026, 5, d)] = 70.0 + jitter(d)
+        val askedDays = outcome.keys.toSet()
 
-        val out = EffectRanker.rank(mapOf("Big" to big, "Small" to small), outcome, "Charge")
+        val out = EffectRanker.rank(
+            mapOf("Big" to big, "Small" to small),
+            mapOf("Big" to askedDays, "Small" to askedDays),
+            outcome, "Charge",
+        )
         assertEquals(listOf("Big", "Small"), out.map { it.behavior })
         assertEquals(0, row(out, "Big")!!.lag)
         assertEquals(0, row(out, "Small")!!.lag)

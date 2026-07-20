@@ -300,11 +300,12 @@ class AiCoach(private val repo: WhoopRepository) {
         val sb = StringBuilder()
 
         // --- Strongest associations on the user's own logged days (recovery as the outcome) ---
-        val behaviours = runCatching { journalBehaviours() }.getOrDefault(emptyMap())
+        val sets = runCatching { journalBehaviours() }.getOrDefault(JournalBehaviourSets(emptyMap(), emptyMap()))
+        val behaviours = sets.yes
         val days = runCatching { repo.daysMerged(deviceId) }.getOrDefault(emptyList())
         if (behaviours.isNotEmpty() && days.isNotEmpty()) {
             val recoveryByDay = days.mapNotNull { d -> d.recovery?.let { d.day to it } }.toMap()
-            val ranked = runCatching { EffectRanker.rank(behaviours, recoveryByDay, "Charge") }
+            val ranked = runCatching { EffectRanker.rank(behaviours, sets.asked, recoveryByDay, "Charge") }
                 .getOrDefault(emptyList())
                 .take(3)
             if (ranked.isNotEmpty()) {
@@ -333,16 +334,25 @@ class AiCoach(private val repo: WhoopRepository) {
         return sb.toString().trim().takeIf { it.isNotEmpty() }
     }
 
-    /** Behaviour → set of "yyyy-MM-dd" days it was logged "yes" (imported ∪ native), for EffectRanker. */
-    private suspend fun journalBehaviours(): Map<String, Set<String>> {
+    /** Behaviour → set of "yyyy-MM-dd" days it was logged "yes" ([yes]) and behaviour → set of days it
+     *  was actually asked/answered, yes OR no ([asked]) — see #631: a day never asked must not count
+     *  as "without". */
+    private data class JournalBehaviourSets(val yes: Map<String, Set<String>>, val asked: Map<String, Set<String>>)
+
+    /** Behaviour → days it was logged "yes"/asked (imported ∪ native), for EffectRanker. */
+    private suspend fun journalBehaviours(): JournalBehaviourSets {
         val imported = repo.journal(deviceId, "0000-01-01", "9999-12-31")
         val native = repo.journal(journalDeviceId, "0000-01-01", "9999-12-31")
         val byKey = LinkedHashMap<Pair<String, String>, JournalEntry>()
         for (e in imported) byKey[e.day to e.question] = e
         for (e in native) byKey[e.day to e.question] = e   // native wins on a collision
-        val out = HashMap<String, MutableSet<String>>()
-        for (e in byKey.values) if (e.answeredYes) out.getOrPut(e.question) { mutableSetOf() }.add(e.day)
-        return out.mapValues { it.value.toSet() }
+        val yes = HashMap<String, MutableSet<String>>()
+        val asked = HashMap<String, MutableSet<String>>()
+        for (e in byKey.values) {
+            asked.getOrPut(e.question) { mutableSetOf() }.add(e.day)
+            if (e.answeredYes) yes.getOrPut(e.question) { mutableSetOf() }.add(e.day)
+        }
+        return JournalBehaviourSets(yes.mapValues { it.value.toSet() }, asked.mapValues { it.value.toSet() })
     }
 
     /** The latest reading per Lab Book marker key (stored under the strap deviceId). */
