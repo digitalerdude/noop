@@ -211,6 +211,12 @@ class WhoopRepository(private val dao: WhoopDao) {
         )
     }
 
+    /** #716: update the model label for the seeded device once the BLE family is known. */
+    suspend fun setDeviceModel(id: String, model: String) = dao.setModel(id, model)
+
+    /** #716: read all paired devices (thin pass-through for the BLE scan fix). */
+    suspend fun pairedDevices(): List<PairedDeviceRow> = dao.pairedDevices()
+
     // MARK: - Insert decoded streams (idempotent by natural key)
 
     /**
@@ -294,6 +300,20 @@ class WhoopRepository(private val dao: WhoopDao) {
      *  the recompute window before re-upserting LOCAL-keyed rows. Imported rows are never touched. */
     suspend fun deleteComputedDailyInRange(deviceId: String, from: String, to: String) =
         dao.deleteDailyMetricsInRange(deviceId, from, to)
+
+    suspend fun replaceComputedScoreWindow(
+        deviceId: String,
+        from: String,
+        to: String,
+        dailyMetrics: List<DailyMetric>,
+        metricPoints: List<MetricSeriesRow>,
+        provenance: List<ScoreInputProvenanceRow>,
+    ) = dao.replaceComputedScoreWindow(
+        deviceId, from, to, dailyMetrics, metricPoints, provenance
+    )
+
+    suspend fun scoreInputSource(deviceId: String, day: String, key: String): String? =
+        dao.scoreInputSource(deviceId, day, key)
 
     /** Hand-correct the bed (onset) / wake (end) time of an existing sleep session, DURABLY , port
      *  of iOS PR #395 (Repository.editSleepTimes + MetricsCache.applySleepEdit).
