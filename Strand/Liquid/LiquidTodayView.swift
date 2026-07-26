@@ -1951,12 +1951,13 @@ private struct LiquidSyncChip: View {
         switch SyncChipState.resolve(live: live) {
         case .syncing(let chunks):
             pill(system: "arrow.triangle.2.circlepath", text: "\(chunks)",
-                 a11y: "Syncing strap history, \(chunks) chunks")
+                 a11y: String(localized: "Syncing strap history, \(chunks) chunks"))
         case .synced(let agoText):
-            pill(system: "checkmark", text: agoText, a11y: "Strap history synced \(agoText) ago")
+            pill(system: "checkmark", text: agoText,
+                 a11y: String(localized: "Strap history synced \(agoText) ago"))
         case .experimentalLive:
-            pill(system: "checkmark", text: "live",
-                 a11y: "Connected; strap history sync is experimental on this strap")
+            pill(system: "checkmark", text: String(localized: "live"),
+                 a11y: String(localized: "Connected; strap history sync is experimental on this strap"))
         case .hidden:
             EmptyView()
         }

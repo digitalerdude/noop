@@ -4481,9 +4481,11 @@ enum SyncChipState: Equatable {
     }
 
     /// Compact relative age for the header chip ("now" / "Nm" / "Nh" / "Nd") — deliberately terse.
+    /// "now" is the only word in here (the rest is digits + a unit letter), so it's the only piece that
+    /// needs a catalog entry to translate; localized here rather than at each of the two call sites.
     private static func shortAgo(_ ts: TimeInterval) -> String {
         let secs = max(0, Int(Date().timeIntervalSince1970 - ts))
-        if secs < 60 { return "now" }
+        if secs < 60 { return String(localized: "now") }
         let mins = secs / 60
         if mins < 60 { return "\(mins)m" }
         let hrs = mins / 60
@@ -4504,13 +4506,13 @@ struct SyncStatusChip: View {
         switch SyncChipState.resolve(live: live) {
         case .syncing(let chunks):
             chip(system: "arrow.triangle.2.circlepath", text: "\(chunks)", tint: StrandPalette.accent,
-                 a11y: "Syncing strap history, \(chunks) chunks")
+                 a11y: String(localized: "Syncing strap history, \(chunks) chunks"))
         case .synced(let agoText):
             chip(system: "checkmark", text: agoText, tint: StrandPalette.textSecondary,
-                 a11y: "Strap history synced \(agoText) ago")
+                 a11y: String(localized: "Strap history synced \(agoText) ago"))
         case .experimentalLive:
-            chip(system: "checkmark", text: "live", tint: StrandPalette.textSecondary,
-                 a11y: "Connected; strap history sync is experimental on this strap")
+            chip(system: "checkmark", text: String(localized: "live"), tint: StrandPalette.textSecondary,
+                 a11y: String(localized: "Connected; strap history sync is experimental on this strap"))
         case .hidden:
             EmptyView()
             // cold start — render nothing; the building-scores SyncingHistoryNote covers it.
