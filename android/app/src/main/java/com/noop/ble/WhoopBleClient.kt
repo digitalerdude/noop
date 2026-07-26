@@ -4496,7 +4496,7 @@ class WhoopBleClient(
                             log("Strap backlog pages behind: $pagesBehind (#689 — GET_DATA_RANGE ring backlog, diagnostic only)")
                             // #815: confirmed on both WHOOP 4.0 and 5.0/MG, so bank it unconditionally — the
                             // Today sync chip's "N pages behind" detail reads this while backfilling is true.
-                            _state.update { it.copy(pagesBehindAtConnect = pagesBehind) }
+                            _state.update { it.copy(pagesBehindAtConnect = pagesBehind.toInt()) }
                         } else {
                             log(
                                 "Strap backlog pages behind: not decodable from this frame (#689 — offsets may " +

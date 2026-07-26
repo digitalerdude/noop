@@ -236,6 +236,9 @@ private data class TodayLiveSnapshot(
     val whoop5: Boolean,
     /** Charging hides the runtime estimate (no "X left" while topping up). Rare flips, snapshot-safe. */
     val charging: Boolean?,
+    /** #689/#815 follow-up: the connect-time GET_DATA_RANGE pages-behind sample, when known. Set once per
+     *  connection, so it doesn't reintroduce per-tick churn either. */
+    val pagesBehindAtConnect: Int?,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -302,6 +305,7 @@ fun TodayScreen(
                 batteryPct = s.batteryPct,
                 whoop5 = s.whoop5Detected,
                 charging = s.charging,
+                pagesBehindAtConnect = s.pagesBehindAtConnect,
             )
         }
     }
