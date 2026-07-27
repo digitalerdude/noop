@@ -230,6 +230,10 @@
     <string name="l10n_devices_screen_body_location_probe_690_re_7def8c39">Sonda de posición corporal (#690 RE)…</string>
     <string name="l10n_devices_screen_body_location_probe_result_690_60c5ee79">Resultado de la sonda de posición corporal (#690)</string>
     <string name="l10n_devices_screen_body_location_probe_explainer_a9363239">Envía el comando de posición corporal de solo lectura (0x54) y vuelca la respuesta cruda completa de la banda al registro, decodificando el registro (revisión / posición / confianza / estado) en la WHOOP 4.0. No se escribe nada en la banda y nunca cambia la detección de uso ni la puntuación.</string>
+    <string name="l10n_devices_screen_feature_flag_probe_761_re_21241d68">Sonda de indicadores de función (#761 RE)…</string>
+    <string name="l10n_devices_screen_stop_sync_4a1f2b6e">Detener sincronización</string>
+    <string name="l10n_devices_screen_feature_flag_probe_result_761_c50ef4d4">Resultado de la sonda de indicadores de función (#761)</string>
+    <string name="l10n_devices_screen_feature_flag_probe_explainer_58eec30f">Pide a la banda que enumere los NOMBRES de los indicadores de función que conoce su propio firmware: START_FF_KEY_EXCHANGE (0x75) y luego SEND_NEXT_FF (0x76) hasta que la banda indique que ha terminado. Solo lectura — no se escribe ningún valor y esta sonda nunca envía los comandos SET. La lista se muestra aquí y se escribe en el registro de la banda.</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Dos tablas de protocolo independientes discrepan sobre el opcode de batería extendida (98 vs 87). Esto envía el 98 curado y de solo lectura y vuelca la respuesta cruda completa de la banda al registro. Una carga tipo batería confirma 98 en tu firmware; un stub corto lo deja ambiguo. No se escribe nada en la banda. Exporta y comparte el registro después.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Cancelar</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
@@ -1436,6 +1440,11 @@
     <string name="l10n_today_screen_pct_ee63e247">%1$s%%</string>
     <string name="l10n_today_screen_profile_and_settings_9b3d12f2">Perfil y ajustes</string>
     <string name="l10n_today_screen_recovery_ea924f72">Recuperación</string>
+    <string name="l10n_today_screen_sync_chip_now_c9bc849a">ahora</string>
+    <string name="l10n_today_screen_sync_chip_live_98aadb37">en vivo</string>
+    <string name="l10n_today_screen_sync_chip_syncing_desc_bfc290e7">Sincronizando el historial de la pulsera, %1$d bloques</string>
+    <string name="l10n_today_screen_sync_chip_synced_desc_4d255944">Historial de la pulsera sincronizado hace %1$s</string>
+    <string name="l10n_today_screen_sync_chip_experimental_desc_3de06a70">Conectado; la sincronización del historial es experimental en esta pulsera.</string>
     <string name="l10n_today_screen_recovery_roundtoint_charge_92fbaa5e">%1$s%%</string>
     <string name="l10n_today_screen_respiratory_1cd8c175">Respiración</string>
     <string name="l10n_today_screen_rest_b79e5f48">Descanso</string>
@@ -1633,6 +1642,7 @@
     <string name="timeline_metric_respiration">Respiración</string>
     <string name="timeline_metric_motion">Movimiento</string>
     <string name="timeline_metric_band_sleep_state">Estado de sueño de la pulsera</string>
+    <string name="timeline_metric_movement">Movimiento</string>
     <string name="explore_category_charge">Carga</string>
     <string name="explore_category_effort">Esfuerzo</string>
     <string name="explore_category_rest">Descanso</string>
@@ -1701,4 +1711,10 @@
         <item quantity="one">Máxima: %1$d día</item>
         <item quantity="other">Máxima: %1$d días</item>
     </plurals>
+
+    <!-- Alertas de batería escaladas (cruce crítico de carga + guardia nocturna antes de dormir). -->
+    <string name="battery_critical_title">Cargue su WHOOP ahora</string>
+    <string name="battery_critical_body">Queda %1$d%%. La correa deja de registrar cerca del 10%% — no captará esta noche si no la carga.</string>
+    <string name="battery_bedtime_title">No aguantará la noche</string>
+    <string name="battery_bedtime_body">Queda %1$s de registro, pero esta noche necesita alrededor de %2$s. Cárguela antes de acostarse.</string>
 </resources>

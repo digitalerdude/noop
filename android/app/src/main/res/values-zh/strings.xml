@@ -367,6 +367,10 @@
     <string name="l10n_devices_screen_battery_4a9be042">设备电量</string>
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">电量 %1$s%%</string>
     <string name="l10n_devices_screen_cancel_77dfd213">取消</string>
+    <string name="l10n_devices_screen_feature_flag_probe_761_re_21241d68">功能标志探测（#761 RE）…</string>
+    <string name="l10n_devices_screen_stop_sync_4a1f2b6e">停止同步</string>
+    <string name="l10n_devices_screen_feature_flag_probe_result_761_c50ef4d4">功能标志探测结果（#761）</string>
+    <string name="l10n_devices_screen_feature_flag_probe_explainer_58eec30f">请求手环列出其固件已知的功能标志名称：先发送 START_FF_KEY_EXCHANGE (0x75)，再重复发送 SEND_NEXT_FF (0x76)，直到手环表示已列完。只读——不会写入任何标志值，本探测也从不发送 SET 命令。列表会显示在此处并写入手环日志。</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
     <string name="l10n_devices_screen_device_name_79d7a157">设备名称</string>
     <string name="l10n_devices_screen_give_device_brand_device_model_a_7a15585c">为您的 %1$s %2$s 起一个好记的名字。</string>
@@ -1558,6 +1562,11 @@
     <string name="l10n_today_screen_pct_ee63e247">%1$s%%</string>
     <string name="l10n_today_screen_profile_and_settings_9b3d12f2">个人资料与设置</string>
     <string name="l10n_today_screen_recovery_ea924f72">恢复分数</string>
+    <string name="l10n_today_screen_sync_chip_now_c9bc849a">刚刚</string>
+    <string name="l10n_today_screen_sync_chip_live_98aadb37">实时</string>
+    <string name="l10n_today_screen_sync_chip_syncing_desc_bfc290e7">正在同步腕带历史记录，%1$d 个数据块</string>
+    <string name="l10n_today_screen_sync_chip_synced_desc_4d255944">手环历史记录已在 %1$s 前同步</string>
+    <string name="l10n_today_screen_sync_chip_experimental_desc_3de06a70">已连接；此手环的历史同步功能为实验性功能。</string>
     <string name="l10n_today_screen_recovery_roundtoint_charge_92fbaa5e">%1$s%% 充能(Charge)</string>
     <string name="l10n_today_screen_respiratory_1cd8c175">呼吸</string>
     <string name="l10n_today_screen_rest_b79e5f48">恢复(Rest)</string>
@@ -1630,4 +1639,10 @@
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"上次分享 "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">分享已暂停——Health Connect 权限已被撤销。点按以重新授予。</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">上次分享未完成——NOOP 将自动重试。</string>
+
+    <!-- 升级电量提醒（临界电量 + 睡前守护）。 -->
+    <string name="battery_critical_title">请立即为 WHOOP 充电</string>
+    <string name="battery_critical_body">剩余 %1$d%%。手环在约 10%% 时就会停止记录——不充电就无法记录今晚。</string>
+    <string name="battery_bedtime_title">撑不过今晚</string>
+    <string name="battery_bedtime_body">还能记录 %1$s，但今晚约需 %2$s。请在睡前充电。</string>
 </resources>

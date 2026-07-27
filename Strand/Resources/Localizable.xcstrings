@@ -1,6 +1,214 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Feature-flag probe (#761 RE)…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feature-Flag-Test (#761 RE)…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de indicadores de función (#761 RE)…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonde des indicateurs de fonction (#761 RE)…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda dei flag di funzionalità (#761 RE)…"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de sinalizadores de funcionalidade (#761 RE)…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проба флагов функций (#761 RE)…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能标志探测（#761 RE）…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能旗標探測（#761 RE）…"
+          }
+        }
+      }
+    },
+    "Feature-flag probe (#761 RE)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feature-Flag-Test (#761 RE)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de indicadores de función (#761 RE)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonde des indicateurs de fonction (#761 RE)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda dei flag di funzionalità (#761 RE)"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de sinalizadores de funcionalidade (#761 RE)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проба флагов функций (#761 RE)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能标志探测（#761 RE）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能旗標探測（#761 RE）"
+          }
+        }
+      }
+    },
+    "Feature-flag probe result (#761)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ergebnis des Feature-Flag-Tests (#761)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultado de la sonda de indicadores de función (#761)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résultat de la sonde des indicateurs de fonction (#761)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risultato della sonda dei flag di funzionalità (#761)"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultado da sonda de sinalizadores de funcionalidade (#761)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Результат пробы флагов функций (#761)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能标志探测结果（#761）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能旗標探測結果（#761）"
+          }
+        }
+      }
+    },
+    "Asks the strap to list the feature-flag NAMES its own firmware knows: START_FF_KEY_EXCHANGE (0x75) then SEND_NEXT_FF (0x76) until the strap says it's done. Read-only — no flag value is written, and the SET commands are never sent from this probe. The list is shown here and written to the strap log.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragt das Band nach den NAMEN der Feature-Flags, die seine eigene Firmware kennt: START_FF_KEY_EXCHANGE (0x75), dann SEND_NEXT_FF (0x76), bis das Band das Ende meldet. Nur lesend — es wird kein Flag-Wert geschrieben, und die SET-Befehle werden von diesem Test nie gesendet. Die Liste wird hier angezeigt und ins Strap-Log geschrieben."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pide a la banda que enumere los NOMBRES de los indicadores de función que conoce su propio firmware: START_FF_KEY_EXCHANGE (0x75) y luego SEND_NEXT_FF (0x76) hasta que la banda indique que ha terminado. Solo lectura — no se escribe ningún valor y esta sonda nunca envía los comandos SET. La lista se muestra aquí y se escribe en el registro de la banda."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demande au bracelet la liste des NOMS des indicateurs de fonction que son propre micrologiciel connaît : START_FF_KEY_EXCHANGE (0x75) puis SEND_NEXT_FF (0x76) jusqu'à ce que le bracelet signale la fin. Lecture seule — aucune valeur n'est écrite, et les commandes SET ne sont jamais envoyées par cette sonde. La liste s'affiche ici et est consignée dans le journal du bracelet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiede al bracciale di elencare i NOMI dei flag di funzionalità noti al suo firmware: START_FF_KEY_EXCHANGE (0x75) e poi SEND_NEXT_FF (0x76) finché il bracciale non segnala la fine. Sola lettura — non viene scritto alcun valore e questa sonda non invia mai i comandi SET. L'elenco viene mostrato qui e scritto nel log del bracciale."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pede à bracelete a lista dos NOMES dos sinalizadores de funcionalidade que o seu próprio firmware conhece: START_FF_KEY_EXCHANGE (0x75) e depois SEND_NEXT_FF (0x76) até a bracelete indicar que terminou. Apenas leitura — nenhum valor é escrito e os comandos SET nunca são enviados por esta sonda. A lista é mostrada aqui e registada no registo da bracelete."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запрашивает у ремешка список ИМЁН флагов функций, известных его прошивке: START_FF_KEY_EXCHANGE (0x75), затем SEND_NEXT_FF (0x76), пока ремешок не сообщит о завершении. Только чтение — ни одно значение не записывается, и команды SET этой пробой никогда не отправляются. Список показывается здесь и записывается в журнал ремешка."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求手环列出其固件已知的功能标志名称：先发送 START_FF_KEY_EXCHANGE (0x75)，再重复发送 SEND_NEXT_FF (0x76)，直到手环表示已列完。只读——不会写入任何标志值，本探测也从不发送 SET 命令。列表会显示在此处并写入手环日志。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要求手環列出其韌體已知的功能旗標名稱：先傳送 START_FF_KEY_EXCHANGE (0x75)，再重複傳送 SEND_NEXT_FF (0x76)，直到手環表示已列完。唯讀——不會寫入任何旗標值，本探測也從不傳送 SET 指令。清單會顯示在此處並寫入手環記錄。"
+          }
+        }
+      }
+    },
     "Body-location probe (#690 RE)…": {
       "localizations": {
         "de": {
@@ -2404,6 +2612,58 @@
         }
       }
     },
+    "%@ left on your WHOOP — recharge tonight.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch %@ auf deinem WHOOP – lade es heute Nacht auf."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autonomía restante en tu WHOOP: %@. Recárgalo esta noche."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il reste %@ sur votre WHOOP — rechargez-le ce soir."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autonomia rimanente sul tuo WHOOP: %@. Ricaricalo stanotte."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autonomia restante no teu WHOOP: %@. Recarrega-o esta noite."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Осталось %@ на вашем WHOOP — зарядите его сегодня ночью."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 WHOOP 还剩 %@，今晚请充电。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 WHOOP 還剩 %@，今晚請充電。"
+          }
+        }
+      }
+    },
     "%@ link · r = %@ · n = %lld days": {
       "localizations": {
         "de": {
@@ -2516,6 +2776,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ / %2$@ 公升"
+          }
+        }
+      }
+    },
+    "%@ of recording left, but tonight needs about %@. Charge before bed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch %1$@ Aufzeichnung, aber die heutige Nacht braucht etwa %2$@. Lade vor dem Schlafengehen auf."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registro restante: %1$@, pero esta noche necesita alrededor de %2$@. Carga tu WHOOP antes de acostarte."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il reste %1$@ d'enregistrement, mais cette nuit en demande environ %2$@. Rechargez avant de vous coucher."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registrazione rimanente: %1$@, ma stanotte ne servono circa %2$@. Ricarica prima di andare a dormire."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gravação restante: %1$@, mas esta noite precisa de cerca de %2$@. Carrega antes de te deitares."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Осталось %1$@ записи, но на сегодняшнюю ночь нужно около %2$@. Зарядите перед сном."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还能记录 %1$@，但今晚约需 %2$@。请在睡前充电。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "還能記錄 %1$@，但今晚約需 %2$@。請在睡前充電。"
           }
         }
       }
@@ -11518,6 +11830,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld%% 能量"
+          }
+        }
+      }
+    },
+    "%lld%% left. The strap stops recording near 10%% — it won't capture tonight unless you charge it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%% übrig. Der Strap hört bei etwa 10%% auf aufzuzeichnen – ohne Aufladen erfasst er die heutige Nacht nicht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batería al %lld%%. La pulsera deja de registrar cerca del 10%% — no captará esta noche si no la cargas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il reste %lld%%. Le bracelet cesse d'enregistrer vers 10%% — il ne captera pas cette nuit sans recharge."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batteria al %lld%%. La fascia smette di registrare intorno al 10%% — non registrerà stanotte se non la ricarichi."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bateria a %lld%%. A correia deixa de gravar perto dos 10%% – não vai captar esta noite se não a carregares."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Осталось %lld%%. Браслет прекращает запись около 10%% — без зарядки он не запишет сегодняшнюю ночь."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余 %lld%%。手环在约 10%% 时就会停止记录——不充电就无法记录今晚。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩餘 %lld%%。手環在約 10%% 時就會停止記錄——不充電就無法記錄今晚。"
           }
         }
       }
@@ -37045,6 +37409,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "能量會將你的 HRV 與你的個人基線（約 55%%）、靜息心率（約 20%%）、休息品質（約 15%%）、呼吸（約 5%%）和皮膚溫度偏差（約 5%%）進行加權。消耗是根據在各心率區間的時間得出的 0–%@ 心血管負荷。休息則根據體動和心率分期。一切都在這裡根據手環的原始資料計算，只要 NOOP 採集到原始資料流的任何一天都適用。"
+          }
+        }
+      }
+    },
+    "Charge your WHOOP now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lade dein WHOOP jetzt auf"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga tu WHOOP ahora"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechargez votre WHOOP maintenant"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ricarica il tuo WHOOP adesso"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carrega já o teu WHOOP"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зарядите WHOOP сейчас"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请立即为 WHOOP 充电"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請立即為 WHOOP 充電"
           }
         }
       }
@@ -126662,6 +127078,58 @@
         }
       }
     },
+    "Stop sync": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync stoppen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detener sincronización"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêter la synchronisation"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrompi sincronizzazione"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parar sincronização"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить синхронизацию"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止同步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止同步"
+          }
+        }
+      }
+    },
     "Stops reading a cycle phase from your nightly temperature. You can turn it back on here any time.": {
       "localizations": {
         "de": {
@@ -127404,6 +127872,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "手環電量百分之 %1$lld%2$@%3$@"
+          }
+        }
+      }
+    },
+    "Strap battery low": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strap-Akku schwach"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batería baja de la pulsera"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batterie faible du bracelet"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batteria scarica della fascia"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bateria fraca da correia"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Низкий заряд браслета"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手环电量低"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手環電量不足"
           }
         }
       }
@@ -148253,6 +148773,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "已醒來"
+          }
+        }
+      }
+    },
+    "Won't last the night": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reicht nicht durch die Nacht"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No aguantará la noche"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne tiendra pas la nuit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non durerà tutta la notte"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não dura a noite"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не хватит на ночь"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撑不过今晚"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撐不過今晚"
           }
         }
       }
@@ -169365,6 +169937,474 @@
           "stringUnit": {
             "state": "translated",
             "value": "Reiniciado quando recalibraste em %@ — não precisas de tocar novamente."
+          }
+        }
+      }
+    },
+    "live": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Live"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en vivo"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en direct"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in diretta"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "em direto"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "в реальном времени"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "实时"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "即時"
+          }
+        }
+      }
+    },
+    "now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "jetzt"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ahora"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "à l'instant"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "adesso"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "agora"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "сейчас"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "刚刚"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剛剛"
+          }
+        }
+      }
+    },
+    "Syncing strap history, %lld chunks": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlaufssynchronisierung des Straps läuft, %lld Chunks"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizando el historial de la pulsera, %lld bloques"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisation de l'historique du bracelet, %lld blocs"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sincronizzazione della cronologia della fascia, %lld blocchi"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A sincronizar o histórico da bracelete, %lld pedaços"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Синхронизация истории браслета, %lld фрагментов"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在同步手环历史记录，%lld 个数据块"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在同步手環歷史記錄，%lld 個資料塊"
+          }
+        }
+      }
+    },
+    "Strap history synced %@ ago": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verlauf des Straps vor %@ synchronisiert"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Historial de la pulsera sincronizado hace %@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Historique du bracelet synchronisé il y a %@"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cronologia della fascia sincronizzata %@ fa"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Histórico da bracelete sincronizado há %@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "История браслета синхронизирована %@ назад"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手环历史记录已在 %@ 前同步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手環歷史記錄已在 %@ 前同步"
+          }
+        }
+      }
+    },
+    "Connected; strap history sync is experimental on this strap": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verbunden; die Verlaufssynchronisierung ist bei diesem Strap experimentell."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conectado; la sincronización del historial es experimental en esta pulsera."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connecté ; la synchronisation de l'historique est expérimentale sur ce bracelet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Collegata; la sincronizzazione della cronologia è sperimentale su questa fascia."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ligada; a sincronização do histórico é experimental nesta bracelete."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Подключено; синхронизация истории экспериментальна для этого браслета."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已连接；此手环的历史同步功能为实验性功能。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已連接；此手環的歷史同步功能為實驗性功能。"
+          }
+        }
+      }
+    },
+    "Optical block experiment": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Optisches Blockexperiment"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Experimento de bloques ópticos"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expérience sur les blocs optiques"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esperimento sui blocchi ottici"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Experiência de blocos óticos"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эксперимент с оптическими блоками"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "光学块实验"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "光學區塊實驗"
+          }
+        }
+      }
+    },
+    "Mark the start of each physical phase while wearing or handling the strap. NOOP aligns the marker to the timestamp inside delayed history buffers, then the offline analyzer compares block activation, header bytes and raw ADC changes. It does not assume a wavelength or calculate SpO₂/BP.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Markiere den Beginn jeder physischen Phase, während du das Band trägst oder handhabst. NOOP richtet die Markierung am Zeitstempel in den verzögerten Verlaufspuffern aus, dann vergleicht der Offline-Analyzer Blockaktivierung, Header-Bytes und rohe ADC-Änderungen. Es nimmt keine Wellenlänge an und berechnet kein SpO₂ und keinen Blutdruck."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marca el inicio de cada fase física mientras llevas puesta o manipulas la banda. NOOP alinea el marcador con la marca de tiempo dentro de los búferes de historial diferidos y después el analizador sin conexión compara la activación de bloques, los bytes de cabecera y los cambios de ADC en bruto. No asume una longitud de onda ni calcula SpO₂ ni presión arterial."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marquez le début de chaque phase physique pendant que vous portez ou manipulez le bracelet. NOOP aligne le marqueur sur l'horodatage contenu dans les tampons d'historique différés, puis l'analyseur hors ligne compare l'activation des blocs, les octets d'en-tête et les variations brutes de l'ADC. Il ne présume aucune longueur d'onde et ne calcule ni SpO₂ ni tension artérielle."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segna l'inizio di ogni fase fisica mentre indossi o maneggi la fascia. NOOP allinea il marcatore al timestamp contenuto nei buffer di cronologia differiti, poi l'analizzatore offline confronta l'attivazione dei blocchi, i byte di intestazione e le variazioni grezze dell'ADC. Non presume una lunghezza d'onda e non calcola SpO₂ né la pressione sanguigna."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marca o início de cada fase física enquanto usas ou manipulas a bracelete. O NOOP alinha o marcador com a marca temporal dentro dos buffers de histórico diferidos e depois o analisador offline compara a ativação dos blocos, os bytes de cabeçalho e as alterações do ADC em bruto. Não assume um comprimento de onda nem calcula SpO₂ ou tensão arterial."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отмечайте начало каждой физической фазы, нося браслет или манипулируя им. NOOP сопоставляет метку с временной отметкой внутри отложенных буферов истории, затем офлайн-анализатор сравнивает активацию блоков, байты заголовка и изменения сырых значений АЦП. Он не предполагает длину волны и не вычисляет SpO₂ или артериальное давление."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在佩戴或操作手环时标记每个物理阶段的开始。NOOP 会将标记对齐到延迟历史缓冲区内的时间戳，然后离线分析器比较块激活情况、头部字节和原始 ADC 变化。它不假定波长，也不计算 SpO₂ 或血压。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在配戴或操作手環時標記每個物理階段的開始。NOOP 會將標記對齊到延遲歷史緩衝區內的時間戳，然後離線分析器比較區塊啟用情況、標頭位元組與原始 ADC 變化。它不假定波長，也不計算 SpO₂ 或血壓。"
+          }
+        }
+      }
+    },
+    "Mark optical experiment phase": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Phase des optischen Experiments markieren"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcar fase del experimento óptico"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marquer la phase de l'expérience optique"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Segna la fase dell'esperimento ottico"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Marcar fase da experiência ótica"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отметить фазу оптического эксперимента"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标记光学实验阶段"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標記光學實驗階段"
+          }
+        }
+      }
+    },
+    "A marker starts the selected phase and ends the previous one. This only timestamps the local capture file; it sends nothing to the strap.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine Markierung startet die gewählte Phase und beendet die vorherige. Sie versieht nur die lokale Aufzeichnungsdatei mit einem Zeitstempel; an das Band wird nichts gesendet."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un marcador inicia la fase seleccionada y termina la anterior. Esto solo pone una marca de tiempo en el archivo de captura local; no envía nada a la banda."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un marqueur démarre la phase sélectionnée et termine la précédente. Cela ne fait qu'horodater le fichier de capture local ; rien n'est envoyé au bracelet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un marcatore avvia la fase selezionata e termina la precedente. Aggiunge solo un timestamp al file di acquisizione locale; non invia nulla alla fascia."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um marcador inicia a fase selecionada e termina a anterior. Isto apenas coloca uma marca temporal no ficheiro de captura local; nada é enviado para a bracelete."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Метка начинает выбранную фазу и завершает предыдущую. Она лишь добавляет временную отметку в локальный файл записи; на браслет ничего не отправляется."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标记会开始所选阶段并结束上一个阶段。这只会为本地采集文件添加时间戳；不会向手环发送任何内容。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標記會開始所選階段並結束上一個階段。這只會為本機擷取檔案加上時間戳記；不會向手環傳送任何內容。"
           }
         }
       }

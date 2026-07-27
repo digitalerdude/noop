@@ -140,6 +140,12 @@ enum class CommandNumber(val rawValue: Int) {
     REPORT_VERSION_INFO(7),
     SET_CLOCK(10),
     GET_CLOCK(11),
+    // ABORT_HISTORICAL_TRANSMITS (20) — stop an offload part-way through. NON-DESTRUCTIVE and NOT a
+    // trim: the strap frees banked records when we ack a HISTORY_END, so anything unacked when the
+    // abort lands stays in flash and re-offloads next sync. Body [0x00], matching the only hands-on
+    // use of the opcode (OpenStrap Edge on a WHOOP 4.0). Mirrors Swift
+    // `WhoopCommand.abortHistoricalTransmits`.
+    ABORT_HISTORICAL_TRANSMITS(20),
     SEND_HISTORICAL_DATA(22),
     // The historical-offload trim/ack command. Sent (with response) to confirm one HISTORY_END
     // chunk so the strap may trim it; payload = [0x01] + the verbatim 8-byte HISTORY_END end_data.
@@ -206,6 +212,18 @@ enum class CommandNumber(val rawValue: Int) {
     // #690: read-only body-location/status probe. Documented in the WHOOP protocol; driven only by the
     // user-triggered, Test-Centre-gated probeBodyLocationAndStatus(). Decoded to a diagnostic report only.
     GET_BODY_LOCATION_AND_STATUS(84),
+    // START_FF_KEY_EXCHANGE (117 / 0x75) — READ-ONLY: ask the strap how many feature flags its firmware
+    // knows. The READ half of the flag surface NOOP has only ever written (SET_CONFIG/120): the protocol's
+    // own CommandNumber table names 117/118 alongside 119/120, and only the SET pair was implemented.
+    // Driven ONLY by probeFeatureFlags() (user-initiated, Test Centre → Connection gated); parsing lives in
+    // the pure com.noop.protocol.FeatureFlagProbe. Mirrors Swift WhoopCommand.startFeatureFlagKeyExchange.
+    // (#761, and #103 which it exists to answer.)
+    START_FF_KEY_EXCHANGE(117),
+    // SEND_NEXT_FF (118 / 0x76) — READ-ONLY: advance the strap's own key cursor and report one flag NAME.
+    // Names only, no values, nothing written. Its body is a CURSOR, not an index, so the same frame is
+    // repeated to walk the list; bounded by FeatureFlagProbe.MAX_FLAGS and the strap's own end marker.
+    // Mirrors Swift WhoopCommand.sendNextFeatureFlag. (#761)
+    SEND_NEXT_FF(118),
     STOP_HAPTICS(122),
     SELECT_WRIST(123);
 
