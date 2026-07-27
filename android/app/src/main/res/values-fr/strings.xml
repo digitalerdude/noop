@@ -230,6 +230,10 @@
     <string name="l10n_devices_screen_body_location_probe_690_re_7def8c39">Sonde de position corporelle (#690 RE)…</string>
     <string name="l10n_devices_screen_body_location_probe_result_690_60c5ee79">Résultat de la sonde de position corporelle (#690)</string>
     <string name="l10n_devices_screen_body_location_probe_explainer_a9363239">Envoie la commande de position corporelle en lecture seule (0x54) et consigne la réponse brute complète du bracelet dans le journal, en décodant l\'enregistrement (révision / position / confiance / état) sur la WHOOP 4.0. Rien n\'est écrit sur le bracelet, et la détection de port ou la notation ne sont jamais modifiées.</string>
+    <string name="l10n_devices_screen_feature_flag_probe_761_re_21241d68">Sonde des indicateurs de fonction (#761 RE)…</string>
+    <string name="l10n_devices_screen_stop_sync_4a1f2b6e">Arrêter la synchronisation</string>
+    <string name="l10n_devices_screen_feature_flag_probe_result_761_c50ef4d4">Résultat de la sonde des indicateurs de fonction (#761)</string>
+    <string name="l10n_devices_screen_feature_flag_probe_explainer_58eec30f">Demande au bracelet la liste des NOMS des indicateurs de fonction que son propre micrologiciel connaît : START_FF_KEY_EXCHANGE (0x75) puis SEND_NEXT_FF (0x76) jusqu\'à ce que le bracelet signale la fin. Lecture seule — aucune valeur n\'est écrite, et les commandes SET ne sont jamais envoyées par cette sonde. La liste s\'affiche ici et est consignée dans le journal du bracelet.</string>
     <string name="l10n_devices_screen_battery_probe_explainer_2858bb6a">Deux tables de protocole indépendantes divergent sur l\'opcode de batterie étendue (98 contre 87). Ceci envoie le 98 curé en lecture seule et consigne la réponse brute complète du bracelet dans le journal. Une charge de type batterie confirme 98 sur votre firmware ; un stub court le laisse ambigu. Rien n\'est écrit sur le bracelet. Exportez et partagez le journal ensuite.</string>
     <string name="l10n_devices_screen_cancel_77dfd213">Annuler</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
@@ -1001,6 +1005,7 @@
     <string name="l10n_app_changelog_polish_matched_to_the_iphone_mac_cc34126b">Polonais - adapté au design iPhone &amp; Mac</string>
     <string name="l10n_app_changelog_german_french_spanish_pull_to_sync_1109bda2">Allemand, français et espagnol, glisser pour synchroniser sur Today et une vague d\'améliorations</string>
     <string name="l10n_app_changelog_optimal_strain_alerts_faster_history_sync_6488a27a">Alertes d\'effort optimal, synchronisation de l\'historique plus rapide et une vague de corrections de précision</string>
+    <string name="l10n_app_changelog_hrv_accuracy_fix_oura_sleep_and_4ed31e39">Correction de la précision de la VFC, sommeil et mouvement Oura, décodage 5/MG plus riche, et une synchronisation qu\'on peut arrêter</string>
     <string name="l10n_app_changelog_power_saving_that_protects_your_strap_57a32503">Économie d\'énergie qui protège votre sangle, un entraîneur Gemini sur Android, et plus riche détail métrique</string>
     <string name="l10n_app_changelog_raw_spo_honest_units_and_a_55e83a59">Raw SpO2, des unités honnêtes, et une application plus légère</string>
     <string name="l10n_app_changelog_re_scan_actually_scans_on_android_22198c8c">Re-scan scanne réellement sur Android</string>
@@ -1638,6 +1643,7 @@
     <string name="timeline_metric_respiration">Respiration</string>
     <string name="timeline_metric_motion">Mouvement</string>
     <string name="timeline_metric_band_sleep_state">État de sommeil du bracelet</string>
+    <string name="timeline_metric_movement">Mouvement</string>
     <string name="explore_category_charge">Charge</string>
     <string name="explore_category_effort">Effort</string>
     <string name="explore_category_rest">Repos</string>
@@ -1706,4 +1712,10 @@
         <item quantity="one">Record : %1$d jour</item>
         <item quantity="other">Record : %1$d jours</item>
     </plurals>
+
+    <!-- Alertes de batterie escaladées (passage critique de charge + garde de nuit avant le coucher). -->
+    <string name="battery_critical_title">Rechargez votre WHOOP maintenant</string>
+    <string name="battery_critical_body">Il reste %1$d%%. La sangle cesse d\'enregistrer vers 10%% — elle ne captera pas cette nuit sans recharge.</string>
+    <string name="battery_bedtime_title">Ne tiendra pas la nuit</string>
+    <string name="battery_bedtime_body">Il reste %1$s d\'enregistrement, mais cette nuit en demande environ %2$s. Rechargez avant de vous coucher.</string>
 </resources>

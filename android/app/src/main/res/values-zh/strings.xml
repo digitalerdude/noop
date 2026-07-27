@@ -367,6 +367,10 @@
     <string name="l10n_devices_screen_battery_4a9be042">设备电量</string>
     <string name="l10n_devices_screen_battery_clamped_2494c8c9">电量 %1$s%%</string>
     <string name="l10n_devices_screen_cancel_77dfd213">取消</string>
+    <string name="l10n_devices_screen_feature_flag_probe_761_re_21241d68">功能标志探测（#761 RE）…</string>
+    <string name="l10n_devices_screen_stop_sync_4a1f2b6e">停止同步</string>
+    <string name="l10n_devices_screen_feature_flag_probe_result_761_c50ef4d4">功能标志探测结果（#761）</string>
+    <string name="l10n_devices_screen_feature_flag_probe_explainer_58eec30f">请求手环列出其固件已知的功能标志名称：先发送 START_FF_KEY_EXCHANGE (0x75)，再重复发送 SEND_NEXT_FF (0x76)，直到手环表示已列完。只读——不会写入任何标志值，本探测也从不发送 SET 命令。列表会显示在此处并写入手环日志。</string>
     <string name="l10n_devices_screen_clamped_1f39cebb">%1$s%%</string>
     <string name="l10n_devices_screen_device_name_79d7a157">设备名称</string>
     <string name="l10n_devices_screen_give_device_brand_device_model_a_7a15585c">为您的 %1$s %2$s 起一个好记的名字。</string>
@@ -1076,6 +1080,7 @@
     <string name="l10n_app_changelog_honest_labelling_for_whoop_5_mg_8c650225">诚实且准确地标注 WHOOP 5/MG 的深层数据诊断信息</string>
     <string name="l10n_app_changelog_hotfix_making_a_heart_rate_strap_09f87c0a">热修复 - 激活心率带时不再导致应用崩溃</string>
     <string name="l10n_app_changelog_hr_from_the_optical_waveform_an_b8874b42">从光学传感器波形直接提取心率、早晨日期自动更迭优化、更清晰的条款说明</string>
+    <string name="l10n_app_changelog_hrv_accuracy_fix_oura_sleep_and_4ed31e39">HRV 准确度修复、Oura 睡眠与运动数据、更丰富的 5/MG 解码，以及可暂停的同步</string>
     <string name="l10n_app_changelog_hrv_that_reads_true_and_a_2b09fa43">还原真实 HRV 数据，以及更整洁的运动列表</string>
     <string name="l10n_app_changelog_import_fixes_both_sources_all_data_92cfed50">导入修复 - 覆盖全部数据源与所有数据类型</string>
     <string name="l10n_app_changelog_import_polish_mac_whoop_5_optical_5067d90c">导入功能体验打磨 (Mac 版) + WHOOP 5 光学传感器数据解析</string>
@@ -1635,4 +1640,10 @@
     <string name="l10n_data_sources_screen_last_shared_6bf8389c">"上次分享 "</string>
     <string name="l10n_data_sources_screen_sharing_paused_health_connect_permission_was_e8950315">分享已暂停——Health Connect 权限已被撤销。点按以重新授予。</string>
     <string name="l10n_data_sources_screen_last_share_didn_t_finish_noop_0d6c27f0">上次分享未完成——NOOP 将自动重试。</string>
+
+    <!-- 升级电量提醒（临界电量 + 睡前守护）。 -->
+    <string name="battery_critical_title">请立即为 WHOOP 充电</string>
+    <string name="battery_critical_body">剩余 %1$d%%。手环在约 10%% 时就会停止记录——不充电就无法记录今晚。</string>
+    <string name="battery_bedtime_title">撑不过今晚</string>
+    <string name="battery_bedtime_body">还能记录 %1$s，但今晚约需 %2$s。请在睡前充电。</string>
 </resources>
