@@ -1,6 +1,214 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Feature-flag probe (#761 RE)…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feature-Flag-Test (#761 RE)…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de indicadores de función (#761 RE)…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonde des indicateurs de fonction (#761 RE)…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda dei flag di funzionalità (#761 RE)…"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de sinalizadores de funcionalidade (#761 RE)…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проба флагов функций (#761 RE)…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能标志探测（#761 RE）…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能旗標探測（#761 RE）…"
+          }
+        }
+      }
+    },
+    "Feature-flag probe (#761 RE)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Feature-Flag-Test (#761 RE)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de indicadores de función (#761 RE)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonde des indicateurs de fonction (#761 RE)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda dei flag di funzionalità (#761 RE)"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de sinalizadores de funcionalidade (#761 RE)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проба флагов функций (#761 RE)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能标志探测（#761 RE）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能旗標探測（#761 RE）"
+          }
+        }
+      }
+    },
+    "Feature-flag probe result (#761)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ergebnis des Feature-Flag-Tests (#761)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultado de la sonda de indicadores de función (#761)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résultat de la sonde des indicateurs de fonction (#761)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risultato della sonda dei flag di funzionalità (#761)"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultado da sonda de sinalizadores de funcionalidade (#761)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Результат пробы флагов функций (#761)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能标志探测结果（#761）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "功能旗標探測結果（#761）"
+          }
+        }
+      }
+    },
+    "Asks the strap to list the feature-flag NAMES its own firmware knows: START_FF_KEY_EXCHANGE (0x75) then SEND_NEXT_FF (0x76) until the strap says it's done. Read-only — no flag value is written, and the SET commands are never sent from this probe. The list is shown here and written to the strap log.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragt das Band nach den NAMEN der Feature-Flags, die seine eigene Firmware kennt: START_FF_KEY_EXCHANGE (0x75), dann SEND_NEXT_FF (0x76), bis das Band das Ende meldet. Nur lesend — es wird kein Flag-Wert geschrieben, und die SET-Befehle werden von diesem Test nie gesendet. Die Liste wird hier angezeigt und ins Strap-Log geschrieben."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pide a la banda que enumere los NOMBRES de los indicadores de función que conoce su propio firmware: START_FF_KEY_EXCHANGE (0x75) y luego SEND_NEXT_FF (0x76) hasta que la banda indique que ha terminado. Solo lectura — no se escribe ningún valor y esta sonda nunca envía los comandos SET. La lista se muestra aquí y se escribe en el registro de la banda."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demande au bracelet la liste des NOMS des indicateurs de fonction que son propre micrologiciel connaît : START_FF_KEY_EXCHANGE (0x75) puis SEND_NEXT_FF (0x76) jusqu'à ce que le bracelet signale la fin. Lecture seule — aucune valeur n'est écrite, et les commandes SET ne sont jamais envoyées par cette sonde. La liste s'affiche ici et est consignée dans le journal du bracelet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiede al bracciale di elencare i NOMI dei flag di funzionalità noti al suo firmware: START_FF_KEY_EXCHANGE (0x75) e poi SEND_NEXT_FF (0x76) finché il bracciale non segnala la fine. Sola lettura — non viene scritto alcun valore e questa sonda non invia mai i comandi SET. L'elenco viene mostrato qui e scritto nel log del bracciale."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pede à bracelete a lista dos NOMES dos sinalizadores de funcionalidade que o seu próprio firmware conhece: START_FF_KEY_EXCHANGE (0x75) e depois SEND_NEXT_FF (0x76) até a bracelete indicar que terminou. Apenas leitura — nenhum valor é escrito e os comandos SET nunca são enviados por esta sonda. A lista é mostrada aqui e registada no registo da bracelete."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запрашивает у ремешка список ИМЁН флагов функций, известных его прошивке: START_FF_KEY_EXCHANGE (0x75), затем SEND_NEXT_FF (0x76), пока ремешок не сообщит о завершении. Только чтение — ни одно значение не записывается, и команды SET этой пробой никогда не отправляются. Список показывается здесь и записывается в журнал ремешка."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请求手环列出其固件已知的功能标志名称：先发送 START_FF_KEY_EXCHANGE (0x75)，再重复发送 SEND_NEXT_FF (0x76)，直到手环表示已列完。只读——不会写入任何标志值，本探测也从不发送 SET 命令。列表会显示在此处并写入手环日志。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "要求手環列出其韌體已知的功能旗標名稱：先傳送 START_FF_KEY_EXCHANGE (0x75)，再重複傳送 SEND_NEXT_FF (0x76)，直到手環表示已列完。唯讀——不會寫入任何旗標值，本探測也從不傳送 SET 指令。清單會顯示在此處並寫入手環記錄。"
+          }
+        }
+      }
+    },
     "Body-location probe (#690 RE)…": {
       "localizations": {
         "de": {
@@ -2155,7 +2363,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@ est %2$@ pire que la référence les jours où vous avez enregistré ce comportement."
+            "value": "%1$@ est %2$@ inférieure à la référence les jours où vous avez enregistré ce comportement."
           }
         },
         "it": {
@@ -2317,7 +2525,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ est votre bande active. Associez ou changez de bande dans Appareils."
+            "value": "%@ est votre bracelet actif. Associez ou changez de bracelet dans Appareils."
           }
         },
         "it": {
@@ -2400,6 +2608,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "總量 %@ 公斤"
+          }
+        }
+      }
+    },
+    "%@ left on your WHOOP — recharge tonight.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch %@ auf deinem WHOOP – lade es heute Nacht auf."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autonomía restante en tu WHOOP: %@. Recárgalo esta noche."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il reste %@ sur votre WHOOP — rechargez-le ce soir."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autonomia rimanente sul tuo WHOOP: %@. Ricaricalo stanotte."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autonomia restante no teu WHOOP: %@. Recarrega-o esta noite."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Осталось %@ на вашем WHOOP — зарядите его сегодня ночью."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 WHOOP 还剩 %@，今晚请充电。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的 WHOOP 還剩 %@，今晚請充電。"
           }
         }
       }
@@ -2516,6 +2776,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "%1$@ / %2$@ 公升"
+          }
+        }
+      }
+    },
+    "%@ of recording left, but tonight needs about %@. Charge before bed.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Noch %1$@ Aufzeichnung, aber die heutige Nacht braucht etwa %2$@. Lade vor dem Schlafengehen auf."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registro restante: %1$@, pero esta noche necesita alrededor de %2$@. Carga tu WHOOP antes de acostarte."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il reste %1$@ d'enregistrement, mais cette nuit en demande environ %2$@. Rechargez avant de vous coucher."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Registrazione rimanente: %1$@, ma stanotte ne servono circa %2$@. Ricarica prima di andare a dormire."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gravação restante: %1$@, mas esta noite precisa de cerca de %2$@. Carrega antes de te deitares."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Осталось %1$@ записи, но на сегодняшнюю ночь нужно около %2$@. Зарядите перед сном."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还能记录 %1$@，但今晚约需 %2$@。请在睡前充电。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "還能記錄 %1$@，但今晚約需 %2$@。請在睡前充電。"
           }
         }
       }
@@ -11518,6 +11830,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "%lld%% 能量"
+          }
+        }
+      }
+    },
+    "%lld%% left. The strap stops recording near 10%% — it won't capture tonight unless you charge it.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld%% übrig. Der Strap hört bei etwa 10%% auf aufzuzeichnen – ohne Aufladen erfasst er die heutige Nacht nicht."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batería al %lld%%. La pulsera deja de registrar cerca del 10%% — no captará esta noche si no la cargas."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Il reste %lld%%. Le bracelet cesse d'enregistrer vers 10%% — il ne captera pas cette nuit sans recharge."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batteria al %lld%%. La fascia smette di registrare intorno al 10%% — non registrerà stanotte se non la ricarichi."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bateria a %lld%%. A correia deixa de gravar perto dos 10%% – não vai captar esta noite se não a carregares."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Осталось %lld%%. Браслет прекращает запись около 10%% — без зарядки он не запишет сегодняшнюю ночь."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩余 %lld%%。手环在约 10%% 时就会停止记录——不充电就无法记录今晚。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "剩餘 %lld%%。手環在約 10%% 時就會停止記錄——不充電就無法記錄今晚。"
           }
         }
       }
@@ -37045,6 +37409,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "能量會將你的 HRV 與你的個人基線（約 55%%）、靜息心率（約 20%%）、休息品質（約 15%%）、呼吸（約 5%%）和皮膚溫度偏差（約 5%%）進行加權。消耗是根據在各心率區間的時間得出的 0–%@ 心血管負荷。休息則根據體動和心率分期。一切都在這裡根據手環的原始資料計算，只要 NOOP 採集到原始資料流的任何一天都適用。"
+          }
+        }
+      }
+    },
+    "Charge your WHOOP now": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lade dein WHOOP jetzt auf"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carga tu WHOOP ahora"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechargez votre WHOOP maintenant"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ricarica il tuo WHOOP adesso"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Carrega já o teu WHOOP"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Зарядите WHOOP сейчас"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请立即为 WHOOP 充电"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "請立即為 WHOOP 充電"
           }
         }
       }
@@ -79605,7 +80021,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "L"
+            "value": "M"
           }
         },
         "it": {
@@ -104854,7 +105270,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "RHR"
+            "value": "FCR"
           }
         },
         "ru": {
@@ -105634,7 +106050,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Réétiqueter comme"
+            "value": "Renommer comme"
           }
         },
         "it": {
@@ -115513,7 +115929,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "STREAMING"
+            "value": "TRANSMISSION"
           }
         },
         "it": {
@@ -126662,6 +127078,58 @@
         }
       }
     },
+    "Stop sync": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync stoppen"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Detener sincronización"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêter la synchronisation"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Interrompi sincronizzazione"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parar sincronização"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Остановить синхронизацию"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止同步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "停止同步"
+          }
+        }
+      }
+    },
     "Stops reading a cycle phase from your nightly temperature. You can turn it back on here any time.": {
       "localizations": {
         "de": {
@@ -127404,6 +127872,58 @@
           "stringUnit": {
             "state": "translated",
             "value": "手環電量百分之 %1$lld%2$@%3$@"
+          }
+        }
+      }
+    },
+    "Strap battery low": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Strap-Akku schwach"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batería baja de la pulsera"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batterie faible du bracelet"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Batteria scarica della fascia"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bateria fraca da correia"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Низкий заряд браслета"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手环电量低"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手環電量不足"
           }
         }
       }
@@ -128223,7 +128743,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Diffusion en direct"
+            "value": "Transmission en direct"
           }
         },
         "it": {
@@ -128275,7 +128795,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Diffusion en cours"
+            "value": "Transmission en cours"
           }
         },
         "it": {
@@ -141288,7 +141808,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "W"
+            "value": "S"
           }
         },
         "it": {
@@ -142386,7 +142906,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "WHOOP est la bande principale et entièrement prise en charge de NOOP. Les autres bracelets de fréquence cardiaque sont un ajout précoce, en cours de développement : ils diffusent la fréquence cardiaque et la VFC en direct, mais pas les données plus poussées de sommeil et de récupération de WHOOP."
+            "value": "WHOOP est le bracelet principal et entièrement pris en charge par NOOP. Les autres bracelets de fréquence cardiaque sont un ajout précoce, en cours de développement : ils diffusent la fréquence cardiaque et la VFC en direct, mais pas les données plus poussées de sommeil et de récupération de WHOOP."
           }
         },
         "it": {
@@ -142438,7 +142958,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "WHOOP est la bande principale et entièrement prise en charge de NOOP. Les autres bracelets de fréquence cardiaque diffusent la fréquence cardiaque et la VFC en direct, mais pas les données plus poussées de sommeil et de récupération de WHOOP."
+            "value": "WHOOP est le bracelet principal et entièrement pris en charge par NOOP. Les autres bracelets de fréquence cardiaque diffusent la fréquence cardiaque et la VFC en direct, mais pas les données plus poussées de sommeil et de récupération de WHOOP."
           }
         },
         "it": {
@@ -148257,6 +148777,58 @@
         }
       }
     },
+    "Won't last the night": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reicht nicht durch die Nacht"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No aguantará la noche"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ne tiendra pas la nuit"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non durerà tutta la notte"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não dura a noite"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не хватит на ночь"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撑不过今晚"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "撐不過今晚"
+          }
+        }
+      }
+    },
     "Work": {
       "localizations": {
         "de": {
@@ -150975,7 +151547,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vos bandes rapportent des chiffres différents. Voici chaque source, et celle que NOOP utilise."
+            "value": "Vos bracelets rapportent des chiffres différents. Voici chaque source, et celle que NOOP utilise."
           }
         },
         "it": {
@@ -165124,7 +165696,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "RECOUVREMENT"
+            "value": "RÉCUPÉRATION"
           }
         },
         "ru": {
@@ -165278,7 +165850,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Une lecture classique d'un verre des propres partitions de NOOP. Mêmes données, différents objectifs."
+            "value": "Une lecture classique en un coup d'œil des scores propres à NOOP. Mêmes données, différents objectifs."
           }
         },
         "pt-PT": {
@@ -165544,7 +166116,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Capture du VHR en pause"
+            "value": "Capture de la VFC en pause"
           }
         },
         "zh-Hans": {
@@ -165646,7 +166218,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Alors que la batterie de votre sangle est basse, arrêtez le flux de HRV d'arrière-plan toujours en place, le plus grand drain continu de la sangle. Un écran Live affiche toujours la fréquence cardiaque, et il réarme automatiquement une fois la sangle chargée."
+            "value": "Quand la batterie de votre bracelet est basse, arrêtez le flux de VFC en arrière-plan, ce qui sollicite le plus votre bracelet. Un écran Live affiche toujours la fréquence cardiaque, et il recommence automatiquement une fois le bracelet chargé."
           }
         },
         "zh-Hans": {
@@ -165840,7 +166412,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "%1$@: %2$@. Pas encore assez d'histoire pour une gamme typique."
+            "value": "%1$@: %2$@. Pas encore assez d'historique pour une gamme typique."
           }
         },
         "pt-PT": {
@@ -166260,7 +166832,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Arrange aujourd'hui"
+            "value": "Organiser Aujourd'hui"
           }
         },
         "zh-Hans": {
@@ -166462,19 +167034,19 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ladung wiegt Ihre HRV gegen Ihre persönliche Grundlinie (~ 55%%), Ruheherzfrequenz (~ 20%%), Ruhequalität (~ 15%%), Atmung (~ 5%%) und Hauttemperaturabweichung (~ 5%%). Anstrengung ist eine 0-%6$lld kardiovaskuläre Belastung aus der Zeit in Herzfrequenzzonen. Ruhe wird von Bewegung und Herzfrequenz inszeniert. Alles wird hier aus den Rohdaten des Bandes berechnet. Es funktioniert für jeden Tag, an dem NOOP Rohströme gesammelt hat."
+            "value": "Ladung wiegt Ihre HRV gegen Ihre persönliche Grundlinie (~ 55%%), Ruheherzfrequenz (~ 20%%), Ruhequalität (~ 15%%), Atmung (~ 5%%) und Hauttemperaturabweichung (~ 5%%). Anstrengung ist eine 0-%lld kardiovaskuläre Belastung aus der Zeit in Herzfrequenzzonen. Ruhe wird von Bewegung und Herzfrequenz inszeniert. Alles wird hier aus den Rohdaten des Bandes berechnet. Es funktioniert für jeden Tag, an dem NOOP Rohströme gesammelt hat."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "La carga pesa su HRV contra su base personal (~55%%), la frecuencia cardíaca restante (~20%%), la calidad de reposo (~15%%), la respiración (~5%%) y la desviación de la temperatura de la piel (~5%%). Effort es una carga cardiovascular de 0-%6$lld de vez en cuando en zonas de frecuencia cardíaca. El descanso es escenario del movimiento y la frecuencia cardíaca. Todo está calculado aquí desde los datos brutos de la correa. Funciona para cualquier día NOOP recogió corrientes crudas."
+            "value": "La carga pesa su HRV contra su base personal (~55%%), la frecuencia cardíaca en reposo (~20%%), la calidad de reposo (~15%%), la respiración (~5%%) y la desviación de la temperatura de la piel (~5%%). El Esfuerzo es una carga cardiovascular de 0 a %lld calculada a partir del tiempo pasado en las zonas de frecuencia cardíaca. El Descanso se determina a partir del movimiento y la frecuencia cardíaca. Todo está calculado aquí desde los datos brutos de la correa. Funciona para cualquier día en que NOOP haya recogido flujos brutos."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "La charge pèse votre VHR sur votre base personnelle (~55%%), votre fréquence cardiaque au repos (~20%%), votre qualité de repos (~15%%), votre respiration (~5%%) et votre écart de température cutanée (~5%%). L'effort est une charge cardiovasculaire 0-%6$lld du temps dans les zones de rythme cardiaque. Le repos est mis en scène à partir du mouvement et de la fréquence cardiaque. Tout est calculé ici à partir des données brutes de la sangle. Il fonctionne pour n'importe quel jour NOOP collecté des flux bruts."
+            "value": "La Charge évalue votre VFC par rapport à votre valeur de référence personnelle (~55%%), votre fréquence cardiaque au repos (~20%%), la qualité de votre repos (~15%%), votre respiration (~5%%) et l'écart de température cutanée (~5%%). L'Effort est une charge cardiovasculaire de 0 à %lld calculée à partir du temps passé dans les zones de fréquence cardiaque. Le Repos est déterminé selon le mouvement et la fréquence cardiaque. Tout est calculé ici à partir des données brutes du bracelet. Cela fonctionne pour chaque jour où NOOP a collecté des flux bruts."
           }
         },
         "pt-PT": {
@@ -166648,7 +167220,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "HORAIRES DE DOUCEE"
+            "value": "HEURES DE SOMMEIL"
           }
         },
         "pt-PT": {
@@ -166710,7 +167282,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Préparation au VRH (Plews/Altini)"
+            "value": "Préparation à la VFC (Plews/Altini)"
           }
         },
         "zh-Hans": {
@@ -166744,7 +167316,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Préparation au VHR (expérience)"
+            "value": "Préparation à la VFC (expérimental)"
           }
         },
         "zh-Hans": {
@@ -166778,7 +167350,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Préparation au VHR (expérience): %1$@"
+            "value": "Préparation à la VFC (expérimental): %1$@"
           }
         },
         "pt-PT": {
@@ -166806,7 +167378,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Fenêtre HRV"
+            "value": "Fenêtre VFC"
           }
         },
         "zh-Hans": {
@@ -167370,7 +167942,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "POULET RESTORATOIRE"
+            "value": "SOMMEIL RÉPARATEUR"
           }
         },
         "pt-PT": {
@@ -167398,7 +167970,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lisez votre fréquence cardiaque, le VHR, l'oxygène sanguin, la fréquence respiratoire, le sommeil, les étapes et l'énergie directement depuis Apple Health, et écrivez les données de la sangle de NOOP: dormir avec des étapes complètes, la fréquence cardiaque continue, les séances d'entraînement et les éléments vitaux nocturnes. Tout reste sur %1$@."
+            "value": "Lisez votre fréquence cardiaque, la VFC, l'oxygène sanguin, la fréquence respiratoire, le sommeil, les étapes et l'énergie directement depuis Apple Health, et écrivez les données de la sangle de NOOP: dormir avec des étapes complètes, la fréquence cardiaque continue, les séances d'entraînement et les éléments vitaux nocturnes. Tout reste sur %1$@."
           }
         },
         "pt-PT": {
@@ -167752,7 +168324,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Exécute le flux continu de VHR seulement pendant votre fenêtre d'heures tranquilles (22:00–07:00 par défaut), réduisant de moitié le coût de la batterie. Les lectures de stress diurne seront plus rares. Remarque: la capture continue du VHR (y compris les siestes diurnes) est interrompue à l'extérieur de cette fenêtre. Pour les lectures du VHR à la demande (y compris les siestes), utilisez le bouton \"Prenez une lecture du VHR\" sur l'écran Live."
+            "value": "Exécute le flux continu de VFC seulement pendant votre fenêtre d'heures tranquilles (22:00–07:00 par défaut), réduisant de moitié le coût de la batterie. Les lectures de stress diurne seront plus rares. Remarque: la capture continue de la VFC (y compris les siestes diurnes) est interrompue à l'extérieur de cette fenêtre. Pour les lectures de la VFC à la demande (y compris les siestes), utilisez le bouton \"Prenez une lecture de la VFC\" sur l'écran Live."
           }
         },
         "pt-PT": {
@@ -167932,7 +168504,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "C'est pour ça qu'une charge uniquement pour les montres commence à disparaître. NOOP a besoin d'environ sept nuits de votre HRV pour apprendre à quoi ressemble la normale pour vous. Jusqu'à ce qu'il les ait, il retient le score plutôt que de deviner. Une fois la ligne de base réglée, votre charge apparaît avec sa confiance, sur la même échelle de 0-100 qu'une sangle."
+            "value": "C'est pourquoi une charge basée uniquement sur la montre commence par « Calibration en cours ». NOOP a besoin d'environ sept nuits de votre VFC pour apprendre ce qui est normal pour vous. Tant qu'il ne les a pas, il retient le score plutôt que de deviner. Une fois la référence établie, votre charge apparaît avec sa confiance, sur la même échelle de 0 à 100 que celle d'un bracelet."
           }
         },
         "pt-PT": {
@@ -167988,7 +168560,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "La ligne est le proxy 0-3 de chaque heure de réveil, marqué contre vos propres heures calmes aujourd'hui. La barre ci-dessous divise votre journée en temps de stress calme, modéré et élevé."
+            "value": "La ligne représente l'indice 0–3 de chaque heure éveillée, noté par rapport à vos propres heures calmes d'aujourd'hui. La barre ci-dessous répartit votre journée en temps de stress calme, modéré et élevé."
           }
         },
         "pt-PT": {
@@ -168236,7 +168808,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Nous comparons la fréquence cardiaque au repos d'aujourd'hui avec votre propre base de 30 jours. Un HR au repos plus élevé que d'habitude et un HRV plus bas que d'habitude poussent le score, signes classiques le corps est activé. Le déplacement combiné est cartographié sur une échelle de 0-3 : 0 est calme, 1,5 est assis à votre base, 3 est fortement activé."
+            "value": "Nous comparons votre fréquence cardiaque au repos et votre VFC du jour à votre propre référence sur 30 jours. Une FC au repos plus élevée que d'habitude et une VFC plus basse que d'habitude font toutes deux monter le score, des signes classiques d'un corps activé. Le changement combiné est reporté sur une échelle de 0 à 3 : 0 est calme, 1,5 correspond à votre référence, 3 est très activé."
           }
         },
         "pt-PT": {
@@ -168292,7 +168864,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Toute la nuit est la mesure par défaut de NOOP; piscines de sommeil profonde HRV sur sommeil à ondes lentes seulement, lecture plus basse et correspondant WHOOP. Changer de note vos dernières nuits sur la nouvelle fenêtre et prend effet dès que vous avez quelques nuits de données."
+            "value": "Toute la nuit est la mesure par défaut de NOOP; Le sommeil profond met en commun la VFC sur le sommeil à ondes lentes uniquement, en lisant plus bas et correspondant à WHOOP. Un changement recalcule vos dernières nuits sur la nouvelle fenêtre et prend effet dès que vous avez quelques nuits de données."
           }
         },
         "zh-Hans": {
@@ -169629,578 +170201,6 @@
         }
       }
     },
-    "Feature-flag probe (#761 RE)…": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Feature-Flag-Test (#761 RE)…"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sonda de indicadores de función (#761 RE)…"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sonde des indicateurs de fonction (#761 RE)…"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sonda dei flag di funzionalità (#761 RE)…"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sonda de sinalizadores de funcionalidade (#761 RE)…"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Проба флагов функций (#761 RE)…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "功能标志探测（#761 RE）…"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "功能旗標探測（#761 RE）…"
-          }
-        }
-      }
-    },
-    "Feature-flag probe (#761 RE)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Feature-Flag-Test (#761 RE)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sonda de indicadores de función (#761 RE)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sonde des indicateurs de fonction (#761 RE)"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sonda dei flag di funzionalità (#761 RE)"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sonda de sinalizadores de funcionalidade (#761 RE)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Проба флагов функций (#761 RE)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "功能标志探测（#761 RE）"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "功能旗標探測（#761 RE）"
-          }
-        }
-      }
-    },
-    "Feature-flag probe result (#761)": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ergebnis des Feature-Flag-Tests (#761)"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Resultado de la sonda de indicadores de función (#761)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Résultat de la sonde des indicateurs de fonction (#761)"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Risultato della sonda dei flag di funzionalità (#761)"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Resultado da sonda de sinalizadores de funcionalidade (#761)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Результат пробы флагов функций (#761)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "功能标志探测结果（#761）"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "功能旗標探測結果（#761）"
-          }
-        }
-      }
-    },
-    "Asks the strap to list the feature-flag NAMES its own firmware knows: START_FF_KEY_EXCHANGE (0x75) then SEND_NEXT_FF (0x76) until the strap says it's done. Read-only — no flag value is written, and the SET commands are never sent from this probe. The list is shown here and written to the strap log.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fragt das Band nach den NAMEN der Feature-Flags, die seine eigene Firmware kennt: START_FF_KEY_EXCHANGE (0x75), dann SEND_NEXT_FF (0x76), bis das Band das Ende meldet. Nur lesend — es wird kein Flag-Wert geschrieben, und die SET-Befehle werden von diesem Test nie gesendet. Die Liste wird hier angezeigt und ins Strap-Log geschrieben."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pide a la banda que enumere los NOMBRES de los indicadores de función que conoce su propio firmware: START_FF_KEY_EXCHANGE (0x75) y luego SEND_NEXT_FF (0x76) hasta que la banda indique que ha terminado. Solo lectura — no se escribe ningún valor y esta sonda nunca envía los comandos SET. La lista se muestra aquí y se escribe en el registro de la banda."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Demande au bracelet la liste des NOMS des indicateurs de fonction que son propre micrologiciel connaît : START_FF_KEY_EXCHANGE (0x75) puis SEND_NEXT_FF (0x76) jusqu'à ce que le bracelet signale la fin. Lecture seule — aucune valeur n'est écrite, et les commandes SET ne sont jamais envoyées par cette sonde. La liste s'affiche ici et est consignée dans le journal du bracelet."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Chiede al bracciale di elencare i NOMI dei flag di funzionalità noti al suo firmware: START_FF_KEY_EXCHANGE (0x75) e poi SEND_NEXT_FF (0x76) finché il bracciale non segnala la fine. Sola lettura — non viene scritto alcun valore e questa sonda non invia mai i comandi SET. L'elenco viene mostrato qui e scritto nel log del bracciale."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pede à bracelete a lista dos NOMES dos sinalizadores de funcionalidade que o seu próprio firmware conhece: START_FF_KEY_EXCHANGE (0x75) e depois SEND_NEXT_FF (0x76) até a bracelete indicar que terminou. Apenas leitura — nenhum valor é escrito e os comandos SET nunca são enviados por esta sonda. A lista é mostrada aqui e registada no registo da bracelete."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Запрашивает у ремешка список ИМЁН флагов функций, известных его прошивке: START_FF_KEY_EXCHANGE (0x75), затем SEND_NEXT_FF (0x76), пока ремешок не сообщит о завершении. Только чтение — ни одно значение не записывается, и команды SET этой пробой никогда не отправляются. Список показывается здесь и записывается в журнал ремешка."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请求手环列出其固件已知的功能标志名称：先发送 START_FF_KEY_EXCHANGE (0x75)，再重复发送 SEND_NEXT_FF (0x76)，直到手环表示已列完。只读——不会写入任何标志值，本探测也从不发送 SET 命令。列表会显示在此处并写入手环日志。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "要求手環列出其韌體已知的功能旗標名稱：先傳送 START_FF_KEY_EXCHANGE (0x75)，再重複傳送 SEND_NEXT_FF (0x76)，直到手環表示已列完。唯讀——不會寫入任何旗標值，本探測也從不傳送 SET 指令。清單會顯示在此處並寫入手環記錄。"
-          }
-        }
-      }
-    },
-    "%@ left on your WHOOP — recharge tonight.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Noch %@ auf deinem WHOOP – lade es heute Nacht auf."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Autonomía restante en tu WHOOP: %@. Recárgalo esta noche."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Il reste %@ sur votre WHOOP — rechargez-le ce soir."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Autonomia rimanente sul tuo WHOOP: %@. Ricaricalo stanotte."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Autonomia restante no teu WHOOP: %@. Recarrega-o esta noite."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Осталось %@ на вашем WHOOP — зарядите его сегодня ночью."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "你的 WHOOP 还剩 %@，今晚请充电。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "你的 WHOOP 還剩 %@，今晚請充電。"
-          }
-        }
-      }
-    },
-    "%@ of recording left, but tonight needs about %@. Charge before bed.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Noch %1$@ Aufzeichnung, aber die heutige Nacht braucht etwa %2$@. Lade vor dem Schlafengehen auf."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Registro restante: %1$@, pero esta noche necesita alrededor de %2$@. Carga tu WHOOP antes de acostarte."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Il reste %1$@ d'enregistrement, mais cette nuit en demande environ %2$@. Rechargez avant de vous coucher."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Registrazione rimanente: %1$@, ma stanotte ne servono circa %2$@. Ricarica prima di andare a dormire."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Gravação restante: %1$@, mas esta noite precisa de cerca de %2$@. Carrega antes de te deitares."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Осталось %1$@ записи, но на сегодняшнюю ночь нужно около %2$@. Зарядите перед сном."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "还能记录 %1$@，但今晚约需 %2$@。请在睡前充电。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "還能記錄 %1$@，但今晚約需 %2$@。請在睡前充電。"
-          }
-        }
-      }
-    },
-    "%lld%% left. The strap stops recording near 10%% — it won't capture tonight unless you charge it.": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld%% übrig. Der Strap hört bei etwa 10%% auf aufzuzeichnen – ohne Aufladen erfasst er die heutige Nacht nicht."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batería al %lld%%. La pulsera deja de registrar cerca del 10%% — no captará esta noche si no la cargas."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Il reste %lld%%. Le bracelet cesse d'enregistrer vers 10%% — il ne captera pas cette nuit sans recharge."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batteria al %lld%%. La fascia smette di registrare intorno al 10%% — non registrerà stanotte se non la ricarichi."
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bateria a %lld%%. A correia deixa de gravar perto dos 10%% – não vai captar esta noite se não a carregares."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Осталось %lld%%. Браслет прекращает запись около 10%% — без зарядки он не запишет сегодняшнюю ночь."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "剩余 %lld%%。手环在约 10%% 时就会停止记录——不充电就无法记录今晚。"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "剩餘 %lld%%。手環在約 10%% 時就會停止記錄——不充電就無法記錄今晚。"
-          }
-        }
-      }
-    },
-    "Charge your WHOOP now": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Lade dein WHOOP jetzt auf"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carga tu WHOOP ahora"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rechargez votre WHOOP maintenant"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ricarica il tuo WHOOP adesso"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Carrega já o teu WHOOP"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Зарядите WHOOP сейчас"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "请立即为 WHOOP 充电"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "請立即為 WHOOP 充電"
-          }
-        }
-      }
-    },
-    "Stop sync": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Sync stoppen"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Detener sincronización"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Arrêter la synchronisation"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Interrompi sincronizzazione"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Parar sincronização"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Остановить синхронизацию"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "停止同步"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "停止同步"
-          }
-        }
-      }
-    },
-    "Strap battery low": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Strap-Akku schwach"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batería baja de la pulsera"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batterie faible du bracelet"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Batteria scarica della fascia"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bateria fraca da correia"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Низкий заряд браслета"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "手环电量低"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "手環電量不足"
-          }
-        }
-      }
-    },
-    "Won't last the night": {
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reicht nicht durch die Nacht"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No aguantará la noche"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ne tiendra pas la nuit"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Non durerà tutta la notte"
-          }
-        },
-        "pt-PT": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Não dura a noite"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Не хватит на ночь"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "撑不过今晚"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "撐不過今晚"
-          }
-        }
-      }
-    },
     "Optical block experiment": {
       "localizations": {
         "de": {
@@ -170405,6 +170405,214 @@
           "stringUnit": {
             "state": "translated",
             "value": "標記會開始所選階段並結束上一個階段。這只會為本機擷取檔案加上時間戳記；不會向手環傳送任何內容。"
+          }
+        }
+      }
+    },
+    "Device-config read probe (#103 RE)…": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geräte-Konfigurationsleseprobe (#103 RE)…"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de lectura de configuración del dispositivo (#103 RE)…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonde de lecture de configuration de l’appareil (#103 RE)…"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda di lettura della configurazione del dispositivo (#103 RE)…"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de leitura da configuração do dispositivo (#103 RE)…"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проба чтения конфигурации устройства (#103 RE)…"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备配置读取探测（#103 RE）…"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝置設定讀取探測（#103 RE）…"
+          }
+        }
+      }
+    },
+    "Device-config read probe (#103 RE)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geräte-Konfigurationsleseprobe (#103 RE)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de lectura de configuración del dispositivo (#103 RE)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonde de lecture de configuration de l’appareil (#103 RE)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda di lettura della configurazione del dispositivo (#103 RE)"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sonda de leitura da configuração do dispositivo (#103 RE)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Проба чтения конфигурации устройства (#103 RE)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备配置读取探测（#103 RE）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝置設定讀取探測（#103 RE）"
+          }
+        }
+      }
+    },
+    "Device-config read probe result (#103)": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ergebnis der Geräte-Konfigurationsleseprobe (#103)"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultado de la sonda de lectura de configuración del dispositivo (#103)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Résultat de la sonde de lecture de configuration de l’appareil (#103)"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risultato della sonda di lettura della configurazione del dispositivo (#103)"
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resultado da sonda de leitura da configuração do dispositivo (#103)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Результат пробы чтения конфигурации устройства (#103)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设备配置读取探测结果（#103）"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "裝置設定讀取探測結果（#103）"
+          }
+        }
+      }
+    },
+    "Asks the strap for config VALUES: GET_DEVICE_CONFIG_VALUE (0x79) and GET_FF_VALUE (0x80), one key per round-trip. Both commands may simply not exist in this firmware — finding that out is the point. Read-only — no value is written, and the SET commands are never sent from this probe. The result is shown here and written to the strap log.": {
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fragt das Band nach Konfigurations-WERTEN: GET_DEVICE_CONFIG_VALUE (0x79) und GET_FF_VALUE (0x80), ein Schlüssel pro Austausch. Beide Befehle existieren in dieser Firmware möglicherweise gar nicht — genau das soll herausgefunden werden. Nur lesend — es wird kein Wert geschrieben, und die SET-Befehle werden von dieser Probe nie gesendet. Das Ergebnis wird hier angezeigt und ins Band-Protokoll geschrieben."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pide a la banda los VALORES de configuración: GET_DEVICE_CONFIG_VALUE (0x79) y GET_FF_VALUE (0x80), una clave por intercambio. Puede que ambos comandos sencillamente no existan en este firmware; averiguarlo es el objetivo. Solo lectura: no se escribe ningún valor y los comandos SET nunca se envían desde esta sonda. El resultado se muestra aquí y se escribe en el registro de la banda."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demande au bracelet les VALEURS de configuration : GET_DEVICE_CONFIG_VALUE (0x79) et GET_FF_VALUE (0x80), une clé par échange. Ces deux commandes n’existent peut-être tout simplement pas dans ce micrologiciel — le savoir est précisément le but. Lecture seule : aucune valeur n’est écrite et les commandes SET ne sont jamais envoyées par cette sonde. Le résultat est affiché ici et écrit dans le journal du bracelet."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chiede al braccialetto i VALORI di configurazione: GET_DEVICE_CONFIG_VALUE (0x79) e GET_FF_VALUE (0x80), una chiave per scambio. È possibile che entrambi i comandi semplicemente non esistano in questo firmware: scoprirlo è proprio lo scopo. Sola lettura: non viene scritto alcun valore e i comandi SET non vengono mai inviati da questa sonda. Il risultato è mostrato qui e scritto nel registro del braccialetto."
+          }
+        },
+        "pt-PT": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pede à bracelete os VALORES de configuração: GET_DEVICE_CONFIG_VALUE (0x79) e GET_FF_VALUE (0x80), uma chave por troca. É possível que ambos os comandos simplesmente não existam neste firmware — descobri-lo é precisamente o objetivo. Apenas leitura: nenhum valor é escrito e os comandos SET nunca são enviados por esta sonda. O resultado é mostrado aqui e escrito no registo da bracelete."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Запрашивает у ремешка ЗНАЧЕНИЯ конфигурации: GET_DEVICE_CONFIG_VALUE (0x79) и GET_FF_VALUE (0x80), по одному ключу за обмен. Обеих команд в этой прошивке может просто не быть — выяснить это и есть цель пробы. Только чтение — никакое значение не записывается, а команды SET из этой пробы никогда не отправляются. Результат показан здесь и записан в журнал ремешка."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向手环询问配置的取值：GET_DEVICE_CONFIG_VALUE (0x79) 与 GET_FF_VALUE (0x80)，每次往返查询一个键。这两条命令在该固件中可能根本不存在——弄清这一点正是本次探测的目的。只读——不会写入任何取值，本探测也绝不会发送 SET 命令。结果会显示在此处并写入手环日志。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "向手環詢問設定的取值：GET_DEVICE_CONFIG_VALUE (0x79) 與 GET_FF_VALUE (0x80)，每次往返查詢一個鍵。這兩條命令在此韌體中可能根本不存在——弄清這一點正是本次探測的目的。唯讀——不會寫入任何取值，本探測也絕不會發送 SET 命令。結果會顯示於此並寫入手環記錄。"
           }
         }
       }
