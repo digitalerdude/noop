@@ -240,6 +240,10 @@ class FramingTest {
     @Test
     fun parse_commandResponse_getBatteryLevel() {
         // COMMAND_RESPONSE GET_BATTERY_LEVEL(26): soc=912 -> 91.2%.
+        // GENERATED, not captured — see this class's header. Its [seq][result] prefix is 00 00 on a
+        // reply that succeeded, which reads as a counterexample to the #791 result-byte mapping, and it
+        // was cited as one in #900 by someone who had not read that header. Zero bytes in a generated
+        // vector are whatever the generator emitted. Nothing below asserts the result byte. (#900)
         val frame = bytes(
             0xaa, 0x0b, 0x00, 0x97, 0x24, 0x00, 0x1a, 0x00, 0x00, 0x90, 0x03, 0x72,
             0x96, 0x86, 0x64,
@@ -505,7 +509,7 @@ class FramingTest {
         val parsed = Framing.parseFrame(frame, DeviceFamily.WHOOP5)
         assertEquals("CONSOLE_LOGS", parsed.typeName)
         assertEquals(true, parsed.crcOk)
-        assertEquals("Historical Data\n 55, 2581959: BLE: hist transfer s", parsed.parsed["console"])
+        assertEquals("Historical Data\n 55, 2581959: BLE: hist transfer s", parsed.parsed["log"])
         // Record header (Swift parity: decodeWhoop5ConsoleLogs): per-chunk counter + batch time.
         assertEquals(671, parsed.parsed["record_index"])
         assertEquals(1773607251, parsed.parsed["unix"])
@@ -534,8 +538,8 @@ class FramingTest {
         assertEquals(true, b.crcOk)
         assertEquals(685, a.parsed["record_index"])
         assertEquals(686, b.parsed["record_index"])
-        assertEquals("19, 146552119: BLE: hist transfer start response a", a.parsed["console"])
-        assertEquals("ck, start burst\n 19, 146554630: BLE: History burst", b.parsed["console"])
+        assertEquals("19, 146552119: BLE: hist transfer start response a", a.parsed["log"])
+        assertEquals("ck, start burst\n 19, 146554630: BLE: History burst", b.parsed["log"])
     }
 
     // MARK: - CONSOLE_LOGS text-region hardening edges (synthetic frames, Swift parity)
@@ -561,7 +565,7 @@ class FramingTest {
     fun whoop5_consoleLogs_oversizedTextCappedAt2048() {
         val f = consoleFrame(ByteArray(2100) { 'A'.code.toByte() })
         val p = Framing.parseFrame(f, DeviceFamily.WHOOP5)
-        assertEquals(2048, (p.parsed["console"] as String).length)
+        assertEquals(2048, (p.parsed["log"] as String).length)
     }
 
     /** An all-NUL (padding-only) text region trims to empty -> no `console` key, not an empty string. */
@@ -569,7 +573,7 @@ class FramingTest {
     fun whoop5_consoleLogs_allNulRegionYieldsNoConsole() {
         val f = consoleFrame(ByteArray(6))
         val p = Framing.parseFrame(f, DeviceFamily.WHOOP5)
-        assertNull(p.parsed["console"])
+        assertNull(p.parsed["log"])
     }
 
     /** Only TRAILING NULs are trimmed; the text before them is kept verbatim. */
@@ -577,6 +581,6 @@ class FramingTest {
     fun whoop5_consoleLogs_trailingNulsTrimmed() {
         val f = consoleFrame("AB".toByteArray() + byteArrayOf(0, 0, 0))
         val p = Framing.parseFrame(f, DeviceFamily.WHOOP5)
-        assertEquals("AB", p.parsed["console"])
+        assertEquals("AB", p.parsed["log"])
     }
 }

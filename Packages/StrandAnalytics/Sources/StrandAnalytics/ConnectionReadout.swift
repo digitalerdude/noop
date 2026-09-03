@@ -13,6 +13,24 @@ import Foundation
 // counts, durations and ISO dates only. No em-dashes. The Kotlin twin is ConnectionReadout.kt.
 
 public enum ConnectionTrace {
+    /// The ` after <n>s` suffix on a `connect down` trace line, or empty when the session start is
+    /// unknown (#1020).
+    ///
+    /// A session's length separates the causes of a drop at a glance: a bond watchdog fires seconds in,
+    /// a keep-alive stall bounce minutes in, a radio drop anywhere. The bare `connect down (uptime ends)`
+    /// could not distinguish them, which is why a report of thousands of reconnects needed a round trip
+    /// before anyone could start on it.
+    ///
+    /// An unknown start yields NO suffix rather than `after 0.0s` — "instant drop" and "we do not know"
+    /// are different diagnoses. Integer half-up quantization makes exact 50 ms ties deterministic, and
+    /// rendering the whole and fractional digits directly keeps locale out of pasted logs. Twin of the
+    /// Kotlin `ConnectionTrace.sessionHeldSuffix`.
+    public static func sessionHeldSuffix(millis: Int) -> String {
+        guard millis >= 0 else { return "" }
+        let tenths = millis / 100 + (millis % 100 >= 50 ? 1 : 0)
+        return " after \(tenths / 10).\(tenths % 10)s"
+    }
+
 
     /// The CLOCK-DRIFT summary line (#767 / #754 cluster): the strap-reported banked-record window
     /// [oldest, newest] against the wall clock, with a FUTURE-DATE flag when the strap's newest record is
@@ -142,7 +160,9 @@ public enum ConnectionReadout {
 
     /// Last offload result for the readout's `lastOffloadResult` id: the most recent "offload result=<...>"
     /// fragment the offload-progress emitter writes (e.g. "complete rows=42 nights=2", "empty (console
-    /// only)", "stalled (idle timeout)"). nil when no offload has finished this session.
+    /// only)", "idle-timeout after rows=17205", "stalled (idle timeout, rows=0)"). #1466: the last two are
+    /// distinct on purpose — an idle timeout that banked rows is a productive end, and only rows=0 is a
+    /// stall. nil when no offload has finished this session.
     public static func lastOffloadResult(taggedTail: [String]) -> String? {
         for line in taggedTail.reversed() {
             if let r = line.range(of: "offload result=") {
@@ -207,23 +227,79 @@ public enum ConnectionReadout {
         if let d = deviceClockUnix {
             return d < ConnectionTrace.rtcEpochCeilingUnix ? "no (RTC reads 1970/71)" : "yes"
         }
+        // #1823: this branch has NOT read a clock. It is reached when no clock correlation exists - which
+        // is every 5/MG, whose GET_CLOCK reply rides the puffin notify chars and never touches the WHOOP4
+        // correlation path - so the only evidence is how the strap DATED its banked records. Saying "RTC
+        // reads 1970/71" there claimed a reading we never took, in the one readout a reporter quotes when
+        // asking why nothing syncs. Report the evidence we actually have.
         if let n = strapNewestUnix {
-            return n < ConnectionTrace.rtcEpochCeilingUnix ? "no (RTC reads 1970/71)" : "yes"
+            return n < ConnectionTrace.rtcEpochCeilingUnix ? "no (records dated 1970/71)" : "yes"
         }
         return "no (waiting for the strap clock)"
     }
+
+    /// #1818: at or above this charge the "charge it" remedy is already satisfied, so repeating it is
+    /// noise. Twin of the Kotlin constant - the two must move together or the platforms give
+    /// different advice for the same strap.
+    public static let rtcAlreadyChargedPct: Double = 95
 
     /// #987: a plain-words warning when the strap RTC reads epoch-era (~1970/71), from EITHER signal we
     /// hold: the correlated device clock or the strap's newest banked-record timestamp. nil when both
     /// look sane (or neither was seen yet - we never fabricate a fault). One string, shown verbatim on
     /// the Devices / Test Centre connection readout, naming the consequence and the fix.
-    public static func rtcWarning(deviceClockUnix: Int?, strapNewestUnix: Int?) -> String? {
+    ///
+    /// #1818: the remedy is battery-dependent. A flat battery resets the RTC, so on a low strap
+    /// "charge it" is real advice. On an ALREADY-charged strap it is not, and the old copy sent users
+    /// at 100% round a loop they had already run.
+    ///
+    /// The charged branch deliberately states only what holds for EVERY strap - that charging again
+    /// will not change it - and asks for a log. It must NOT claim NOOP re-sends the clock on every
+    /// connect: that is true on WHOOP4 (`runConnectHandshake` calls SET_CLOCK unconditionally, both
+    /// payload forms, #120) but FALSE on a 5/MG, where the clock write is gated behind `didBond`, and
+    /// an unbondable 5/MG (#1635) is never clocked at all - precisely the strap most likely to be
+    /// showing this warning. Explaining the mechanism in the sentence is how the original bug happened.
+    /// `batteryPct` nil (not yet read) keeps the charge advice - we only withdraw it on evidence.
+    /// Callers MUST pass a reading from the CURRENT link (iOS: `batterySamples.last?.soc`, which is
+    /// cleared on disconnect) and not a last-known charge that outlives it - a stale 100% would
+    /// suppress the advice in the one case it is right, a strap that ran flat and reset its RTC.
+    public static func rtcWarning(deviceClockUnix: Int?, strapNewestUnix: Int?,
+                                  batteryPct: Double? = nil) -> String? {
         let ceiling = ConnectionTrace.rtcEpochCeilingUnix
         let clockBad = deviceClockUnix.map { $0 > 0 && $0 < ceiling } ?? false
         let newestBad = strapNewestUnix.map { $0 > 0 && $0 < ceiling } ?? false
         guard clockBad || newestBad else { return nil }
-        return "Strap clock reads 1970/71 (never set since its last reset), so it is not banking history. "
-            + "Charge the strap to 100% and reconnect so the clock latches."
+        let lead = "Strap clock reads 1970/71 (never set since its last reset), so it is not banking history. "
+        if let batteryPct, batteryPct >= rtcAlreadyChargedPct {
+            return lead
+                + "The strap is already charged, so charging again will not change this. Export a strap "
+                + "log from Test Centre so the clock exchange can be read."
+        }
+        return lead + "Charge the strap to 100% and reconnect so the clock latches."
+    }
+
+    /// #1809: one-line account of a finished BLE link, logged on every disconnect.
+    ///
+    /// A strap log could not previously answer "did the strap send anything?". Inbound notifications only
+    /// stamped a liveness timestamp that was then discarded, and the disconnect error reached the log as
+    /// the OS `localizedDescription` while the `CBError` code the #617 branch computes was thrown away. A
+    /// reporter chasing a silent strap had to infer silence from the fact that every LOGGED line happened
+    /// to be outgoing - which measures NOOP's logging, not the strap. This measures the strap.
+    ///
+    /// `armed` matters because the #80 marginal-radio fallback only counts a drop when the R10/R11 burst
+    /// was actually armed; `armed=no` says up front that the detector cannot trip for this link, however
+    /// many times the loop repeats.
+    ///
+    /// Milliseconds are printed raw: no float formatting, so the two platforms cannot round apart.
+    public static func linkEpitaph(upMillis: Int, inboundFrames: Int, inboundBytes: Int,
+                                   cmdChannelFrames: Int, realtimeArmed: Bool, ended: String) -> String {
+        let armed = realtimeArmed ? "yes" : "no"
+        var line = "Link epitaph: up \(max(0, upMillis))ms, inbound \(max(0, inboundFrames)) frames / "
+            + "\(max(0, inboundBytes)) bytes (cmd-channel \(max(0, cmdChannelFrames))), "
+            + "realtime armed=\(armed), ended=\(ended)"
+        if inboundFrames <= 0 {
+            line += " - the strap sent NOTHING on this link"
+        }
+        return line
     }
 
     /// #987: freshness label for the "last frame" readout row: how long ago the most recent strap frame

@@ -10,10 +10,102 @@ public struct HRSample: Equatable, Codable {
     public init(ts: Int, bpm: Int) { self.ts = ts; self.bpm = bpm }
 }
 
+/// Sensor-contact state carried by the standard BLE Heart Rate Measurement flags.
+///
+/// This is deliberately a tri-state rather than a Bool: a peripheral that does not support contact
+/// detection has not said that contact is absent. `unsupported` is also the only valid result whenever
+/// flag bit 2 is clear, irrespective of the value in detected bit 1.
+public enum StandardHRContact: String, Equatable, Codable, Sendable {
+    case unsupported
+    case supportedNotDetected = "supported_not_detected"
+    case supportedDetected = "supported_detected"
+
+    /// Decode the BLE Heart Rate Measurement flags: bit 2 = supported, bit 1 = detected.
+    /// `unsupported` wins whenever bit 2 is clear, irrespective of detected bit 1.
+    /// Twin of Kotlin `StandardHrContact.fromMeasurementFlags`.
+    public static func fromMeasurementFlags(_ flags: UInt8) -> StandardHRContact {
+        if flags & 0x04 == 0 {
+            return .unsupported
+        } else if flags & 0x02 == 0 {
+            return .supportedNotDetected
+        } else {
+            return .supportedDetected
+        }
+    }
+}
+
+/// WHICH sensor channel produced an R-R interval (#1071).
+///
+/// A WHOOP strap has ONE beat source, so its rows carry no channel (nil) and nothing here changes for
+/// them. An Oura ring has more than one: the green-quality tag (0x80) and the SpO2 tag (0x6E) both
+/// decode to R-R and both were stored, so the table held roughly TWO complete copies of every night —
+/// not duplicate rows to de-duplicate, but the SAME heartbeats measured twice. Labelling the channel is
+/// what lets scoring read one copy while both stay on disk as each other's cross-check.
+///
+/// The raw values are the DURABLE, cross-platform storage codes for `rrInterval.srcChannel` and must
+/// stay in lockstep with Kotlin `RrSourceChannel` — they are written to SQLite and cross the `.noopbak`
+/// boundary, so they are a wire format, not an implementation detail. Never renumber a case; only append.
+public enum RRSourceChannel: Int, Equatable, Codable, Sendable, CaseIterable {
+    /// Oura 0x80 `green_ibi_quality_event` — the green-LED beat train, gated on the ring's own
+    /// `quality == 1` flag and a 300-2000 ms physiological window, running the whole night.
+    case greenQuality = 1
+    /// Oura 0x6E `spo2_ibi_and_amplitude_event` — the SpO2/red-channel beat train, on an 8 ms
+    /// quantisation grid with no quality gate, and present ONLY while SpO2 measurement is running.
+    case spo2Ibi = 2
+    /// Oura 0x60 `ibi_and_amplitude_event` — the bit-packed IBI+amplitude family.
+    case ibiAmplitude = 3
+    /// Oura 0x44 `ibi_event` — the SAME bit-packed layout family as 0x60, decoded by the same routine,
+    /// but a DIFFERENT tag on the wire.
+    ///
+    /// Split out (#1071 follow-up) because both tags used to stamp `ibiAmplitude`, which made them
+    /// indistinguishable once stored: a capture showing that channel over-covering its own wall-clock
+    /// could not say whether one tag repeats beats or two tags report the same beats to each other. That
+    /// is the question the channel choice for scoring rests on, and no stored night could answer it.
+    /// Labelling only — both are read exactly as before.
+    case ibiBare = 4
+}
+
 public struct RRInterval: Equatable, Codable {
     public let ts: Int          // wall-clock unix seconds
     public let rrMs: Int
-    public init(ts: Int, rrMs: Int) { self.ts = ts; self.rrMs = rrMs }
+    /// The sensor channel this beat came from, or nil when the source does not distinguish one (every
+    /// WHOOP row, and every row written before the column existed). See `RRSourceChannel`.
+    public let srcChannel: RRSourceChannel?
+    /// #1008 diagnostics: this beat's EMISSION ORDER within the batch that delivered it, as stored in
+    /// `rrInterval.ord`. nil on a decode (nothing has been stored yet) and on rows written before the
+    /// column was surfaced to reads.
+    ///
+    /// It is the one field that separates the two remaining explanations for a second carrying seven
+    /// beats: contiguous ords mean ONE record's array carried them all, so the over-count is in the
+    /// record's contents; repeated or non-monotonic ords mean SEPARATE deliveries each contributed to
+    /// that second, so the over-count is accumulation across offloads. WHOOP's wire format has no
+    /// channel field, so `srcChannel` can never answer this for a strap — `ord` is what is left.
+    public let ord: Int?
+    /// Storage identity for equal beats in the same second. Defaults to zero so wire decoders and
+    /// callers that predate the widened database key remain source- and behaviour-compatible.
+    public let seq: Int
+    public init(ts: Int, rrMs: Int, srcChannel: RRSourceChannel? = nil, ord: Int? = nil, seq: Int = 0) {
+        self.ts = ts; self.rrMs = rrMs; self.srcChannel = srcChannel; self.ord = ord; self.seq = seq
+    }
+
+    private enum CodingKeys: String, CodingKey { case ts, rrMs, srcChannel, ord, seq }
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        ts = try c.decode(Int.self, forKey: .ts)
+        rrMs = try c.decode(Int.self, forKey: .rrMs)
+        srcChannel = try c.decodeIfPresent(RRSourceChannel.self, forKey: .srcChannel)
+        ord = try c.decodeIfPresent(Int.self, forKey: .ord)
+        seq = try c.decodeIfPresent(Int.self, forKey: .seq) ?? 0
+    }
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(ts, forKey: .ts)
+        try c.encode(rrMs, forKey: .rrMs)
+        try c.encodeIfPresent(srcChannel, forKey: .srcChannel)
+        try c.encodeIfPresent(ord, forKey: .ord)
+        // Preserve the legacy encoded shape for the overwhelmingly common seq=0 row.
+        if seq != 0 { try c.encode(seq, forKey: .seq) }
+    }
 }
 
 public extension Array where Element == RRInterval {
@@ -282,7 +374,12 @@ public struct SleepStateSample: Equatable, Codable {
 public struct PpgWaveformSample: Equatable, Codable, Sendable {
     public let ts: Int          // wall-clock unix seconds (one record per second)
     public let samples: [Int]   // raw i16 ADC counts @24 Hz, verbatim from `ppg_waveform` (usually 24)
-    public init(ts: Int, samples: [Int]) { self.ts = ts; self.samples = samples }
+    public let burstIndex: Int?  // raw per-burst counter @21; nil for legacy archives
+    public init(ts: Int, samples: [Int], burstIndex: Int? = nil) {
+        self.ts = ts
+        self.samples = samples
+        self.burstIndex = burstIndex
+    }
 }
 
 /// One wire slot in the 5/MG v18 auxiliary-field record. The `rawValue` is the slot's bit position in
@@ -523,6 +620,29 @@ public struct Streams: Equatable, Codable {
     /// The #547 gate discards them like any bad-ts record, but these are the GROUND TRUTH that the clock reset
     /// - so we capture (kind, rawTs) for the strap log before dropping. Transient, empty by default, not encoded.
     public var droppedRtcEvents: [DroppedRtcEvent] = []
+    /// #891 diagnostic: packet types this funnel DROPPED this chunk because it has no `case` for them —
+    /// keyed by the rendered type name (`schema.typeName`, so a byte the schema does not name renders
+    /// `type53`), value = how many records carried it.
+    ///
+    /// An offload records nothing about a type it does not handle. `extractHistoricalStreams` switches on
+    /// four of the schema's sixteen packet types and `default: continue`s the rest, and
+    /// `rejectedHistoricalRecords` only archives type-47 — non-47 frames are, in its own words, "excluded
+    /// by construction". So a record type nobody has mapped is dropped twice and counted zero times, and
+    /// the sync reports clean. That is not hypothetical: `HISTORICAL_IMU_DATA_STREAM(52)` is a banked
+    /// raw-stream type our own schema names, and every one of them would vanish here.
+    ///
+    /// The immediate use is #891 — whether a 5/MG banks ECG to flash after the Labrador toggles is the
+    /// leading hypothesis, and it currently cannot be answered by running the experiment, because nothing
+    /// would show the result. The general use is that any future firmware record type is invisible today.
+    ///
+    /// `METADATA` and `CONSOLE_LOGS` are deliberately NOT counted: an offload legitimately carries both,
+    /// they decode to zero rows by design, and tallying them every sync would bury the signal this exists
+    /// to surface. Everything else falls through, including named-but-unhandled types — those are the
+    /// interesting ones.
+    ///
+    /// Transient observability only, like `droppedImplausible`: not persisted, not in `CodingKeys`, empty
+    /// by default so golden fixtures stay byte-identical.
+    public var unhandledPacketTypes: [String: Int] = [:]
     /// #520 diagnostic: a summary of `dynamic_acceleration@41` (the strap's own gravity-removed motion
     /// magnitude) over this chunk's v18 records. The field is decoded but has never been persisted or
     /// scored, so there is no evidence about whether it is a usable stillness signal; this counts what

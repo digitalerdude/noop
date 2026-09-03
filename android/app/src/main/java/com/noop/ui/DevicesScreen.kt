@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.GraphicEq
@@ -73,6 +74,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.ble.SourceCoordinator
+import com.noop.analytics.AgreementState
+import com.noop.analytics.MetricArbitrationPolicy
+import com.noop.analytics.StrapComparison
+import com.noop.data.DailyMetric
+import com.noop.data.WhoopRepository
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import com.noop.data.DeviceStatus
 import com.noop.data.PairedDeviceRow
 import com.noop.data.SourceKind
@@ -99,7 +109,6 @@ import kotlinx.coroutines.launch
 // frosted card so the strap name + the live battery tube stay crisp on it. Same tokens as the liquid Today
 // hero (heroFill = rgba(13,14,20,.80), radius 26, white@0.11 hairline). Those Today constants are private to
 // TodayScreen, so the identical values are declared here. Mirrors the iOS liquid heroCard.
-private val LIQUID_HERO_FILL: Color = Color(red = 13f / 255f, green = 14f / 255f, blue = 20f / 255f, alpha = 0.80f)
 private val LIQUID_HERO_RADIUS: Dp = 26.dp
 
 @Composable
@@ -118,6 +127,8 @@ fun DevicesScreen(
     val bodyLocationProbeResult by viewModel.bodyLocationProbe.collectAsStateWithLifecycle()
     // #761: the read-only feature-flag ENUMERATION report (or the waiting sentinel while it walks).
     val featureFlagProbeResult by viewModel.featureFlagProbe.collectAsStateWithLifecycle()
+    // #103: the read-only device-config READ report (or the waiting sentinel while the plan runs).
+    val deviceConfigProbeResult by viewModel.deviceConfigProbe.collectAsStateWithLifecycle()
 
     // Liquid sky backdrop gate — the SAME "Day-cycle background" preference the liquid Today honours (#698,
     // default ON). Off falls back to the flat dark canvas, so the setting governs every liquid screen alike.
@@ -135,20 +146,25 @@ fun DevicesScreen(
     // Sheets / dialogs (mirror the Swift @State targets).
     var showAddWizard by remember { mutableStateOf(false) }
     var switchTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    var strapCompare by remember { mutableStateOf<StrapCompareData?>(null) }
     var renameTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var removeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var deleteDataTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    var forgetTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var rebootTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // WHOOP 4.0 reboot probe (Test Centre → Connection, 4.0 only) — the device whose probe sheet is open.
     var probeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var batteryProbeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var bodyLocationProbeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     var featureFlagProbeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
+    var deviceConfigProbeTarget by remember { mutableStateOf<PairedDeviceRow?>(null) }
     // After removing the ACTIVE device with other devices still paired, prompt to pick a new active one.
     var pickNewActive by remember { mutableStateOf(false) }
 
     val all = devices.orEmpty()
     val activeDevices = all.filter { it.status != DeviceStatus.archived.name }
+    // #1300 tier 2: recompute the two-strap comparison when the strap set changes.
+    LaunchedEffect(activeDevices) { strapCompare = loadStrapCompare(viewModel.repo, activeDevices) }
     val removedDevices = all.filter { it.status == DeviceStatus.archived.name }
     val currentActiveName =
         all.firstOrNull { it.status == DeviceStatus.active.name }?.let { displayName(it) }
@@ -165,10 +181,10 @@ fun DevicesScreen(
         // into the flat canvas behind the top of the screen so the frosted device cards float over it. The
         // static sky (LiquidSkyStatic inside the helper) carries no per-frame cost on this scrolling list.
         // Gated on the same "Day-cycle background" setting as Today; off passes null for the plain canvas.
-        topBackground = if (showDayCycleBackground) { { LiquidScreenSky(fillHeight = skyBehindCards) } } else null,
+        topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         // Sky-behind-cards fills the viewport so the transparent cards reveal the sky the whole way
         // down (Today / Trends / Sleep / metric-detail parity - same two prefs, same two behaviours).
-        fullBleedBackground = showDayCycleBackground && skyBehindCards,
+        fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
         // #802: the re-pair guide belongs HERE too, not only on Live. A strap that connects but never
         // finishes bonding leaves the user on this screen — it is where you go to fix a device — while the
@@ -206,6 +222,12 @@ fun DevicesScreen(
             return@LazyScreenScaffold
         }
 
+        // #1300: a prominent switcher to flip which strap is active — the "switch, don't combine" option
+        // for a user with two straps (e.g. a 4.0 + a 5/MG). Shown only with 2+ straps, so it collapses
+        // when one is forgotten. Reuses the existing active-strap confirmation (switchTarget).
+        if (activeDevices.size > 1) {
+            item { StrapSwitcher(devices = activeDevices, onSelect = { switchTarget = it }) }
+        }
         items(activeDevices) { device ->
             DeviceCard(
                 device = device,
@@ -213,9 +235,12 @@ fun DevicesScreen(
                 isLiveConnected = device.status == DeviceStatus.active.name && live.connected,
                 // #221: a WHOOP 5/MG can be BLE-connected yet have its ENCRYPTED bond refused (the WHOOP
                 // app, or a stale pairing, holds the single-app bond) — no HR/biometric data flows even
-                // though the link is up, so "Active · Live" overstates it. pairingHint is set only once
-                // that refusal is genuinely detected (#78), never during a normal connect, so this can't
-                // false-alarm a working 4.0 (its pairingHint stays null) or a fresh 5/MG connect.
+                // though the link is up, so "Active · Live" overstates it. pairingHint is raised either by
+                // a refusal detected on this link (#78) or, on connect, by the persisted give-up latch for
+                // a strap already known to be unpaired ([seededPairingHint]) — the latter because the
+                // latch outlives the process and the hint did not, so every launch after the one that gave
+                // up came back green. Neither route false-alarms a working 4.0, which never latches and is
+                // not on this code path at all, nor a fresh 5/MG, which has no latch to read.
                 bondRefused = device.status == DeviceStatus.active.name && live.connected && live.pairingHint != null,
                 // The full #78 how-to-fix guidance, surfaced on the card itself when bondRefused so the
                 // fix is self-service instead of buried in the strap log.
@@ -228,9 +253,26 @@ fun DevicesScreen(
                     live.batteryPct?.let { Math.round(it).toInt() } else null,
                 liveBatteryMv = if (device.status == DeviceStatus.active.name && live.connected)
                     live.batteryMv else null,
-                // Firmware version from the connect handshake: only for the active, connected strap.
-                liveFirmware = if (device.status == DeviceStatus.active.name && live.connected)
-                    live.strapFirmware else null,
+                // Firmware version for the ACTIVE strap. It's a STABLE property (NOOP can't change a strap's
+                // firmware), so prefer the live handshake value but fall back to the last-known persisted
+                // firmware (NoopPrefs, written on connect) when the live value is momentarily null — mid-
+                // handshake, or a connection that hasn't re-read REPORT_VERSION_INFO yet this session. Without
+                // this the "· FW x" blanks out while actively connected + syncing. The persisted fallback is
+                // WHOOP-only: `noop.lastFirmware` is written solely from a WHOOP handshake, so a non-WHOOP
+                // active device (Oura/FTMS) must NOT inherit it. Single-key, so on a multi-WHOOP install a
+                // not-yet-connected active strap can briefly show the other strap's build until it republishes.
+                // #1633 follow-up: resolve against THIS device, never the last strap to connect. The old
+                // fallback read one global key, so with two straps paired the 5/MG reported the 4.0's
+                // firmware. The legacy key is still honoured when exactly one device is paired - then it
+                // cannot belong to anything else - so a single-strap install does not regress to 'unknown'.
+                liveFirmware = com.noop.ble.resolveFirmware(
+                    live = if (device.status == DeviceStatus.active.name) live.strapFirmware else null,
+                    perDevice = if (device.brand.equals("WHOOP", ignoreCase = true))
+                        NoopPrefs.firmwareFor(context, device.peripheralId) else null,
+                    legacyGlobal = if (device.status == DeviceStatus.active.name &&
+                        device.brand.equals("WHOOP", ignoreCase = true)) NoopPrefs.lastFirmware(context) else null,
+                    pairedCount = all.size,
+                ),
                 // Historical record layout from the current backfill, distinct from strap firmware.
                 liveHistoryLayout = if (device.status == DeviceStatus.active.name && live.connected)
                     live.historyLayoutVersion else null,
@@ -283,11 +325,20 @@ fun DevicesScreen(
                 onAbortSync = if (device.status == DeviceStatus.active.name && live.connected &&
                     WhoopBleClient.canAbortSync(live.backfilling) && SourceCoordinator.isWhoop(device)
                 ) { { viewModel.abortBackfill() } } else null,
+                // #103 device-config READ probe: read-only (asks for VALUES, writes none), both
+                // families. Same Test Centre gate.
+                onDeviceConfigProbe = if (device.status == DeviceStatus.active.name && live.connected &&
+                    SourceCoordinator.isWhoop(device) &&
+                    TestCentre.from(context).active(TestDomain.CONNECTION)
+                ) { { deviceConfigProbeTarget = device } } else null,
             )
         }
 
         // Prominent "+ Add a device" button.
         item { AddDeviceButton(onClick = { showAddWizard = true }) }
+
+        // #1300 tier 2: read-only "compare straps" card when 2 WHOOP straps share a readable day.
+        strapCompare?.let { c -> item { CompareCard(c) } }
 
         if (removedDevices.isNotEmpty()) {
             item { Overline("Removed", modifier = Modifier.padding(top = 4.dp)) }
@@ -302,6 +353,7 @@ fun DevicesScreen(
                     onRemove = null,
                     onReAdd = { switchTarget = device },
                     onDeleteData = { deleteDataTarget = device },
+                    onForget = { forgetTarget = device },
                 )
             }
         }
@@ -438,6 +490,19 @@ fun DevicesScreen(
             onDismiss = { viewModel.clearFeatureFlagProbe() },
         )
     }
+    // #103 device-config READ probe: read-only VALUE reads (121/128); no value is written to the strap.
+    deviceConfigProbeTarget?.let {
+        DeviceConfigProbeDialog(
+            onSend = { viewModel.probeDeviceConfigValues(); deviceConfigProbeTarget = null },
+            onDismiss = { deviceConfigProbeTarget = null },
+        )
+    }
+    deviceConfigProbeResult?.let { result ->
+        DeviceConfigProbeResultDialog(
+            text = result,
+            onDismiss = { viewModel.clearDeviceConfigProbe() },
+        )
+    }
 
     // --- Second, strongly-worded delete-data confirm (from the Removed card's secondary control) ---
     deleteDataTarget?.let { device ->
@@ -451,6 +516,22 @@ fun DevicesScreen(
                 deleteDataTarget = null
             },
             onDismiss = { deleteDataTarget = null },
+        )
+    }
+
+    // --- Hard-delete confirm (from a Removed card's ⋮ menu): purge the registry entry itself, not just
+    //     its data — the only way to get a duplicate/stale strap out of the list for good (#1193). ---
+    forgetTarget?.let { device ->
+        ConfirmDialog(
+            title = uiString(R.string.l10n_devices_screen_forget_this_device_8dbbc3f3),
+            message = uiString(R.string.l10n_devices_screen_noop_removes_this_device_503aff9e),
+            confirmLabel = uiString(R.string.l10n_devices_screen_forget_device_926e503d),
+            destructive = true,
+            onConfirm = {
+                scope.launch { viewModel.forgetPairedDevice(device.id); reload() }
+                forgetTarget = null
+            },
+            onDismiss = { forgetTarget = null },
         )
     }
 
@@ -472,6 +553,138 @@ fun DevicesScreen(
 /** One paired device as a [NoopCard]: name, brand·model, a capabilities line, a state pill, last-seen,
  *  and a per-device actions menu. The active device is tinted with the accent (WHOOP blue) and carries
  *  an "Active" pill. */
+// #1300 tier 2: the read-only two-strap comparison shown in the compare card.
+data class StrapCompareData(
+    val aName: String,
+    val bName: String,
+    val day: String,
+    val rows: List<StrapComparison.Row>,
+)
+
+/** Read the two most-recent WHOOP straps' dailies, find their latest SHARED day, and compare it per-metric
+ *  with the existing tolerances ([StrapComparison]). Read-only; never mixes into a score (I2). Pairwise.
+ *  Reads each strap by its own deviceId — never the hardcoded my-whoop (#1304). */
+private suspend fun loadStrapCompare(repo: WhoopRepository, devices: List<PairedDeviceRow>): StrapCompareData? {
+    // WHOOP or Oura — the sources that bank comparable dailies. Cross-source (Oura vs WHOOP) is exactly what
+    // the fusion tolerances are for; a plain HR strap has no dailies and self-excludes below.
+    val comparable = devices.filter { SourceCoordinator.isWhoop(it) || it.id.startsWith("oura-") }
+    if (comparable.size < 2) return null
+    val a = comparable[0]
+    val b = comparable[1]
+    // A DB read failure degrades to "no card" rather than crashing the screen — matching the Swift `try?`.
+    return runCatching {
+        // Read both straps concurrently — Room's query executor runs the two reads in parallel rather than
+        // one-after-the-other.
+        val (aDaily, bByDay) = coroutineScope {
+            val aD = async { repo.dailyMetrics(a.id, "0000-01-01", "9999-12-31") }
+            val bD = async { repo.dailyMetrics(b.id, "0000-01-01", "9999-12-31") }
+            aD.await() to bD.await().associateBy { it.day }
+        }
+        val shared = aDaily.sortedByDescending { it.day }.firstOrNull { bByDay.containsKey(it.day) }
+            ?: return@runCatching null
+        val bShared = bByDay[shared.day] ?: return@runCatching null
+        val rows = StrapComparison.compare(strapMetricValues(shared), strapMetricValues(bShared))
+        if (rows.isEmpty()) null else StrapCompareData(displayName(a), displayName(b), shared.day, rows)
+    }.getOrElse { e ->
+        // A DB error → no card; but NEVER swallow cancellation (screen disposed mid-read) — re-throw it so
+        // the coroutine cancels cooperatively (runCatching otherwise catches CancellationException too).
+        if (e is CancellationException) throw e
+        null
+    }
+}
+
+/** Map a stored DailyMetric onto the comparable MetricKinds it carries (heartRate has no daily field).
+ *  Twin of Swift `metricKindValues`. */
+private fun strapMetricValues(d: DailyMetric): Map<MetricArbitrationPolicy.MetricKind, Double> {
+    val out = HashMap<MetricArbitrationPolicy.MetricKind, Double>()
+    d.restingHr?.let { out[MetricArbitrationPolicy.MetricKind.RESTING_HR] = it.toDouble() }
+    d.avgHrv?.let { out[MetricArbitrationPolicy.MetricKind.HRV] = it }
+    d.spo2Pct?.let { out[MetricArbitrationPolicy.MetricKind.SPO2] = it }
+    d.skinTempDevC?.let { out[MetricArbitrationPolicy.MetricKind.SKIN_TEMP] = it }
+    d.steps?.let { out[MetricArbitrationPolicy.MetricKind.STEPS] = it.toDouble() }
+    d.totalSleepMin?.let { out[MetricArbitrationPolicy.MetricKind.SLEEP] = it }
+    d.activeKcalEst?.let { out[MetricArbitrationPolicy.MetricKind.CALORIES] = it }
+    return out
+}
+
+/** Short metric label. Non-@Composable (hardcoded, audit-blindspot) to match the rhythm-screen copy pattern. */
+private fun strapMetricLabel(m: MetricArbitrationPolicy.MetricKind): String = when (m) {
+    MetricArbitrationPolicy.MetricKind.RESTING_HR -> "Resting HR"
+    MetricArbitrationPolicy.MetricKind.HEART_RATE -> "Heart rate"
+    MetricArbitrationPolicy.MetricKind.HRV -> "HRV"
+    MetricArbitrationPolicy.MetricKind.SPO2 -> "SpO₂"
+    MetricArbitrationPolicy.MetricKind.SKIN_TEMP -> "Skin temp"
+    MetricArbitrationPolicy.MetricKind.STEPS -> "Steps"
+    MetricArbitrationPolicy.MetricKind.SLEEP -> "Sleep"
+    MetricArbitrationPolicy.MetricKind.CALORIES -> "Calories"
+    MetricArbitrationPolicy.MetricKind.OTHER -> ""
+}
+
+private fun strapAgreementLabel(a: AgreementState): Pair<String, StrandTone> = when (a) {
+    AgreementState.AGREE -> "match" to StrandTone.Positive
+    AgreementState.MINOR_DELTA -> "close" to StrandTone.Neutral
+    AgreementState.CONFLICT -> "differs" to StrandTone.Warning
+    AgreementState.SINGLE -> "one strap" to StrandTone.Neutral
+}
+
+private fun strapValue(v: Double?): String = v?.let { "%.0f".format(it) } ?: "—"
+
+private fun strapCompareFootnote(): String =
+    "A read-only look at your last shared day — not a combined score. Different devices read a little differently, so a difference isn't necessarily wrong."
+
+@Composable
+private fun CompareCard(c: StrapCompareData) {
+    NoopCard(padding = 18.dp, tint = Palette.accent) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Overline("How your straps compare")
+            Row {
+                Text(c.aName, style = NoopType.caption, color = Palette.textSecondary, modifier = Modifier.weight(1f))
+                Text(c.bName, style = NoopType.caption, color = Palette.textSecondary)
+            }
+            c.rows.forEach { row ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(strapMetricLabel(row.metric), style = NoopType.subhead, color = Palette.textPrimary, modifier = Modifier.weight(1f))
+                    Text(strapValue(row.a), style = NoopType.captionNumber, color = Palette.textPrimary)
+                    Text(strapValue(row.b), style = NoopType.captionNumber, color = Palette.textPrimary)
+                    val (label, tone) = strapAgreementLabel(row.agreement)
+                    StatePill(label, tone = tone)
+                }
+            }
+            Text(strapCompareFootnote(), style = NoopType.footnote, color = Palette.textTertiary)
+        }
+    }
+}
+
+@Composable
+private fun StrapSwitcher(devices: List<PairedDeviceRow>, onSelect: (PairedDeviceRow) -> Unit) {
+    // #1300: a compact segmented switcher over the paired straps. The active one is highlighted; tapping
+    // another opens the SAME "Make active?" confirmation the per-card action uses (via switchTarget) — no
+    // accidental switch, history preserved. Switching-not-combining: scores stay single-owner-per-day.
+    val shape = RoundedCornerShape(50)
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+        devices.forEach { device ->
+            val isActive = device.status == DeviceStatus.active.name
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(shape)
+                    .background(if (isActive) Palette.accent.copy(alpha = 0.18f) else Color.Transparent)
+                    .border(1.dp, if (isActive) Palette.accent.copy(alpha = 0.45f) else Palette.hairline, shape)
+                    .then(if (isActive) Modifier else Modifier.clickable { onSelect(device) })
+                    .padding(vertical = 7.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    displayName(device),
+                    style = NoopType.caption,
+                    color = if (isActive) Palette.accent else Palette.textSecondary,
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun DeviceCard(
     device: PairedDeviceRow,
@@ -503,6 +716,9 @@ private fun DeviceCard(
     onRemove: (() -> Unit)?,
     onReAdd: (() -> Unit)? = null,
     onDeleteData: (() -> Unit)? = null,
+    /** Hard-delete: purge the registry entry itself (and its data), so a duplicate/stale strap can be
+     *  removed from the list for good rather than lingering in "Removed" forever (#1193). Archived-only. */
+    onForget: (() -> Unit)? = null,
     onConnect: (() -> Unit)? = null,
     onDisconnect: (() -> Unit)? = null,
     onReboot: (() -> Unit)? = null,
@@ -517,6 +733,9 @@ private fun DeviceCard(
      *  it reads the flag NAMES the strap's firmware knows and writes nothing. */
     onFeatureFlagProbe: (() -> Unit)? = null,
     onAbortSync: (() -> Unit)? = null,
+    /** #103 device-config READ probe (Test Centre → Connection, both WHOOP families). Read-only: it asks
+     *  the strap for a config key's VALUE and writes none. */
+    onDeviceConfigProbe: (() -> Unit)? = null,
 ) {
     val profile = deviceProfile(device)
     // The per-device actions menu's open state is hoisted here so the WHOLE card is a tap target that opens
@@ -627,6 +846,7 @@ private fun DeviceCard(
                     onRemove = onRemove,
                     onReAdd = onReAdd,
                     onDeleteData = onDeleteData,
+                    onForget = onForget,
                     onConnect = onConnect,
                     onDisconnect = onDisconnect,
                     onReboot = onReboot,
@@ -635,6 +855,7 @@ private fun DeviceCard(
                     onBodyLocationProbe = onBodyLocationProbe,
                     onFeatureFlagProbe = onFeatureFlagProbe,
                 onAbortSync = onAbortSync,
+                    onDeviceConfigProbe = onDeviceConfigProbe,
                 )
             }
         }
@@ -645,8 +866,8 @@ private fun DeviceCard(
             modifier = cardModifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(LIQUID_HERO_RADIUS))
-                .background(LIQUID_HERO_FILL.copy(alpha = LIQUID_HERO_FILL.alpha * CardAppearance.opacity))
-                .border(1.dp, Color.White.copy(alpha = 0.11f * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
+                .background(Palette.heroFill.copy(alpha = Palette.heroFill.alpha * CardAppearance.opacity))
+                .border(1.dp, Palette.heroBorder.copy(alpha = Palette.heroBorder.alpha * CardAppearance.opacity), RoundedCornerShape(LIQUID_HERO_RADIUS))
                 .padding(18.dp),
         ) {
             body()
@@ -749,6 +970,7 @@ private fun DeviceActionsMenu(
     onRemove: (() -> Unit)?,
     onReAdd: (() -> Unit)?,
     onDeleteData: (() -> Unit)?,
+    onForget: (() -> Unit)? = null,
     onConnect: (() -> Unit)? = null,
     onDisconnect: (() -> Unit)? = null,
     onReboot: (() -> Unit)? = null,
@@ -759,6 +981,9 @@ private fun DeviceActionsMenu(
      *  it reads the flag NAMES the strap's firmware knows and writes nothing. */
     onFeatureFlagProbe: (() -> Unit)? = null,
     onAbortSync: (() -> Unit)? = null,
+    /** #103 device-config READ probe (Test Centre → Connection, both WHOOP families). Read-only: it asks
+     *  the strap for a config key's VALUE and writes none. */
+    onDeviceConfigProbe: (() -> Unit)? = null,
 ) {
     Box {
         IconButton(
@@ -772,13 +997,20 @@ private fun DeviceActionsMenu(
         DropdownMenu(expanded = open, onDismissRequest = { onOpenChange(false) }) {
             if (device.status == DeviceStatus.archived.name) {
                 if (onReAdd != null) {
-                    MenuItem("Make active", Icons.Filled.Bolt) { onOpenChange(false); onReAdd() }
+                    MenuItem(uiString(R.string.l10n_devices_screen_make_active_75690bb8), Icons.Filled.Bolt) { onOpenChange(false); onReAdd() }
                 }
-                MenuItem("Rename", Icons.Filled.Edit) { onOpenChange(false); onRename() }
+                MenuItem(uiString(R.string.l10n_devices_screen_rename_d3f4cb89), Icons.Filled.Edit) { onOpenChange(false); onRename() }
                 if (onDeleteData != null) {
                     HorizontalDivider(color = Palette.hairline)
-                    MenuItem("Delete this device's data…", Icons.Filled.Delete, destructive = true) {
+                    MenuItem(uiString(R.string.l10n_devices_screen_delete_this_device_s_data_3cae7a2a), Icons.Filled.Delete, destructive = true) {
                         onOpenChange(false); onDeleteData()
+                    }
+                }
+                // Purge the registry entry itself — the only way to get a duplicate/stale strap out of the
+                // "Removed" list for good (#1193). Below "Delete data" as the stronger, final action.
+                if (onForget != null) {
+                    MenuItem(uiString(R.string.l10n_devices_screen_forget_device_d6eb6209), Icons.Filled.DeleteForever, destructive = true) {
+                        onOpenChange(false); onForget()
                     }
                 }
             } else {
@@ -787,25 +1019,25 @@ private fun DeviceActionsMenu(
                 // reconnect left stuck. Shown first as the obvious recovery action.
                 if (onConnect != null) {
                     if (isLiveConnected) {
-                        MenuItem("Disconnect", Icons.Filled.Close) { onOpenChange(false); onDisconnect?.invoke() }
+                        MenuItem(uiString(R.string.l10n_devices_screen_disconnect_ed28e068), Icons.Filled.Close) { onOpenChange(false); onDisconnect?.invoke() }
                     } else {
-                        MenuItem("Reconnect", Icons.Filled.Refresh) { onOpenChange(false); onConnect() }
+                        MenuItem(uiString(R.string.l10n_devices_screen_reconnect_6988b16a), Icons.Filled.Refresh) { onOpenChange(false); onConnect() }
                     }
                     HorizontalDivider(color = Palette.hairline)
                 }
                 if (!isActive) {
-                    MenuItem("Make active", Icons.Filled.Bolt) { onOpenChange(false); onMakeActive() }
+                    MenuItem(uiString(R.string.l10n_devices_screen_make_active_75690bb8), Icons.Filled.Bolt) { onOpenChange(false); onMakeActive() }
                 }
-                MenuItem("Rename", Icons.Filled.Edit) { onOpenChange(false); onRename() }
+                MenuItem(uiString(R.string.l10n_devices_screen_rename_d3f4cb89), Icons.Filled.Edit) { onOpenChange(false); onRename() }
                 // Restart the strap — only for the live-connected WHOOP (the reboot travels over the active
                 // BLE link). Confirmation-gated by the parent. (#166)
                 if (isLiveConnected && SourceCoordinator.isWhoop(device) && onReboot != null) {
-                    MenuItem("Restart strap…", Icons.Filled.Refresh) { onOpenChange(false); onReboot() }
+                    MenuItem(uiString(R.string.l10n_devices_screen_restart_strap_c976cd6c), Icons.Filled.Refresh) { onOpenChange(false); onReboot() }
                 }
                 // 4.0 reboot probe (RE): only present when the parent passed a closure (Test Centre →
                 // Connection on + a live WHOOP 4.0). Finds the real reboot frame the 4.0 accepts (#235).
                 if (onRebootProbe != null) {
-                    MenuItem("Reboot probe (4.0 RE)…", Icons.Filled.BugReport) { onOpenChange(false); onRebootProbe() }
+                    MenuItem(uiString(R.string.l10n_devices_screen_reboot_probe_4_0_re_828b3916), Icons.Filled.BugReport) { onOpenChange(false); onRebootProbe() }
                 }
                 // #592: read-only extended-battery opcode probe — settles the disputed GET_EXTENDED_
                 // BATTERY_INFO number (98 vs an APK decompile's 87) from a strap-log export.
@@ -823,9 +1055,13 @@ private fun DeviceActionsMenu(
                 if (onFeatureFlagProbe != null) {
                     MenuItem(uiString(R.string.l10n_devices_screen_feature_flag_probe_761_re_21241d68), Icons.Filled.BugReport) { onOpenChange(false); onFeatureFlagProbe() }
                 }
+                // #103 device-config READ probe (RE): read-only VALUE reads, both families.
+                if (onDeviceConfigProbe != null) {
+                    MenuItem(uiString(R.string.l10n_devices_screen_device_config_read_probe_103_re_837f46de), Icons.Filled.BugReport) { onOpenChange(false); onDeviceConfigProbe() }
+                }
                 if (onRemove != null) {
                     HorizontalDivider(color = Palette.hairline)
-                    MenuItem("Remove", Icons.Filled.RemoveCircleOutline, destructive = true) {
+                    MenuItem(uiString(R.string.l10n_devices_screen_remove_e963907d), Icons.Filled.RemoveCircleOutline, destructive = true) {
                         onOpenChange(false); onRemove()
                     }
                 }
@@ -1172,6 +1408,75 @@ private fun FeatureFlagProbeResultDialog(
     )
 }
 
+/** #103 device-config READ probe: a read-only walk that asks the strap for config VALUES (121/128), one
+ *  key per round-trip. Nothing is written to the strap. Gated to Test Centre → Connection + a live WHOOP
+ *  at the call site. Twin of the Swift DeviceConfigProbeSheets confirm dialog. */
+@Composable
+private fun DeviceConfigProbeDialog(
+    onSend: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text(uiString(R.string.l10n_devices_screen_device_config_read_probe_103_re_837f46de), style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Text(
+                uiString(R.string.l10n_devices_screen_device_config_probe_explainer_dd23169f),
+                style = NoopType.subhead,
+                color = Palette.textSecondary,
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onSend) {
+                Text(uiString(R.string.l10n_devices_screen_send_probe_read_only_36b318bc), style = NoopType.body, color = Palette.accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_devices_screen_cancel_77dfd213), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
+/** #103 probe result: the per-verb verdict, the values read, and the exchange transcript (or a
+ *  "waiting…" state), with a Copy button. Read-only; dismiss clears the result. Twin of the Swift
+ *  DeviceConfigProbeResultView. */
+@Composable
+private fun DeviceConfigProbeResultDialog(
+    text: String,
+    onDismiss: () -> Unit,
+) {
+    val clipboard = LocalClipboardManager.current
+    val waiting = text == WhoopBleClient.WAITING_DEVICE_CONFIG_PROBE
+    val shown = if (waiting) uiString(R.string.l10n_devices_screen_waiting_for_the_straps_reply_5a06e7ac) else text
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        title = { Text(uiString(R.string.l10n_devices_screen_device_config_read_probe_result_103_67d02ec9), style = NoopType.title2, color = Palette.textPrimary) },
+        text = {
+            Column(modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
+                SelectionContainer {
+                    Text(shown, style = if (waiting) NoopType.subhead else NoopType.mono, color = Palette.textSecondary)
+                }
+            }
+        },
+        confirmButton = {
+            if (!waiting) {
+                TextButton(onClick = { clipboard.setText(AnnotatedString(text)) }) {
+                    Text(uiString(R.string.l10n_devices_screen_copy_af74f7c5), style = NoopType.body, color = Palette.accent)
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_devices_screen_close_bbfa773e), style = NoopType.body, color = Palette.textSecondary)
+            }
+        },
+    )
+}
+
 @Composable
 private fun RenameDialog(
     device: PairedDeviceRow,
@@ -1226,8 +1531,7 @@ private fun PickActiveDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    uiString(R.string.l10n_devices_screen_you_removed_your_active_strap_choose_2ac91d48) +
-                        "leave none active and pair one later.",
+                    uiString(R.string.l10n_devices_screen_you_removed_your_active_strap_choose_2ac91d48),
                     style = NoopType.subhead,
                     color = Palette.textSecondary,
                 )
@@ -1458,8 +1762,7 @@ private fun OuraLocalStateNote() {
     ) {
         Icon(Icons.Filled.Info, contentDescription = null, tint = Palette.statusWarning, modifier = Modifier.size(14.dp))
         Text(
-            uiString(R.string.l10n_devices_screen_paired_locally_noop_owns_this_ring_30c16190) +
-                "up in the Oura app, NOOP no longer owns it and you would re-add it to take it over.",
+            uiString(R.string.l10n_devices_screen_paired_locally_noop_owns_this_ring_30c16190),
             style = NoopType.caption,
             color = Palette.statusWarning,
         )
