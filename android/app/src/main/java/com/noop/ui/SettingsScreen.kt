@@ -544,6 +544,10 @@ fun SettingsScreen(
      * need to send the user back through the picker.
      */
     var oversizeRestore by remember { mutableStateOf<Pair<android.net.Uri, String>?>(null) }
+    // #1014 family: a failed import/export ends on a multi-sentence message whose LAST clause is the
+    // part the reader can act on. A Toast truncated it, so what survived was the SQLite banner and
+    // nothing else. Held here and shown in a dialog instead.
+    var backupFailure by remember { mutableStateOf<String?>(null) }
 
     // #646/#651: LogExport's zip build + file read now run on Dispatchers.IO instead of blocking the
     // caller, so these buttons no longer freeze the UI — but nothing else stopped a second tap mid-export
@@ -764,7 +768,10 @@ fun SettingsScreen(
                     Toast.makeText(context, note, Toast.LENGTH_LONG).show()
                 },
                 onFailure = { e ->
-                    Toast.makeText(context, "Backup problem: ${e.message}", Toast.LENGTH_LONG).show()
+                    // The EXPORT-side integrity refusal lands here (#1014): a corrupt store is caught
+                    // before it is archived, and the message names the CSV route that still works. That
+                    // is a next step, so it needs the dialog for the same reason the import failures do.
+                    backupFailure = "Backup problem: ${e.message}"
                 },
             )
         }
@@ -812,9 +819,7 @@ fun SettingsScreen(
                     "Backup imported. Fully close and reopen NOOP for it to take effect.",
                     Toast.LENGTH_LONG,
                 ).show()
-                is DataBackup.ImportResult.Failed -> Toast.makeText(
-                    context, result.message, Toast.LENGTH_LONG,
-                ).show()
+                is DataBackup.ImportResult.Failed -> backupFailure = result.message
                 // #1807: refused ONLY for size, which is recoverable — offer to go ahead rather than
                 // ending on a Toast the user can do nothing about. The cap is a decompression guard
                 // against a hostile archive; a backup they just picked out of their own files is not
@@ -1746,6 +1751,18 @@ fun SettingsScreen(
             title = uiString(R.string.l10n_settings_screen_bottom_bar_f84098a9),
             blurb = uiString(R.string.l10n_settings_screen_how_the_navigation_bar_looks_f186b099),
         ) {
+            // The Coach tab's master switch. It sits in this section because the tab is where a wearer
+            // meets the feature, but it is NOT tab chrome: switching it off disables the AI itself, takes
+            // the Today launcher card with it, and cancels the daily brief (which otherwise keeps calling
+            // a provider from the background and posting notifications, with no UI attached to reveal that
+            // it is still running). The saved provider key is kept, so this is a flip and not a re-setup.
+            SettingsFormRow(label = uiString(R.string.l10n_settings_screen_ai_coach_130c3eab)) {
+                Switch(
+                    checked = BottomBarStyleStore.coachEnabled,
+                    onCheckedChange = { BottomBarStyleStore.setCoachEnabled(context, it) },
+                )
+            }
+            SettingsRowDivider()
             // #1836: which bottom-bar layout to draw. Default OFF — the shipped reserved slot. The
             // overlay lets a screen's own backdrop show through the bar's glass, which is what it was
             // built for, but it is app-shell layout no test can judge, so it ships switchable.
@@ -3180,7 +3197,7 @@ fun SettingsScreen(
                 SettingsRowDivider()
                 SettingsToggleRow(
                     title = uiString(R.string.l10n_settings_screen_auto_detect_workouts_bed4cf2a),
-                    detail = "After a sync, NOOP looks over your recent heart rate for a sustained, raised stretch that looks like exercise and offers to save it. It only ever suggests. Nothing is saved until you tap Save, and you can dismiss any suggestion. Deliberately conservative, so the odd workout may be missed. On this phone only.",
+                    detail = "After a sync, NOOP looks over your recent heart rate for a sustained, raised stretch that looks like exercise and offers to save it. It only ever suggests. Nothing is saved until you tap Save, and you can dismiss any suggestion. Turning this off stops future suggestions; workouts already in your history remain. Deliberately conservative, so the odd workout may be missed. On this phone only.",
                     checked = autoDetectWorkouts,
                     onCheckedChange = {
                         autoDetectWorkouts = it
@@ -3322,6 +3339,10 @@ fun SettingsScreen(
             }
         }
 
+        backupFailure?.let { failure ->
+            BackupFailureDialog(message = failure, onDismiss = { backupFailure = null })
+        }
+
         oversizeRestore?.let { (pendingUri, pendingMessage) ->
             AlertDialog(
                 onDismissRequest = { oversizeRestore = null },
@@ -3340,13 +3361,17 @@ fun SettingsScreen(
                                 DataBackup.importFrom(context, pendingUri, allowOversize = true)
                             }
                             backupBusy = false
-                            val note = when (again) {
-                                is DataBackup.ImportResult.NeedsRestart ->
-                                    "Backup imported. Fully close and reopen NOOP for it to take effect."
-                                is DataBackup.ImportResult.Failed -> again.message
-                                is DataBackup.ImportResult.TooLarge -> again.message
+                            when (again) {
+                                is DataBackup.ImportResult.NeedsRestart -> Toast.makeText(
+                                    context,
+                                    "Backup imported. Fully close and reopen NOOP for it to take effect.",
+                                    Toast.LENGTH_LONG,
+                                ).show()
+                                // Same reason as the first attempt: these carry a next step, and a Toast
+                                // is where a next step goes to be truncated.
+                                is DataBackup.ImportResult.Failed -> backupFailure = again.message
+                                is DataBackup.ImportResult.TooLarge -> backupFailure = again.message
                             }
-                            Toast.makeText(context, note, Toast.LENGTH_LONG).show()
                         }
                     }) {
                         Text(

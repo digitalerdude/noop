@@ -102,31 +102,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Collapse coach instructions"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Customised. Your edited instructions frame every reply."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Edit coach instructions"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Edit how the coach thinks and talks. Takes effect on your next message."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "Fetching…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Off: the coach answers generally and sends none of your metrics."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "On: your recovery, sleep, HRV and workouts are shared with the provider for tailored coaching."
     ],
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
@@ -450,10 +426,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
-      "%d:%02d"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveWorkoutScreen.kt",
       "Below Zone 1"
     ],
     [
@@ -725,10 +697,6 @@
       "Unread. ${item.title}. ${item.message}"
     ],
     [
-      "android/app/src/main/java/com/noop/ui/WorkoutStart.kt",
-      "%d:%02d"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "${WorkoutEditing.displaySport(row.sport)}, ${dateLabel(row.startTs)}"
     ],
@@ -916,6 +884,10 @@
     ],
     [
       "Strand/Screens/BreathingView.swift",
+      "%.0f / %.0fs"
+    ],
+    [
+      "Strand/Screens/BreathingView.swift",
       "%.1f br/min"
     ],
     [
@@ -933,6 +905,10 @@
     [
       "Strand/Screens/FullDayChartView.swift",
       "Zoomed in. Drag to pan · hold to read"
+    ],
+    [
+      "Strand/Screens/HealthView.swift",
+      "Fitness Age \\(bound)\\(shown), \\(ageDeltaLine(years: years, younger: younger, bound: bound)). Tap to see the trend."
     ],
     [
       "Strand/Screens/HealthView.swift",
@@ -1024,10 +1000,6 @@
     ],
     [
       "Strand/Screens/SettingsView.swift",
-      "NOOP estimates your steps from your WHOOP's motion, calibrated to your phone's step count. It's an estimate, not a step counter — a WHOOP 5.0 / MG streams motion (not a step count) only with deep data on."
-    ],
-    [
-      "Strand/Screens/SettingsView.swift",
       "Scores your hour-by-hour stress timeline against YOUR own cross-day baseline (how your days usually run, Oura-style) instead of the day's own calm hours. Needs a few worn days; until then it stays on the default. The high-stress cutoff is tuned from a single-subject reference so far, so it's an alternative lens rather than the default. HR-only, and it never feeds recovery or illness scoring. Off by default."
     ],
     [
@@ -1045,6 +1017,10 @@
     [
       "Strand/Screens/SettingsView.swift",
       "Your WHOOP 5.0/MG sends a strap-computed SpO₂ percentage (the @82 candidate byte) every second — an 8-night independent validation tracked it at corr +0.99 against the WHOOP app, but two nights on the original test device moved the OPPOSITE direction, so device/firmware variance is unresolved. An Oura ring's own SpO₂ reading runs high on the wire (over 100% on a fifth to a half of samples on a clean night); this instead surfaces the ring's mean with each sample capped at 100% first, which has matched the Oura app's own displayed value on every full night checked against it so far, though only a few nights. Turning this on surfaces whichever applies to your device as \\\"strap estimate (unverified)\\\" in the Blood Oxygen tile when no calibrated import exists. It never feeds recovery or illness scoring. WHOOP 4.0 has no @82 stream, so this does nothing there."
+    ],
+    [
+      "Strand/Screens/SleepModel.swift",
+      "\\(Night.spanFmt.string(from: onsetDay)) → \\(Night.dateFmt.string(from: wakeDay))"
     ],
     [
       "Strand/Screens/SleepView.swift",
@@ -1065,10 +1041,6 @@
     [
       "Strand/Screens/SmartAlarmView.swift",
       "Open Settings"
-    ],
-    [
-      "Strand/Screens/StressView.swift",
-      "Stress \\(String(format: \"%.1f\", score)) of 3"
     ],
     [
       "Strand/Screens/StressView.swift",
@@ -1105,6 +1077,10 @@
     [
       "Strand/Screens/WorkoutDetailView.swift",
       "of 21"
+    ],
+    [
+      "Strand/Screens/WorkoutSelectionScreen.swift",
+      "\\(sport.name) workout, \\(labels.joined(separator: \", \"))"
     ],
     [
       "Strand/Screens/WorkoutsView.swift",

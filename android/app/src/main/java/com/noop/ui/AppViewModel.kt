@@ -186,6 +186,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _activeDeviceName = MutableStateFlow<String?>(null)
     val activeDeviceName: StateFlow<String?> = _activeDeviceName.asStateFlow()
 
+    /** Whether the ACTIVE registry device is a WHOOP (#2075). Published beside the name and refreshed in
+     *  the SAME registry read, so the console can never name one device while reading another's state.
+     *
+     *  For the SCREENS, which need something to recompose on. The widget producers deliberately read
+     *  `WhoopBleClient.activeDeviceIsWhoop` instead: two of them write that one snapshot field, and a
+     *  flow that lags the coordinator's flag would make the widget flicker between the two devices'
+     *  charges. Both derive from `SourceIdentity.isWhoop` on the active row. */
+    private val _activeIsWhoop = MutableStateFlow(true)
+    val activeIsWhoop: StateFlow<Boolean> = _activeIsWhoop.asStateFlow()
+
+    /** The active Oura ring's own charge, for the Live Console (#2075). Mirrors [ouraWearState]. */
+    val ouraBatteryPct: StateFlow<Int?> get() = noopApp.sourceCoordinator.ouraBatteryPct
+
     /** WHOOP-style day streak (#569): consecutive local days that carry a Charge score, computed on
      *  device from the merged daily metrics. A day "qualifies" when its [com.noop.data.DailyMetric] has a
      *  non-null `recovery`. Pure math lives in [com.noop.analytics.StreakCalculator] (Swift/Kotlin twin). */
@@ -239,6 +252,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val all = runCatching { noopApp.deviceRegistry.all() }.getOrDefault(emptyList())
             val active = all.firstOrNull { it.status == com.noop.data.DeviceStatus.active.name }
             _activeDeviceName.value = active?.let { displayName(it) }
+            // Same read, same row: the name and the "is it a WHOOP" verdict cannot disagree (#2075).
+            _activeIsWhoop.value = LiveConsoleReadout.activeIsWhoop(all, active?.id)
         }
     }
 
@@ -509,8 +524,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         .map { it.lastSyncAt }
         .stateIn(viewModelScope, SharingStarted.Eagerly, live.value.lastSyncAt)
 
-    /** Which strap the user is pairing — drives the scan filter in [connect]. Defaults to WHOOP 4.0. */
-    private val _selectedModel = MutableStateFlow(WhoopModel.WHOOP4)
+    /**
+     * Which strap the user is pairing — drives the scan filter in [connect].
+     *
+     * Seeded from the family service discovery actually recorded, which `WhoopBleClient.persistSelectedModel`
+     * writes for BOTH branches at the moment the WHOOP4 or WHOOP5 service is found on the link. It used
+     * to start at a hardcoded WHOOP4 and never consult that value, so an install whose only strap is a
+     * 5/MG began every process believing it had a 4.0.
+     *
+     * That is not a label. This flows into `ble.connect(...)`, which starts a SERVICE-FILTERED scan, so
+     * a wrong family makes every scan-based reconnect look for the wrong service and wait
+     * `SCAN_FALLBACK_DELAY_MS`, eight seconds, before rotating, with the strap sitting right there.
+     */
+    private val _selectedModel = MutableStateFlow(
+        resolveSelectedModel(noopApp.persistedWhoopModelOrNull(), NoopPrefs.lastDevice(appContext)?.second),
+    )
     val selectedModel: StateFlow<WhoopModel> = _selectedModel.asStateFlow()
     fun setSelectedModel(model: WhoopModel) {
         if (model == _selectedModel.value) return
@@ -861,8 +889,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     // and the Buzz-WHOOP companion, arming the single slot to the earliest either wants (#5).
                     reconcileStrapAlarm()
                     // Remember this strap so we can reconnect to it directly on the next launch (#67),
-                    // e.g. after an APK update restarts the process.
-                    ble.lastDeviceAddress?.let { NoopPrefs.setLastDevice(appContext, it, _selectedModel.value) }
+                    // e.g. after an APK update restarts the process. The address and model must both
+                    // describe the link that actually bonded: scan fallback / easy-connect can establish
+                    // a different family from the picker, and saving the pick made the pair lie about its
+                    // own address, then fed that lie back into every direct reconnect (#2068).
+                    val establishedModel = ble.establishedModel
+                    val address = ble.lastDeviceAddress
+                    if (establishedModel != null && address != null) {
+                        NoopPrefs.setLastDevice(appContext, address, establishedModel)
+                    }
                 }
                 lastBonded = state.bonded
             }
@@ -1023,10 +1058,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     // widget reads the anchor here (the notification's honest-null contract lives in the
                     // service), keeping the two symmetric.
                     val anchorRow = widgetAnchorRow(days, logicalKey, localKey)
-                    // #2040: today's stress curve for the stress widget. Self-gating on a cheap HR
-                    // fingerprint, so an idle tick costs one indexed COUNT and no rows; null when
-                    // there is no device to read, which leaves whatever curve is stored alone.
-                    val stressCurve = com.noop.widget.StressWidgetProducer.todayCurve(repo, activeStrapId)
+                    // #2040: today's stress curve for the stress widget. Do not even fingerprint the
+                    // day's HR when nobody has placed one; scoring is the only expensive widget field.
+                    // Null also leaves whatever curve is already stored alone, so a newly placed widget
+                    // fills on the next pass without disturbing the other widget snapshots.
+                    val stressCurve = if (WidgetSnapshotStore.hasStressWidget(appContext)) {
+                        com.noop.widget.StressWidgetProducer.todayCurve(repo, activeStrapId)
+                    } else {
+                        null
+                    }
                     WidgetSnapshotStore.push(
                         appContext,
                         WidgetSnapshot(
@@ -1036,7 +1076,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                             restPct = anchorRow?.let { RestScorer.restFromDaily(it)?.roundToInt() },
                             effortPct = anchorRow?.strain?.roundToInt(),
                             heartRate = live.heartRate,
-                            batteryPct = live.batteryPct?.roundToInt(),
+                            // The ACTIVE device's charge (#2075): a ring reports its own and does not
+                            // funnel into live.batteryPct, so publishing that put the strap's number on
+                            // the widget while a ring was active.
+                            //
+                            // Deliberately `ble.activeDeviceIsWhoop` rather than the [activeIsWhoop] flow
+                            // beside it. TWO producers write this one field, this and the BLE service,
+                            // and they must not disagree or the widget would flicker between a strap's
+                            // charge and a ring's. The flow exists for Compose, which needs something to
+                            // recompose on; the producers share the coordinator's flag.
+                            batteryPct = LiveConsoleReadout.batteryPercent(
+                                activeIsWhoop = ble.activeDeviceIsWhoop,
+                                whoopPct = live.batteryPct,
+                                ringPct = noopApp.sourceCoordinator.ouraBatteryPct.value,
+                            ),
                             connected = live.connected,
                             stressSeries = stressCurve?.points ?: emptyList(),
                             stressDay = stressCurve?.epochDay,
@@ -1214,11 +1267,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                                     .active(com.noop.testcentre.TestDomain.UNIVERSAL))
                                 { line -> ble.externalLog(line, com.noop.testcentre.TestDomain.UNIVERSAL) }
                             else null,
-                        // Workouts & GPS test mode (#975): when the WORKOUTS domain is on, route each detected-
-                        // bout persist/drop decision into the .workouts-tagged strap log so an "auto workout
-                        // appeared then vanished" is explainable from an export (previously the auto path
-                        // produced NO trace). Zero-cost when off: one SharedPreferences bool read and the sink
-                        // stays null, so the detected-bout persist path is byte-identical. Mirrors macOS.
+                        // Workouts & GPS test mode (#975/#2187): when the WORKOUTS domain is on, route each
+                        // analytics-only/backfill decision into the .workouts-tagged strap log. Zero-cost when
+                        // off: one SharedPreferences bool read and the sink stays null, so normal analytics are
+                        // byte-identical. Mirrors macOS.
                         workoutsTraceSink =
                             if (com.noop.testcentre.TestCentre.from(appContext)
                                     .active(com.noop.testcentre.TestDomain.WORKOUTS))
@@ -1376,15 +1428,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     private fun autoReconnectOnLaunch() {
         val saved = NoopPrefs.lastDevice(appContext) ?: return
-        // Restore the model selection whenever a strap is remembered — deliberately NOT gated on the
-        // background-connection pref, so an opted-out 5/MG user's picker and scan family still
-        // survive restarts. Only the reconnect itself respects the pref. (#78 fork)
-        _selectedModel.value = saved.second
+        // No picker restore here any more. This used to assign `_selectedModel` from `saved.second`,
+        // which is what let a wrong family survive every restart and re-store itself. `_selectedModel`
+        // is now seeded from the recorded family at construction, and this runs from the tail of the
+        // same init block, off the same two prefs, so re-deriving it here could only ever recompute the
+        // identical value. The property the old line was protecting (#78 fork) is preserved and widened:
+        // a field initializer is unconditional, so the picker and scan family now survive a restart even
+        // for a user with background connection off AND for one with no saved strap at all, which is
+        // exactly the 5/MG case, since a strap that cannot bond (#1635) never becomes the saved device
+        // and so never reached this line in the first place.
         if (!NoopPrefs.backgroundConnection(appContext)) return
         // APK updates tear down the old foreground service along with the old process. Re-promote it
         // on the first launch after update/restart before reconnecting, so the persistent notification
         // and long-lived connection both come back without the user toggling the setting again.
         WhoopConnectionService.start(appContext)
+        // The PAIR, deliberately, not the seeded picker value. `setLastDevice` writes address and family
+        // in one call, so `saved.second` describes THIS address; the recorded family describes whatever
+        // advertised last, which need not be the same strap. `reconnectToAddress` assigns the client's
+        // `selectedModel` for the whole link and service discovery never writes that back (it sets
+        // `connectedFamily` instead), so a family borrowed from the other source would stick. A household
+        // with a 4.0 and a 5/MG makes them disagree routinely: the 5/MG cannot bond (#1635) so it never
+        // becomes the saved device, while every attempt at it re-records WHOOP5_MG.
         ble.reconnectToAddress(saved.first, saved.second)
     }
 
@@ -1634,6 +1698,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val endMs = System.currentTimeMillis()
+        // A session under a minute is a start/stop nobody meant to keep. Twin of Swift
+        // `AppModel.endWorkout`, and the same floor the manual doors enforce, so a workout is treated
+        // identically whether it was tracked or typed in. Discarded at SAVE rather than pruned later:
+        // nothing that ever held training data is removed.
+        val elapsedSeconds = (endMs - w.startMs) / 1000L
+        if (elapsedSeconds < WorkoutEditing.MIN_MANUAL_SPAN_SECONDS) {
+            emitWorkoutsTrace {
+                com.noop.analytics.WorkoutsTrace.sessionLine(
+                    event = "discarded", sportKey = WorkoutEditing.traceSportKey(w.sport.name),
+                    hrSamples = samples.size, durationSec = elapsedSeconds.toInt(),
+                    gpsPoints = if (w.gpsEnabled) track.size else null,
+                )
+            }
+            _lastWorkout.value = null
+            return
+        }
         val pausedMs = w.pausedDurationMs + (w.pausedAtMs?.let { endMs - it } ?: 0L)
         val activeDurationMs = (endMs - w.startMs - pausedMs).coerceAtLeast(0L)
         val avg = if (samples.isNotEmpty()) samples.sumOf { it.bpm } / samples.size else null
@@ -1722,8 +1802,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     //
     // The screen observes [workouts]; every mutation re-loads it so the list reflects the new state
     // immediately. Loads ALL sources — strap (imported + manual), Apple Health / Health Connect, and
-    // the on-device DETECTED bouts under "<deviceId>-noop" — then filters out dismissed detected bouts
-    // so a duplicate the auto-detector created is visible but removable. Mirrors macOS
+    // grandfathered DETECTED bouts under "<deviceId>-noop" — then filters out dismissed detected bouts
+    // so legacy history remains visible and removable. Mirrors macOS
     // Repository.workoutRows.
 
     private val _workouts = MutableStateFlow<List<WorkoutRow>>(emptyList())
@@ -1914,7 +1994,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // HR-fill below like the imported Apple sessions — a GPX with no HR borrows the strap's, while a
             // FIT that already carries HR is untouched (fill only fills nulls).
             val activityFiles = repository.workouts(ActivityFileImporter.SOURCE_ID, 0L, now)
-            val markers = repository.dismissedDetected(deviceId)
+            val markers = repository.dismissedDetectedUnion(deviceId)
             // Fill imported sessions' missing HR from strap samples (#77), same as before; detected /
             // manual rows already carry their own HR so they pass through unchanged. #961: also backfill a
             // strap-native row's Effort (strain) from the strap trace when it's null, so a live/manual
@@ -2113,7 +2193,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Re-label a detected bout to [sport] (becomes a durable manual session), then reload. */
     fun relabelDetected(row: WorkoutRow, sport: String) {
         viewModelScope.launch {
-            runCatching { repository.relabelDetected(row, sport) }
+            runCatching { repository.relabelDetected(row, sport, deviceId) }
             loadWorkouts()
         }
     }
@@ -3226,3 +3306,28 @@ internal fun elapsedClock(elapsedS: Long): String {
         java.lang.String.format(java.util.Locale.US, "%d:%02d", m, s)
     }
 }
+
+/**
+ * Which strap family the picker should sit on, given the two things the app remembers.
+ *
+ * [recorded] is what service discovery actually saw on the link — `WhoopBleClient.persistSelectedModel`
+ * writes it for BOTH the WHOOP4 and the WHOOP5 branch at the moment that family's service is found, so
+ * it is positive per-link evidence and it wins. [remembered] is the family half of the saved
+ * last-device pair, which only ever stores whatever the picker happened to hold when a strap last
+ * bonded; it is a fallback for installs that predate [recorded], not a source of truth, because reading
+ * it back into the picker lets a wrong value re-store itself on every restart.
+ *
+ * The same precedence, for the same reason, is already reasoned out in `AndroidDiagnostics.reportedModel`,
+ * which picks `detected ?: remembered` so a report cannot invent a model. Note that `NoopPrefs.lastDevice`
+ * widens a MISSING family to WHOOP4 before it ever reaches [remembered], so a null here means "no strap
+ * remembered at all", never "remembered without a family" — this function cannot recover the difference
+ * and does not try, because both land on WHOOP4 anyway.
+ *
+ * WHOOP4 remains the last resort so a fresh install behaves as it always has.
+ *
+ * Pure on purpose: both inputs are read from SharedPreferences at the call sites, and there is no
+ * Robolectric in this module, so the decision itself is only testable once it is separated from the
+ * `Context` that supplies it.
+ */
+internal fun resolveSelectedModel(recorded: WhoopModel?, remembered: WhoopModel?): WhoopModel =
+    recorded ?: remembered ?: WhoopModel.WHOOP4

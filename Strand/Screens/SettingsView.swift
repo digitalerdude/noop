@@ -176,6 +176,10 @@ struct SettingsView: View {
     /// #1841: shared with Android by name and meaning; each platform keeps its own store. Default FALSE
     /// on Apple (Android defaults true) because the system behaviour may not fire on our
     /// `NavigationStack(path:)` tabs — see RootTabView.
+    /// The Coach master switch, under the same `noop.` key Android writes. Default ON, so nothing changes
+    /// for an install that never opens this row. Read by `RootTabView` (the tab), Today (the launcher card)
+    /// and `CoachBriefScheduler` (the daily background brief).
+    @AppStorage("noop.coachEnabled") private var coachEnabled = true
     @AppStorage("noop.bottomBarAutoHide") private var bottomBarAutoHide = false
     @AppStorage(ClockFormatPreference.defaultsKey)
     private var clockFormatRaw = ClockFormatPreference.system.rawValue
@@ -1201,6 +1205,25 @@ struct SettingsView: View {
                     // picker would appear to do nothing until the app restarted.
                     .onChangeCompat(of: clockFormatRaw) { _ in AppClock.invalidate() }
                 }
+                rowDivider
+                // The Coach master switch. Offered on BOTH platforms, not only where the bottom bar is: it
+                // does not hide chrome, it turns the AI off, and macOS reaches the same Coach from its
+                // sidebar. With this off the tab (or sidebar row) goes, the Today launcher card goes, and
+                // the daily brief is cancelled -- the brief being the surface that would otherwise keep
+                // calling a provider from the background with no UI to reveal it. The saved provider key is
+                // kept, so this is a flip rather than a re-setup.
+                FormRow(label: "AI Coach") {
+                    Toggle("", isOn: $coachEnabled)
+                        .labelsHidden()
+                        .tint(StrandPalette.accent)
+                        .accessibilityLabel("AI Coach")
+                }
+                .onChangeCompat(of: coachEnabled) { on in
+                    // Switching the AI off has to TAKE DOWN what the brief already published, not just stop the
+                    // next one: the widget renders the last brief it was given, so without this a wearer would
+                    // still be looking at AI output on their home screen after turning the AI off.
+                    CoachBriefScheduler.applyMasterSwitch(on)
+                }
                 #if os(iOS)
                 rowDivider
                 // #1841: the same preference Android drives its own bar with, by name and meaning. Here
@@ -1721,7 +1744,7 @@ struct SettingsView: View {
                 .tint(StrandPalette.accent)
                 .accessibilityHint("Offers to save a workout when it spots sustained elevated heart rate")
 
-                Text("After a sync, NOOP looks over your recent heart rate for a sustained, raised stretch that looks like exercise and offers to save it. It only ever suggests. Nothing is saved until you tap Save, and you can dismiss any suggestion. Deliberately conservative, so the odd workout may be missed. On \(Platform.deviceNounPhrase) only.")
+                Text("After a sync, NOOP looks over your recent heart rate for a sustained, raised stretch that looks like exercise and offers to save it. It only ever suggests. Nothing is saved until you tap Save, and you can dismiss any suggestion. Turning this off stops future suggestions but keeps your existing workout history. Deliberately conservative, so the odd workout may be missed. On \(Platform.deviceNounPhrase) only.")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)

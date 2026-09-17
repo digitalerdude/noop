@@ -732,7 +732,7 @@
     <string name="l10n_onboarding_screen_import_apple_health_export_077b5624">Importar exportação do Apple Health</string>
     <string name="l10n_onboarding_screen_import_from_health_connect_35d55e21">Importar do Health Connect</string>
     <string name="l10n_onboarding_screen_import_whoop_export_zip_16f4176b">Importar exportação WHOOP (. zip)</string>
-    <string name="l10n_onboarding_screen_light_a36ef8ab">Luz</string>
+    <string name="l10n_onboarding_screen_light_a36ef8ab">Claro</string>
     <string name="l10n_onboarding_screen_make_it_yours_54135155">Faça com que seja o seu</string>
     <string name="l10n_onboarding_screen_no_whoop_you_can_still_continue_ec58d88d">Não, Uau? Ainda pode continuar. Emparelhe uma bracelete de frequência cardíaca (Polar, Wahoo, Coospo, Garmin HRM…)</string>
     <string name="l10n_onboarding_screen_nothing_leaves_your_phone_502d5d0c">Nada sai do teu telemóvel</string>
@@ -1049,6 +1049,7 @@
     <string name="l10n_workouts_screen_show_more_more_remaining_remaining_d1662e67">Mostrar %1$s mais (%2$s restantes)</string>
     <string name="l10n_workouts_screen_show_more_more_sessions_25bce755">Mostrar mais sessões %1$s</string>
     <string name="l10n_workouts_screen_started_faa9e7e7">Iniciado</string>
+    <string name="l10n_workouts_screen_ended_90303d8d">Terminado</string>
     <string name="l10n_workouts_screen_the_average_above_was_edited_the_0a7881f0">A média acima foi editada. O gráfico, as zonas e o esforço permanecem da sessão gravada.</string>
     <string name="l10n_workouts_screen_these_sessions_have_no_sport_label_53993414">Estas sessões ainda não têm rótulo desportivo. Escolha um para a sessão combinada.</string>
     <string name="l10n_workouts_screen_this_session_s_contribution_to_the_fe40ab3d">A contribuição desta sessão para o esforço do dia, tal como captado durante o treino.</string>
@@ -1347,6 +1348,8 @@
     <string name="l10n_components_glowring_value_ac0e87de">valor do anel luminoso</string>
     <string name="l10n_components_increase_accessibility_0949c0e9">Aumentar %1$s</string>
     <string name="l10n_components_ringfill_59cd4fb9">ringFill</string>
+    <string name="l10n_components_close_bbfa773e">Fechar</string>
+    <string name="l10n_components_copy_af74f7c5">Cópia</string>
     <string name="l10n_connection_help_allow_nearby_devices_f7c74880">Permitir dispositivos próximos</string>
     <string name="l10n_connection_help_charge_it_and_put_it_on_31b04814">Carregue e coloque-o</string>
     <string name="l10n_connection_help_close_the_official_whoop_app_768d7d17">Feche a aplicação oficial do WHOOP</string>
@@ -1675,7 +1678,16 @@
     <string name="l10n_today_screen_recovery_ea924f72">Recuperação</string>
     <string name="l10n_today_screen_sync_chip_now_c9bc849a">agora</string>
     <string name="l10n_today_screen_sync_chip_live_98aadb37">em direto</string>
-    <string name="l10n_today_screen_sync_chip_syncing_desc_bfc290e7">A sincronizar o histórico da bracelete, %1$d pedaços</string>
+    <string name="l10n_today_screen_sync_chip_syncing_desc_92daf60c">A sincronizar o histórico da bracelete, %1$s</string>
+    <string name="l10n_today_screen_sync_chip_syncing_pages_desc_ad763b39">A sincronizar o histórico da bracelete, %1$s, %2$s</string>
+    <plurals name="sync_chip_chunks_count">
+        <item quantity="one">%1$d pedaço</item>
+        <item quantity="other">%1$d pedaços</item>
+    </plurals>
+    <plurals name="sync_chip_pages_behind_count">
+        <item quantity="one">%1$d página em atraso na ligação</item>
+        <item quantity="other">%1$d páginas em atraso na ligação</item>
+    </plurals>
     <string name="l10n_today_screen_sync_chip_synced_desc_4d255944">Histórico da bracelete sincronizado há %1$s</string>
     <string name="l10n_today_screen_sync_chip_experimental_desc_3de06a70">Ligada; a sincronização do histórico é experimental nesta bracelete.</string>
     <string name="l10n_today_screen_recovery_roundtoint_charge_92fbaa5e">%1$s%% Carga</string>
@@ -1930,6 +1942,7 @@
     <string name="recording_chip_detail_history_experimental">A sincronização do histórico é experimental na versão 5.0.</string>
     <string name="recording_chip_detail_connected_no_data">Ainda não há frequência cardíaca em direto nem histórico sincronizado nesta sessão.</string>
     <string name="score_state_title_calibrating">A calibrar</string>
+    <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">Retoma de manhã</string>
     <string name="score_state_title_needs_strap">Precisa da pega</string>
     <string name="score_state_title_last_night">Ontem à noite · %1$s</string>
     <string name="score_state_title_latest_sleep">Último sono · %1$s</string>
@@ -2696,6 +2709,12 @@
     <string name="coach_clear_action">Apagar</string>
     <string name="coach_token_estimate">~%1$d tokens</string>
     <string name="coach_token_warning">" · pode exceder janelas de contexto pequenas"</string>
+    <string name="l10n_coach_settings_screen_customised_your_edited_instructions_frame_every_reply_bab91200">Personalizado. As tuas instruções editadas enquadram cada resposta.</string>
+    <string name="l10n_coach_settings_screen_edit_how_the_coach_thinks_and_talks_takes_5104835d">Edite como o treinador pensa e fala. Entra em vigor na tua próxima mensagem.</string>
+    <string name="l10n_coach_settings_screen_collapse_coach_instructions_0933974a">Recolher instruções do treinador</string>
+    <string name="l10n_coach_settings_screen_edit_coach_instructions_63a38c3a">Editar instruções do treinador</string>
+    <string name="coach_settings">Definições do coach</string>
+    <string name="coach_settings_subtitle">O que o coach pode ler, como lhe é pedido que responda e quando te escreve.</string>
     <string name="coach_morning_brief">Resumo matinal</string>
     <string name="coach_morning_brief_desc">Uma notificação local com a prontidão + plano de treino de hoje, gerada no dispositivo todas as manhãs.</string>
     <string name="coach_morning_brief_off">Desativado: nada é gerado nem enviado num agendamento.</string>
@@ -2743,4 +2762,15 @@
     <string name="l10n_app_changelog_a_coach_that_keeps_the_thread_2ee52e0c">Um treinador que mantém o fio, a sua frequência cardíaca no ecrã principal e gráficos que afirmam menos</string>
     <string name="charge_legacy_rr_gap_title">Batimentos anteriores não podem ser pontuados</string>
     <string name="charge_legacy_rr_gap_detail">Esta noite foi registada antes de o NOOP identificar de que transporte WHOOP 5 vinha cada batimento, por isso os seus intervalos misturam duas unidades diferentes e não há nada guardado que permita distingui-las. A noite mantém-se no teu histórico e as noites registadas a partir de agora são pontuadas normalmente.</string>
+    <string name="coach_key_rejected_hint">Cola a chave corrigida. A tua conversa é mantida.</string>
+    <string name="coach_key_rejected_placeholder">Cola a tua chave %1$s</string>
+    <string name="coach_key_rejected_action">Atualizar chave</string>
+    <string name="coach_consent_on">Ligado: a tua carga, descanso, VFC e treinos são enviados ao fornecedor, cada treino com o desporto, duração, distância e frequência cardíaca.</string>
+    <string name="coach_consent_off">Desligado: o coach responde de forma geral e não envia nenhuma das tuas métricas.</string>
+    <string name="l10n_app_changelog_a_today_screen_you_arrange_yourself_6194ccd0">Um ecrã Hoje que organiza a seu gosto, o stress no ecrã principal e cópias de segurança que se verificam a si próprias</string>
+    <string name="l10n_stress_screen_scored_through_1_s_later_hours_fbb7d6c7">Avaliado até às %1$s. As horas seguintes precisam de mais amostras de frequência cardíaca.</string>
+    <string name="l10n_today_screen_scan_and_connect_40157030">Procurar e ligar</string>
+    <string name="l10n_health_screen_fitness_age_stops_here_vo_max_383d989a">A idade de forma física para aqui. O VO₂máx não.</string>
+    <string name="l10n_app_changelog_a_stress_screen_that_keeps_up_f7ec3f36">Um ecrã de stress que acompanha, leituras do WHOOP 5 nas unidades que a pulseira envia, e um anel que deixa de se repetir</string>
+    <string name="l10n_settings_screen_ai_coach_130c3eab">Treinador de IA</string>
 </resources>

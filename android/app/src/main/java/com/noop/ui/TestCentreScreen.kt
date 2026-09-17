@@ -66,7 +66,6 @@ import com.noop.testcentre.TestDomain
 import com.noop.testcentre.TestMode
 import com.noop.testcentre.TestModeRegistry
 import com.noop.testcentre.TestReportFlow
-import com.noop.testcentre.TestReportLink
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
@@ -587,8 +586,11 @@ private fun TestModeRow(
         }
         Row {
             Spacer(Modifier.weight(1f))
+            // "Share", not "Report", to match the strap-log button below and the preview sheet this
+            // opens, whose own copy already reads "Nothing leaves this phone until you tap Share".
+            // Reuses the Share string this screen already carries, so no new copy and no new locales.
             TextButton(onClick = onReport) {
-                Text(uiString(R.string.l10n_test_centre_screen_report_ee45c303), color = Palette.accent, style = NoopType.body)
+                Text(uiString(R.string.l10n_test_centre_screen_share_09ca55ca), color = Palette.accent, style = NoopType.body)
             }
         }
     }

@@ -1084,6 +1084,7 @@
     <string name="l10n_workouts_screen_show_more_more_remaining_remaining_d1662e67">%1$s mehr anzeigen (%2$s bleibt übrig)</string>
     <string name="l10n_workouts_screen_show_more_more_sessions_25bce755">%1$s weitere Sessions anzeigen</string>
     <string name="l10n_workouts_screen_started_faa9e7e7">Beginn</string>
+    <string name="l10n_workouts_screen_ended_90303d8d">Ende</string>
     <string name="l10n_workouts_screen_the_average_above_was_edited_the_0a7881f0">Der Durchschnitt oben wurde bearbeitet. Graph, Zonen und Anstrengung bleiben aus der aufgezeichneten Sitzung.</string>
     <string name="l10n_workouts_screen_these_sessions_have_no_sport_label_53993414">Diese Sessions haben noch kein Sportlabel. Wähle eine für die fusionierte Sitzung.</string>
     <string name="l10n_workouts_screen_this_session_s_contribution_to_the_fe40ab3d">Der Beitrag dieser Sitzung zur Tages-Anstrengung, wie während des Workouts erfasst.</string>
@@ -1384,6 +1385,8 @@
     <string name="l10n_components_glowring_value_ac0e87de">Glühwert</string>
     <string name="l10n_components_increase_accessibility_0949c0e9">%1$s erhöhen</string>
     <string name="l10n_components_ringfill_59cd4fb9">ringFill</string>
+    <string name="l10n_components_close_bbfa773e">Schließen</string>
+    <string name="l10n_components_copy_af74f7c5">Kopieren</string>
     <string name="l10n_connection_help_allow_nearby_devices_f7c74880">Geräte in der Nähe zulassen</string>
     <string name="l10n_connection_help_charge_it_and_put_it_on_31b04814">Lade es und lege es auf</string>
     <string name="l10n_connection_help_close_the_official_whoop_app_768d7d17">Schließe die offizielle WHOOP App</string>
@@ -1712,7 +1715,16 @@
     <string name="l10n_today_screen_recovery_ea924f72">Erholung</string>
     <string name="l10n_today_screen_sync_chip_now_c9bc849a">jetzt</string>
     <string name="l10n_today_screen_sync_chip_live_98aadb37">Live</string>
-    <string name="l10n_today_screen_sync_chip_syncing_desc_bfc290e7">Verlaufssynchronisierung des Straps läuft, %1$d Chunks</string>
+    <string name="l10n_today_screen_sync_chip_syncing_desc_92daf60c">Verlaufssynchronisierung des Straps läuft, %1$s</string>
+    <string name="l10n_today_screen_sync_chip_syncing_pages_desc_ad763b39">Verlaufssynchronisierung des Straps läuft, %1$s, %2$s</string>
+    <plurals name="sync_chip_chunks_count">
+        <item quantity="one">%1$d Chunk</item>
+        <item quantity="other">%1$d Chunks</item>
+    </plurals>
+    <plurals name="sync_chip_pages_behind_count">
+        <item quantity="one">%1$d Seite Rückstand bei Verbindungsaufbau</item>
+        <item quantity="other">%1$d Seiten Rückstand bei Verbindungsaufbau</item>
+    </plurals>
     <string name="l10n_today_screen_sync_chip_synced_desc_4d255944">Verlauf des Straps vor %1$s synchronisiert</string>
     <string name="l10n_today_screen_sync_chip_experimental_desc_3de06a70">Verbunden; die Verlaufssynchronisierung ist bei diesem Strap experimentell.</string>
     <string name="l10n_today_screen_recovery_roundtoint_charge_92fbaa5e">%1$s%% Ladung</string>
@@ -1969,6 +1981,7 @@
     <string name="recording_chip_detail_history_experimental">Verlaufssynchronisierung ist auf 5.0 experimentell.</string>
     <string name="recording_chip_detail_connected_no_data">Noch keine Live-Herzfrequenz und kein synchronisierter Verlauf in dieser Sitzung.</string>
     <string name="score_state_title_calibrating">Kalibrierung</string>
+    <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">Wird morgens fortgesetzt</string>
     <string name="score_state_title_needs_strap">Strap erforderlich</string>
     <string name="score_state_title_last_night">Letzte Nacht · %1$s</string>
     <string name="score_state_title_latest_sleep">Letzter Schlaf · %1$s</string>
@@ -2717,6 +2730,12 @@
     <string name="coach_clear_action">Löschen</string>
     <string name="coach_token_estimate">~%1$d Token</string>
     <string name="coach_token_warning">" · kann kleine Kontextfenster überschreiten"</string>
+    <string name="l10n_coach_settings_screen_customised_your_edited_instructions_frame_every_reply_bab91200">Angepasst. Deine bearbeiteten Anweisungen rahmen jede Antwort.</string>
+    <string name="l10n_coach_settings_screen_edit_how_the_coach_thinks_and_talks_takes_5104835d">Bearbeite, wie der Coach denkt und spricht. Wirkt ab deiner nächsten Nachricht.</string>
+    <string name="l10n_coach_settings_screen_collapse_coach_instructions_0933974a">Coach-Anweisungen einklappen</string>
+    <string name="l10n_coach_settings_screen_edit_coach_instructions_63a38c3a">Coach-Anweisungen bearbeiten</string>
+    <string name="coach_settings">Coach-Einstellungen</string>
+    <string name="coach_settings_subtitle">Worauf der Coach zugreifen darf, wie er antworten soll und wann er dir schreibt.</string>
     <string name="coach_morning_brief">Morgenbrief</string>
     <string name="coach_morning_brief_desc">Eine lokale Benachrichtigung mit heutiger Bereitschaft + Trainingsplan, jeden Morgen auf dem Gerät erstellt.</string>
     <string name="coach_morning_brief_off">Aus: Es wird nichts generiert oder nach Zeitplan gesendet.</string>
@@ -2764,4 +2783,15 @@
     <string name="l10n_app_changelog_a_coach_that_keeps_the_thread_2ee52e0c">Ein Coach, der den Faden behält, deine Herzfrequenz auf dem Homescreen und Diagramme, die weniger behaupten</string>
     <string name="charge_legacy_rr_gap_title">Frühere Herzschläge nicht auswertbar</string>
     <string name="charge_legacy_rr_gap_detail">Diese Nacht wurde aufgezeichnet, bevor NOOP festhielt, über welchen WHOOP-5-Übertragungsweg jeder Herzschlag kam. Ihre Intervalle mischen deshalb zwei verschiedene Einheiten, und es ist nichts gespeichert, was sie unterscheidbar macht. Die Nacht bleibt in deinem Verlauf, und ab jetzt aufgezeichnete Nächte werden normal bewertet.</string>
+    <string name="coach_key_rejected_hint">Füge den korrigierten Schlüssel ein. Deine Unterhaltung bleibt erhalten.</string>
+    <string name="coach_key_rejected_placeholder">%1$s-Schlüssel einfügen</string>
+    <string name="coach_key_rejected_action">Schlüssel aktualisieren</string>
+    <string name="coach_consent_on">An: Ladung, Erholung, HRV und Workouts gehen an den Anbieter, jedes Workout mit Sportart, Dauer, Distanz und Herzfrequenz.</string>
+    <string name="coach_consent_off">Aus: Der Coach antwortet allgemein und sendet keine deiner Werte.</string>
+    <string name="l10n_app_changelog_a_today_screen_you_arrange_yourself_6194ccd0">Ein Heute-Bildschirm, den du selbst zusammenstellst, Stress auf dem Homescreen und Backups, die sich selbst prüfen</string>
+    <string name="l10n_stress_screen_scored_through_1_s_later_hours_fbb7d6c7">Bewertet bis %1$s. Spätere Stunden brauchen mehr Herzfrequenz-Messwerte.</string>
+    <string name="l10n_today_screen_scan_and_connect_40157030">Suchen und verbinden</string>
+    <string name="l10n_health_screen_fitness_age_stops_here_vo_max_383d989a">Das Fitnessalter endet hier. VO₂max nicht.</string>
+    <string name="l10n_app_changelog_a_stress_screen_that_keeps_up_f7ec3f36">Ein Stress-Bildschirm, der mitkommt, WHOOP-5-Werte in den Einheiten, die das Band sendet, und ein Ring, der sich nicht mehr wiederholt</string>
+    <string name="l10n_settings_screen_ai_coach_130c3eab">KI-Coach</string>
 </resources>

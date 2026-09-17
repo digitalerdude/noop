@@ -574,7 +574,7 @@
     <string name="l10n_onboarding_screen_all_your_data_none_of_the_6fc6f26d">toutes vos données, sans le cloud</string>
     <string name="l10n_onboarding_screen_back_b52b36b7">Retour</string>
     <string name="l10n_onboarding_screen_bring_your_history_5b8775c9">Apportez votre historique</string>
-    <string name="l10n_onboarding_screen_dark_ae1ef014">Noir</string>
+    <string name="l10n_onboarding_screen_dark_ae1ef014">Sombre</string>
     <string name="l10n_onboarding_screen_estimated_max_heart_rate_profile_hrmax_06356290">Fréquence cardiaque maximale estimée · %1$s bpm</string>
     <string name="l10n_onboarding_screen_estimated_max_heart_rate_profile_hrmax_622da889">Fréquence cardiaque maximale estimée %1$s bpm</string>
     <string name="l10n_onboarding_screen_every_beat_every_night_every_day_ab536123">Chaque battement, chaque nuit, chaque jour, tissé en un portrait silencieux de vous. Bienvenue dans NOOP.</string>
@@ -585,7 +585,7 @@
     <string name="l10n_onboarding_screen_import_apple_health_export_077b5624">Importer un export Apple Santé</string>
     <string name="l10n_onboarding_screen_import_from_health_connect_35d55e21">Importation depuis Health Connect</string>
     <string name="l10n_onboarding_screen_import_whoop_export_zip_16f4176b">Importation d\'exportation WHOOP (.zip)</string>
-    <string name="l10n_onboarding_screen_light_a36ef8ab">Léger</string>
+    <string name="l10n_onboarding_screen_light_a36ef8ab">Clair</string>
     <string name="l10n_onboarding_screen_make_it_yours_54135155">Faites-le vôtre</string>
     <string name="l10n_onboarding_screen_no_whoop_you_can_still_continue_ec58d88d">Pas de WHOOP ? Vous pouvez continuer. Associez un bracelet de fréquence cardiaque (Polar, Wahoo, Coospo, Garmin HRM...)</string>
     <string name="l10n_onboarding_screen_nothing_leaves_your_phone_502d5d0c">Rien ne laisse ton téléphone</string>
@@ -902,6 +902,7 @@
     <string name="l10n_workouts_screen_show_more_more_remaining_remaining_d1662e67">Afficher %1$s plus (%2$s restant)</string>
     <string name="l10n_workouts_screen_show_more_more_sessions_25bce755">Afficher plus de sessions %1$s</string>
     <string name="l10n_workouts_screen_started_faa9e7e7">Commencé</string>
+    <string name="l10n_workouts_screen_ended_90303d8d">Terminé</string>
     <string name="l10n_workouts_screen_the_average_above_was_edited_the_0a7881f0">La moyenne ci-dessus a été modifiée. Le graphique, les zones et l\'Effort restent ceux de la séance enregistrée.</string>
     <string name="l10n_workouts_screen_these_sessions_have_no_sport_label_53993414">Ces séances n\'ont pas encore de label sportif. Choisissez un pour la session fusionnée.</string>
     <string name="l10n_workouts_screen_this_session_s_contribution_to_the_fe40ab3d">La contribution de cette séance à l\'Effort du jour, telle que capturée pendant l\'entraînement.</string>
@@ -1202,6 +1203,8 @@
     <string name="l10n_components_glowring_value_ac0e87de">Valeur d\'éclat</string>
     <string name="l10n_components_increase_accessibility_0949c0e9">Augmenter %1$s</string>
     <string name="l10n_components_ringfill_59cd4fb9">bagueRemplir</string>
+    <string name="l10n_components_close_bbfa773e">Fermer</string>
+    <string name="l10n_components_copy_af74f7c5">Copier</string>
     <string name="l10n_connection_help_allow_nearby_devices_f7c74880">Permettre aux périphériques à proximité</string>
     <string name="l10n_connection_help_charge_it_and_put_it_on_31b04814">Chargez-le et mettez-le</string>
     <string name="l10n_connection_help_close_the_official_whoop_app_768d7d17">Fermez l\'application officielle WHOOP</string>
@@ -1530,7 +1533,16 @@
     <string name="l10n_today_screen_recovery_ea924f72">Récupération</string>
     <string name="l10n_today_screen_sync_chip_now_c9bc849a">à l\'instant</string>
     <string name="l10n_today_screen_sync_chip_live_98aadb37">en direct</string>
-    <string name="l10n_today_screen_sync_chip_syncing_desc_bfc290e7">Synchronisation de l\'historique du bracelet, %1$d blocs</string>
+    <string name="l10n_today_screen_sync_chip_syncing_desc_92daf60c">Synchronisation de l\'historique du bracelet, %1$s</string>
+    <string name="l10n_today_screen_sync_chip_syncing_pages_desc_ad763b39">Synchronisation de l\'historique du bracelet, %1$s, %2$s</string>
+    <plurals name="sync_chip_chunks_count">
+        <item quantity="one">%1$d bloc</item>
+        <item quantity="other">%1$d blocs</item>
+    </plurals>
+    <plurals name="sync_chip_pages_behind_count">
+        <item quantity="one">%1$d page de retard à la connexion</item>
+        <item quantity="other">%1$d pages de retard à la connexion</item>
+    </plurals>
     <string name="l10n_today_screen_sync_chip_synced_desc_4d255944">Historique du bracelet synchronisé il y a %1$s</string>
     <string name="l10n_today_screen_sync_chip_experimental_desc_3de06a70">Connecté ; la synchronisation de l\'historique est expérimentale sur ce bracelet.</string>
     <string name="l10n_today_screen_recovery_roundtoint_charge_92fbaa5e">Charge %1$s%%</string>
@@ -1955,6 +1967,7 @@
     <string name="recording_chip_detail_history_experimental">La synchronisation de l\'historique est expérimentale sur 5.0.</string>
     <string name="recording_chip_detail_connected_no_data">Aucune fréquence cardiaque en direct ni historique synchronisé durant cette session.</string>
     <string name="score_state_title_calibrating">Calibration en cours</string>
+    <string name="l10n_stress_glance_widget_resumes_in_the_morning_a640b49f">Reprend le matin</string>
     <string name="score_state_title_needs_strap">Nécessite le bracelet</string>
     <string name="score_state_title_last_night">La nuit dernière · %1$s</string>
     <string name="score_state_title_latest_sleep">Dernier sommeil · %1$s</string>
@@ -2703,6 +2716,12 @@
     <string name="coach_clear_action">Effacer</string>
     <string name="coach_token_estimate">~%1$d jetons</string>
     <string name="coach_token_warning">" · peut dépasser les petites fenêtres de contexte"</string>
+    <string name="l10n_coach_settings_screen_customised_your_edited_instructions_frame_every_reply_bab91200">Personnalisé. Vos instructions modifiées encadrent chaque réponse.</string>
+    <string name="l10n_coach_settings_screen_edit_how_the_coach_thinks_and_talks_takes_5104835d">Modifiez la façon dont le coach pense et parle. Prend effet à votre prochain message.</string>
+    <string name="l10n_coach_settings_screen_collapse_coach_instructions_0933974a">Réduire les instructions du coach</string>
+    <string name="l10n_coach_settings_screen_edit_coach_instructions_63a38c3a">Modifier les instructions du coach</string>
+    <string name="coach_settings">Réglages du coach</string>
+    <string name="coach_settings_subtitle">Ce que le coach peut lire, comment il doit répondre et quand il vous écrit.</string>
     <string name="coach_morning_brief">Brief matinal</string>
     <string name="coach_morning_brief_desc">"Une notification locale avec la préparation + le plan d'entraînement du jour, générée sur l'appareil chaque matin."</string>
     <string name="coach_morning_brief_off">"Désactivé : rien n'est généré ni envoyé selon un calendrier."</string>
@@ -2750,4 +2769,15 @@
     <string name="l10n_app_changelog_a_coach_that_keeps_the_thread_2ee52e0c">Un coach qui garde le fil, votre fréquence cardiaque sur l\'écran d\'accueil, et des graphiques qui affirment moins</string>
     <string name="charge_legacy_rr_gap_title">Battements antérieurs non évaluables</string>
     <string name="charge_legacy_rr_gap_detail">Cette nuit a été enregistrée avant que NOOP n\'indique de quel transport WHOOP 5 provenait chaque battement. Ses intervalles mêlent donc deux unités différentes, sans rien d\'enregistré pour les distinguer. La nuit reste dans votre historique, et les nuits enregistrées à partir de maintenant sont évaluées normalement.</string>
+    <string name="coach_key_rejected_hint">Collez la clé corrigée. Votre conversation est conservée.</string>
+    <string name="coach_key_rejected_placeholder">Collez votre clé %1$s</string>
+    <string name="coach_key_rejected_action">Mettre à jour la clé</string>
+    <string name="coach_consent_on">Activé : votre charge, repos, VFC et entraînements sont envoyés au fournisseur, chaque entraînement avec son sport, sa durée, sa distance et sa fréquence cardiaque.</string>
+    <string name="coach_consent_off">Désactivé : le coach répond de façon générale et n\'envoie aucune de vos données.</string>
+    <string name="l10n_app_changelog_a_today_screen_you_arrange_yourself_6194ccd0">Un écran Aujourd\'hui que vous composez vous-même, le stress sur l\'écran d\'accueil, et des sauvegardes qui se vérifient elles-mêmes</string>
+    <string name="l10n_stress_screen_scored_through_1_s_later_hours_fbb7d6c7">Évalué jusqu\'à %1$s. Les heures suivantes nécessitent plus de mesures de fréquence cardiaque.</string>
+    <string name="l10n_today_screen_scan_and_connect_40157030">Rechercher et connecter</string>
+    <string name="l10n_health_screen_fitness_age_stops_here_vo_max_383d989a">L\'âge de forme s\'arrête ici. Pas la VO₂max.</string>
+    <string name="l10n_app_changelog_a_stress_screen_that_keeps_up_f7ec3f36">Un écran de stress qui suit le rythme, des mesures WHOOP 5 dans les unités que le bracelet envoie, et une bague qui cesse de se répéter</string>
+    <string name="l10n_settings_screen_ai_coach_130c3eab">Coach IA</string>
 </resources>

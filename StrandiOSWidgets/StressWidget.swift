@@ -98,12 +98,21 @@ private struct StressMovingMarksShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let half: CGFloat = 3
-        for x in StressTrace.movingMarks(series, width: rect.width) {
+        // A span arrives covering its hours edge to edge, so the only width left to decide is the
+        // FLOOR, for a degenerate series with no width to spread across. It is the width the mark used
+        // to have unconditionally, kept so the smallest mark is no less visible than before.
+        let minWidth: CGFloat = 6
+        let radius = rect.height / 2
+        for span in StressTrace.movingSpans(series, width: rect.width) {
+            let lo = min(max(span.lowerBound, 0), rect.width)
+            let hi = min(max(span.upperBound, 0), rect.width)
+            // Floored by GROWING right, then left if that ran into the edge, so a mark at either end
+            // of the day keeps its width instead of being trimmed away by the box.
+            let x1 = max(hi, min(lo + minWidth, rect.width))
+            let x0 = min(lo, max(x1 - minWidth, 0))
             path.addRoundedRect(
-                in: CGRect(x: max(x - half, 0), y: rect.minY,
-                           width: min(half * 2, rect.width), height: rect.height),
-                cornerSize: CGSize(width: half, height: half),
+                in: CGRect(x: x0, y: rect.minY, width: x1 - x0, height: rect.height),
+                cornerSize: CGSize(width: radius, height: radius),
             )
         }
         return path
@@ -142,7 +151,7 @@ struct StressWidgetView: View {
                 .foregroundStyle(StrandPalette.textPrimary)
 
             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                Text(latest.map { String(format: "%.1f", $0) } ?? "—")
+                Text(latest.map { StressTrace.formatLevel($0) } ?? "—")
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(StrandPalette.textPrimary)
                 if latest != nil {
@@ -159,7 +168,7 @@ struct StressWidgetView: View {
                         .formatted(date: .omitted, time: .shortened)
                     HStack(spacing: 4) {
                         Text("Peak")
-                        Text(verbatim: String(format: "%.1f", peak) + " · " + peakTime)
+                        Text(verbatim: StressTrace.formatLevel(peak) + " · " + peakTime)
                     }
                     .font(.system(size: 11))
                     .foregroundStyle(StrandPalette.textPrimary)
@@ -200,7 +209,7 @@ struct StressWidgetView: View {
                     // needed a new entry in ten locales to say what these two already say.
                     if let stats {
                         HStack(spacing: 0) {
-                            Text("avg \(String(format: "%.1f", stats.mean))")
+                            Text("avg \(StressTrace.formatLevel(stats.mean))")
                             Text(verbatim: " · ")
                             Text("Updated \(updated, format: .dateTime.hour().minute())")
                         }
@@ -225,12 +234,12 @@ struct StressWidgetView: View {
     /// here would ship to every locale with the gate green.
     private var accessibilityText: String {
         guard let latest else { return String(localized: "Stress, no reading today") }
-        let now = String(format: "%.1f", latest)
+        let now = StressTrace.formatLevel(latest)
         guard let stats, let peak = stats.peak.level else {
             return String(localized: "Stress \(now) of 3")
         }
-        let peakText = String(format: "%.1f", peak)
-        let meanText = String(format: "%.1f", stats.mean)
+        let peakText = StressTrace.formatLevel(peak)
+        let meanText = StressTrace.formatLevel(stats.mean)
         return String(localized: "Stress \(now) of 3, average \(meanText), peak \(peakText)")
     }
 }

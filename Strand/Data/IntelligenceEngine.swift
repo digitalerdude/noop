@@ -87,6 +87,45 @@ final class IntelligenceEngine: ObservableObject {
     /// potentially stale and the whole cache is dropped. Empty until the first pass.
     private var dayScanCacheConfigSig = ""
 
+    /// Names of the config-signature fields, in the exact order `dayCacheConfigSig` builds them.
+    ///
+    /// Kept beside the reader rather than at the construction site so that site stays a plain value list.
+    /// The cost is that the two must stay in step, which `changedConfigField` refuses to guess about when
+    /// they are not. Kotlin twin: `IntelligenceEngine.DAY_CACHE_CONFIG_FIELDS`.
+    ///
+    /// `nonisolated` for the same reason the reader below is: the engine is @MainActor, so a plain
+    /// `static let` inherits that isolation, and neither a nonisolated function nor a synchronous test
+    /// could then touch it. `[String]` is Sendable, so sharing it is safe.
+    nonisolated static let dayCacheConfigFields: [String] = [
+        "hrvBaseline", "rhrBaseline", "age", "sex", "stepTicksPerStep", "maxHROverride",
+        "tzOffset", "sleepNeedHours", "sleepConsistency", "habitualMidsleep",
+        "experimentalSleepV2", "motionAwareWake", "deepHrvWindow", "spo2CandidateDisplay",
+        "effortMethod", "dayCycleMode",
+    ]
+
+    /// Which config field(s) moved between two signatures, for the `configDropped` tally.
+    ///
+    /// `configDropped` said a 21-day re-score happened because the pass-global config changed, and stopped
+    /// there. A field log pointed at a rolling BASELINE as the likeliest mover, but naming it from the
+    /// outside is a guess; this names it from the data.
+    ///
+    /// Never guesses: "first" on the first drop of a process, because the signature starts EMPTY rather
+    /// than nil and there is nothing to diff against, and "unknown" when the two signatures do not have
+    /// the field count this list describes, because a mislabelled field sends a reader somewhere the data
+    /// never pointed.
+    ///
+    /// `nonisolated` because it is a pure function of its arguments: the engine is @MainActor, and without
+    /// this the rule would inherit that isolation and could not be driven from a synchronous test.
+    /// Kotlin twin: `IntelligenceEngine.changedConfigField`.
+    nonisolated static func changedConfigField(previous: String, current: String) -> String {
+        if previous.isEmpty { return "first" }
+        let a = previous.split(separator: "|", omittingEmptySubsequences: false)
+        let b = current.split(separator: "|", omittingEmptySubsequences: false)
+        guard a.count == b.count, b.count == dayCacheConfigFields.count else { return "unknown" }
+        let moved = b.indices.filter { a[$0] != b[$0] }.map { dayCacheConfigFields[$0] }
+        return moved.isEmpty ? "none" : moved.joined(separator: "+")
+    }
+
     /// Who supplies the dashboard headline for a By-Day row. The By-Day card always shows NOOP's OWN
     /// on-device numbers, but the WHOLE-DASHBOARD value for the same day can come from an IMPORTED row
     /// that won the per-day merge (imports win field-by-field over computed , see Repository.mergeDaily).
@@ -208,6 +247,15 @@ final class IntelligenceEngine: ObservableObject {
         let primarySessionRHRCoverage: PrimarySessionRestingHR.Coverage?
     }
 
+    /// Exact pre-upgrade R-R-derived cells retained only while an unlabelled WHOOP 5 window is withheld.
+    private struct LegacyScoreSnapshot {
+        let avgHrv: Double
+        let recovery: Double?
+        let respRateBpm: Double?
+        let avgSdnn: Double?
+        let recoverySource: String?
+    }
+
     struct Computed: Identifiable {
         let day: String
         let recovery: Double?
@@ -233,6 +281,11 @@ final class IntelligenceEngine: ObservableObject {
         /// "+0.3 C vs your normal" with a relative tier tag; never a fake clinical absolute.
         var skinTempRel: SkinTempRelative? = nil
         var id: String { day }
+
+        func withLegacyScore(hrv: Double, recovery: Double?) -> Computed {
+            Computed(day: day, recovery: recovery, strain: strain, sleepMin: sleepMin, hrv: hrv, rhr: rhr,
+                     source: source, confidence: confidence, drivers: drivers, skinTempRel: skinTempRel)
+        }
     }
 
     /// Optional sink for the per-day scoring diagnostic, fed line-by-line into the SAME shareable strap
@@ -597,7 +650,8 @@ final class IntelligenceEngine: ObservableObject {
     /// Compute on-device scores for each of the last `maxDays` that actually has raw HR data.
     /// Personal baselines (HRV / resting HR) are folded from the imported history, so even the first
     /// live night can be scored against your norm.
-    func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false) async {
+    func analyzeRecent(maxDays: Int = 21, force: Bool = true, skipIfUnchanged: Bool = false,
+                       triggerLabel: String? = nil) async {
         // #899-A: a concurrent pass already holds the lock. A NON-forced idle tick is safe to drop (the
         // in-flight pass already covers the same window). But a FORCED call is a real update path (a
         // post-backfill rescore after a sync) , dropping it would leave a freshly-synced night unscored
@@ -642,7 +696,11 @@ final class IntelligenceEngine: ObservableObject {
         // import/edit/settings/recalibrate re-score — which changes scores WITHOUT changing the HR
         // fingerprint — always runs. Twin of the Android WhoopBleClient post-offload `newData` gate.
         if force, skipIfUnchanged, !wmKey.isEmpty, storedWatermark == wmKey {
-            diagnosticSink?("re-score: trigger=post-offload newData=no — skipped (nothing changed since last run)", nil)
+            // #2238: name the caller that actually skipped. This label was hardcoded while the post-offload
+            // path was the only one opting in; the resume opts in now, and a skip reported under someone
+            // else's name is the same wrong-caller trail #1538 lost three nights to.
+            let skipped = triggerLabel ?? "post-offload"
+            diagnosticSink?("re-score: trigger=\(skipped) newData=no — skipped (nothing changed since last run)", nil)
             return
         }
         // Attribute the re-score that is ABOUT TO RUN. `trigger=post-offload` was previously logged only on
@@ -661,7 +719,12 @@ final class IntelligenceEngine: ObservableObject {
         // `newData=no` means the fingerprint already equals the watermark the last run advanced: a re-score
         // driven by the trigger, not by data (#1005 background battery). Diagnostic only; the pass runs
         // either way. Twin of the Android WhoopBleClient / AppViewModel attribution.
-        let trigger = !force ? "idle" : (skipIfUnchanged ? "post-offload" : "forced")
+        // #2238: a caller that knows its own name says so. The derivation below reads
+        // `skipIfUnchanged` as "post-offload", which was an exact witness while that was the only
+        // caller opting in; the #1538 resume now opts in too when its debt came from a completed
+        // pass, and labelling it post-offload would put the investigation on the wrong caller for
+        // the second time in this area.
+        let trigger = triggerLabel ?? (!force ? "idle" : (skipIfUnchanged ? "post-offload" : "forced"))
         let hadNew = wmKey.isEmpty || storedWatermark != wmKey
         diagnosticSink?("re-score: trigger=\(trigger) "
                         + "newData=\(hadNew ? "yes" : "no (nothing changed since last run)")", nil)
@@ -895,6 +958,10 @@ final class IntelligenceEngine: ObservableObject {
         // trailing delay. So this fires once per completed backfill, not once per chunk. That coalescing is
         // load-bearing for the cache — removing it would reintroduce the #1402 storm in a form no signature
         // change can fix.
+        // Field names live in `dayCacheConfigFields`, in this exact order. Kept there rather than here so
+        // the construction stays a plain value list. Add or reorder here and add or reorder there:
+        // `changedConfigField` refuses to name anything when the counts disagree, but it cannot see a
+        // REORDER, which would quietly label the wrong field.
         let dayCacheConfigSig = [
             String(describing: baselines1.hrv),
             String(describing: baselines1.restingHR),
@@ -915,9 +982,16 @@ final class IntelligenceEngine: ObservableObject {
         // Drop the whole cache on a config change, then snapshot it into a Sendable `let` for the detached
         // loop (the engine is @MainActor; the loop can't touch `self`). The loop returns the updated cache
         // and we write it back after `.value`.
+        // #2073: recorded, because a dropped cache leaves no entry to compare and the miss tally would
+        // otherwise stay silent on the very case it exists to explain.
+        var dayCacheConfigDropped = false
+        var dayCacheConfigMoved = ""
         if dayCacheConfigSig != dayScanCacheConfigSig {
+            dayCacheConfigMoved = Self.changedConfigField(previous: dayScanCacheConfigSig,
+                                                          current: dayCacheConfigSig)
             dayScanCache.removeAll()
             dayScanCacheConfigSig = dayCacheConfigSig
+            dayCacheConfigDropped = true
         }
         let inDayScanCache = dayScanCache
 
@@ -946,6 +1020,12 @@ final class IntelligenceEngine: ObservableObject {
             // diagnostic carried on `skippedDayLines`.
             var dayScanCacheLocal = inDayScanCache
             var dayCacheReused = 0
+            // #2073: WHY a night missed, tallied by cause. The reuse count alone cannot separate "today's
+            // heart rate grew" from "something shared by all 21 keys moved", and those need different fixes.
+            var dayCacheMissBy: [String: Int] = [:]
+            // #2073: a cache dropped wholesale leaves NO entry to compare, so without this the tally would
+            // stay silent and the line would read reused=0/21 with nothing saying why.
+            if dayCacheConfigDropped { dayCacheMissBy["configDropped(\(dayCacheConfigMoved))"] = 1 }
             // #1538: per-phase cost tally. `prep` brackets the nine windowed store reads plus the
             // session matching that sits between them and `analyzeDay`; `score` brackets `analyzeDay`
             // itself. Emitted once per pass beside the reuse line.
@@ -1051,10 +1131,19 @@ final class IntelligenceEngine: ObservableObject {
                             // path exactly as it was.
                             hrvWindowDetail: hrvTraceActive && dayStart == nowLocalMidnight)
                         dayCacheKey = key
-                        if let cached = dayScanCacheLocal[day], cached.key == key {
-                            out.append(cached.scan)
-                            dayCacheReused += 1
-                            continue
+                        if dayScanCacheLocal[day] == nil {
+                            // No entry at all: a first pass, a night new to the window, or a cache just
+                            // dropped wholesale. Counted so a total miss always carries a cause.
+                            dayCacheMissBy["absent", default: 0] += 1
+                        }
+                        if let cached = dayScanCacheLocal[day] {
+                            if cached.key == key {
+                                out.append(cached.scan)
+                                dayCacheReused += 1
+                                continue
+                            }
+                            let why = AnalyzeRecentDayCache.missReason(cachedKey: cached.key, freshKey: key)
+                            dayCacheMissBy[why, default: 0] += 1
                         }
                     }
                 }
@@ -1614,9 +1703,16 @@ final class IntelligenceEngine: ObservableObject {
             // so counting it against the ratio made a healthy cache look broken and put a floor under how
             // good the number could ever get. On a store with gaps the old form could not reach `21/21` even
             // in principle, which is exactly the misreading #1538 opened with.
+            // #2073: the miss tally rides the same line. Absent when nothing was cached to miss, so a
+            // first pass and a healthy pass both read exactly as before.
+            var missBy = ""
+            if !dayCacheMissBy.isEmpty {
+                let parts = dayCacheMissBy.sorted { $0.key < $1.key }.map { "\($0.key):\($0.value)" }
+                missBy = " missBy=" + parts.joined(separator: ",")
+            }
             skippedDayLines.append("analyzeRecent dayCache reused=\(dayCacheReused)/"
                                    + "\(dayCacheReused + dayCacheCacheable) "
-                                   + "size=\(dayScanCacheLocal.count) days=\(maxDays)")
+                                   + "size=\(dayScanCacheLocal.count) days=\(maxDays)\(missBy)")
             // #1538: where the pass actually goes. `prep` is the nine windowed store reads plus the
             // session matching between them; `score` is `analyzeDay`. The two do not sum to the pass
             // total — pass 2, the baseline folds and the reconciliation are outside this loop — so read
@@ -1633,7 +1729,9 @@ final class IntelligenceEngine: ObservableObject {
                 hrRead: hrWindow.rowsRead, hrServed: hrWindow.rowsServed,
                 hrTruncated: hrWindow.truncatedReads,
                 rrRead: rrWindow.rowsRead, rrServed: rrWindow.rowsServed,
-                rrTruncated: rrWindow.truncatedReads))
+                rrTruncated: rrWindow.truncatedReads,
+                hrOwnerFlips: hrWindow.ownerFlips, rrOwnerFlips: rrWindow.ownerFlips,
+                hrReuseOff: hrWindow.reuseOffReads, rrReuseOff: rrWindow.reuseOffReads))
             return (out, skippedDayLines, dayScanCacheLocal)
         }.value
         // #1005: write the loop's updated reuse cache back to the (main-actor) stored property. The pass ran
@@ -1842,10 +1940,10 @@ final class IntelligenceEngine: ObservableObject {
         var out: [Computed] = []
         var dailies: [DailyMetric] = []
         var cachedSleep: [CachedSleepSession] = []
-        var workoutRows: [WorkoutRow] = []
         // #510: backfilled fields for a REAL (non-detected) row a dropped bout collided with, grouped by
-        // the deviceId it must be upserted under (see the collision branch below) — never mixed into
-        // `workoutRows`, which is always written under `computedId`.
+        // the deviceId it must be upserted under (see the collision branch below). The detector remains an
+        // analytics/enrichment input, but the opt-in confirmation card is now the only creator of a new
+        // visible workout; legacy `sport="detected"` rows are preserved rather than reconciled here.
         var backfilledByDevice: [String: [WorkoutRow]] = [:]
         // Rest composite (0–100) per computed night, persisted as the `sleep_performance` metric
         // series so the dashboard's Rest score reflects the new composite, not raw efficiency.
@@ -1937,11 +2035,20 @@ final class IntelligenceEngine: ObservableObject {
         // CAPTURE-B (#814/#799): the universal dayOwner line rides every export, so its gate is "ANY mode
         // active" (TestCentre.active(.universal) == anyActive). Read once here, like the other gates.
         let universalTraceActive = TestCentre.active(.universal)
-        // Workouts & GPS test mode (#975): read the zero-cost gate ONCE before the scoring loop so the
-        // detected-bout persist/drop decision can emit ONE `.workouts` line per derived bout. Without this
-        // the auto path produced NO trace at all (the "mode was on but produced NO trace" report), so an
-        // "auto workout appeared then vanished" could not be explained from an export. Diagnostic only.
+        // Workouts & GPS test mode (#975/#2187): read the zero-cost gate ONCE before the scoring loop so
+        // each analytics-only/backfill decision can emit one `.workouts` line per derived bout. Diagnostic
+        // only; this path no longer publishes or reconciles generic workout rows.
         let workoutsTraceActive = TestCentre.active(.workouts)
+        let oldestDay = AnalyticsEngine.dayString(nowLocalMidnight - (maxDays - 1) * 86_400,
+                                                  offsetSec: tzOffset)
+        let newestDay = AnalyticsEngine.dayString(nowLocalMidnight, offsetSec: tzOffset)
+        let strictCanonicalAlias = (try? await store.isWhoop5RRSource(deviceId: regActiveId)) ?? true
+        let legacySnapshots = await Self.legacyScoreSnapshots(
+            store: store, computedId: computedId, from: oldestDay, to: newestDay,
+            fresh: scoredNights.map { $0.daily }, ownerByDay: resolvedScoreOwnerByDay,
+            nowLocalMidnight: nowLocalMidnight, now: now, offsetSec: tzOffset,
+            maxDays: maxDays, strictCanonicalAlias: strictCanonicalAlias)
+        var appliedLegacySnapshots: [String: LegacyScoreSnapshot] = [:]
         for night in scoredNights {
             // #299: scope the edits to THIS day before folding. A userEdited row / hand-logged nap belongs
             // to exactly ONE day — the day its night ENDS on, matching the daily's end-day bucket. `endTs`
@@ -2078,9 +2185,9 @@ final class IntelligenceEngine: ObservableObject {
                 restPoints.append(MetricPoint(day: daily.day, key: "rhr_primary_session_duration_s", value: cov.durationSec))
             }
             cachedSleep.append(contentsOf: night.cachedSleep)
-            // Persist the detected workouts the pipeline already computes (previously discarded).
-            // Skip any bout overlapping a real imported/manual workout so import+wear users don't
-            // double-count. sport = "detected"; energyKcal is the APPROXIMATE Keytel/BMR total.
+            // Keep the analytics detector as an enrichment input for real imported/manual workouts, but do
+            // not publish its generic bouts. The opt-in Today card is the single confirmation boundary for
+            // creating a visible workout; this pass neither creates nor reconciles `sport="detected"` rows.
             // #1545: where the detector lost every candidate workout on this day, emitted BEFORE the
             // per-bout loop so it is present even when that loop runs zero times — which is exactly the
             // report it exists for. The `effort bout` line below explains a bout that exists; a strap log
@@ -2131,15 +2238,9 @@ final class IntelligenceEngine: ObservableObject {
                     }
                     continue
                 }
-                workoutRows.append(WorkoutRow(startTs: s.start, endTs: s.end,
-                                              sport: "detected", source: computedId,
-                                              durationS: s.durationS, energyKcal: s.caloriesKcal,
-                                              avgHr: avgBpm, maxHr: s.peakHR,
-                                              strain: s.strain, distanceM: nil,
-                                              zonesJSON: nil, notes: nil, steps: nil))
                 if workoutsTraceActive {
                     diagnosticSink?(WorkoutsTrace.detectedBoutLine(
-                        verdict: "persisted", durMin: durMin, avgBpm: avgBpm), .workouts)
+                        verdict: "analyticsOnly", durMin: durMin, avgBpm: avgBpm), .workouts)
                 }
             }
         }
@@ -2189,10 +2290,6 @@ final class IntelligenceEngine: ObservableObject {
         // only , imported "my-whoop" rows are never touched (a BLE-only WHOOP 4.0 user has no import
         // fallback). Rows older than the window keep their old keys (cosmetic off-by-one, acceptable).
         // yyyy-MM-dd sorts chronologically, so the string range IS a date range.
-        let oldestDay = AnalyticsEngine.dayString(nowLocalMidnight - (maxDays - 1) * 86_400,
-                                                  offsetSec: tzOffset)
-        let newestDay = AnalyticsEngine.dayString(nowLocalMidnight, offsetSec: tzOffset)
-
         // ── Source-only Charge/Rest fold for wearable imports (Oura / Fitbit / Garmin / Health Connect) ──
         // Same honesty gap the watch fold above closes (#823), extended to the other import-only sources: a
         // user who ONLY imports an Oura/Fitbit/Garmin export (or Health Connect) has DAILY aggregates (HRV +
@@ -2228,6 +2325,24 @@ final class IntelligenceEngine: ObservableObject {
             }
         }
 
+        // Apply the exact snapshot only after current-score traces and derived series were produced from the
+        // current inputs. A legacy snapshot must not masquerade as a value recalculated against today's
+        // baselines; it only protects persisted R-R-derived cells from a destructive nil overwrite.
+        var persistedDailies = dailies
+        for index in persistedDailies.indices {
+            let fresh = persistedDailies[index]
+            guard let snapshot = legacySnapshots[fresh.day], fresh.avgHrv == nil,
+                  (fresh.totalSleepMin ?? 0) > 0 else { continue }
+            persistedDailies[index] = fresh.with(avgHrv: snapshot.avgHrv, recovery: snapshot.recovery,
+                                                 respRateBpm: snapshot.respRateBpm,
+                                                 avgSdnn: snapshot.avgSdnn)
+            appliedLegacySnapshots[fresh.day] = snapshot
+        }
+        for index in out.indices {
+            guard let snapshot = appliedLegacySnapshots[out[index].day] else { continue }
+            out[index] = out[index].withLegacyScore(hrv: snapshot.avgHrv, recovery: snapshot.recovery)
+        }
+
         // Persist the computed scores under a dedicated "-noop" source so the WHOLE dashboard
         // (Today / Recovery / Strain / Sleep / Trends), not just this screen, reads them. The
         // Repository merges these UNDER any imported "my-whoop" rows, so a real WHOOP import
@@ -2242,11 +2357,18 @@ final class IntelligenceEngine: ObservableObject {
         // resolver override). Persist scores + provenance atomically so a failed write can never label an
         // older score with a newer provider. The last row for a duplicate day wins, matching the upsert.
         var provenanceByCell: [String: ScoreInputProvenanceRow] = [:]
-        for daily in dailies {
+        for daily in persistedDailies {
             guard let source = resolvedScoreOwnerByDay[daily.day] else { continue }
             if daily.recovery != nil {
-                provenanceByCell["\(daily.day)\u{1F}recovery"] =
-                    ScoreInputProvenanceRow(day: daily.day, key: "recovery", sourceId: source)
+                if let snapshot = appliedLegacySnapshots[daily.day] {
+                    if let oldSource = snapshot.recoverySource {
+                        provenanceByCell["\(daily.day)\u{1F}recovery"] =
+                            ScoreInputProvenanceRow(day: daily.day, key: "recovery", sourceId: oldSource)
+                    }
+                } else {
+                    provenanceByCell["\(daily.day)\u{1F}recovery"] =
+                        ScoreInputProvenanceRow(day: daily.day, key: "recovery", sourceId: source)
+                }
             }
             if daily.strain != nil {
                 provenanceByCell["\(daily.day)\u{1F}strain"] =
@@ -2272,7 +2394,7 @@ final class IntelligenceEngine: ObservableObject {
             markerSources = sourceIds
         }
         try? await store.persistComputedScores(
-            dailyMetrics: dailies,
+            dailyMetrics: persistedDailies,
             metricPoints: restPoints,
             provenance: Array(provenanceByCell.values),
             deviceId: computedId,
@@ -2294,8 +2416,8 @@ final class IntelligenceEngine: ObservableObject {
         // covers the window, so eviction runs exactly as before; `persistComputedScores` is guarded the
         // same way, so an empty pass leaves the persisted window untouched. Twin of the Android
         // WhoopDao.replaceComputedScoreWindow empty guard.
-        if !dailies.isEmpty {
-            let freshKeys = Set(dailies.map { $0.day })
+        if !persistedDailies.isEmpty {
+            let freshKeys = Set(persistedDailies.map { $0.day })
             let existingWindow = (try? await store.dailyMetrics(deviceId: computedId, from: oldestDay, to: newestDay)) ?? []
             for stale in existingWindow where !freshKeys.contains(stale.day) {
                 _ = try? await store.deleteDailyMetrics(deviceId: computedId, from: stale.day, to: stale.day)
@@ -2674,15 +2796,10 @@ final class IntelligenceEngine: ObservableObject {
         } else {
             healRearmedThisCycle = false
         }
-        // Make re-detection idempotent across runs: clear the prior computed detected workouts in the
-        // scored window (a bout's startTs can drift as more HR arrives, which would otherwise orphan
-        // stale rows under the (deviceId,startTs,sport) key), then re-insert.
-        _ = try? await store.deleteWorkouts(deviceId: computedId, sport: "detected",
-                                            from: windowStart, to: now)
-        if !workoutRows.isEmpty { _ = try? await store.upsertWorkouts(workoutRows, deviceId: computedId) }
-        // #510: write back any real (manual/imported) rows a dropped detected bout backfilled, one
-        // upsert per owning deviceId (see the collision branch above for why these can't share the
-        // `computedId` batch above).
+        // #1735/#2187: never delete/reinsert legacy detected history during scoring. A disabled toggle,
+        // rescoring pass, missing stream or failed insert must not erase a workout the user already saw.
+        // #510: still write back any real (manual/imported) rows an analytics bout backfilled, one upsert
+        // per owning deviceId.
         for (devId, rows) in backfilledByDevice {
             _ = try? await store.upsertWorkouts(rows, deviceId: devId)
         }
@@ -2919,6 +3036,45 @@ final class IntelligenceEngine: ObservableObject {
         let input = daily.with(recovery: daily.recovery, skinTempDevC: skinDev, skinTempC: nightlySkinTempC)
         return input.with(recovery: recomputeRecovery(input, baselines), skinTempDevC: skinDev,
                           skinTempC: nightlySkinTempC)
+    }
+
+    /// Resolve conservative legacy snapshots before the computed-window upsert can replace them. The date
+    /// loop reuses the scorer's own day/window arithmetic instead of parsing calendar dates, keeping both
+    /// DST behaviour and today's shortened forward window identical to the scoring read.
+    private static func legacyScoreSnapshots(
+        store: WhoopStore, computedId: String, from: String, to: String,
+        fresh: [DailyMetric], ownerByDay: [String: String],
+        nowLocalMidnight: Int, now: Int, offsetSec: Int, maxDays: Int,
+        strictCanonicalAlias: Bool
+    ) async -> [String: LegacyScoreSnapshot] {
+        let existing = (try? await store.dailyMetrics(deviceId: computedId, from: from, to: to)) ?? []
+        let existingByDay = Dictionary(existing.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
+        var snapshots: [String: LegacyScoreSnapshot] = [:]
+        for day in fresh {
+            guard day.avgHrv == nil, let old = existingByDay[day.day], let oldHrv = old.avgHrv,
+                  let owner = ownerByDay[day.day] else { continue }
+            var dayStart: Int?
+            for offset in 0..<maxDays {
+                let candidate = nowLocalMidnight - offset * 86_400
+                if AnalyticsEngine.dayString(candidate, offsetSec: offsetSec) == day.day {
+                    dayStart = candidate
+                    break
+                }
+            }
+            guard let dayStart else { continue }
+            let readFrom = dayStart - StreamReadCap.lookbackSeconds
+            let readTo = sleepReadWindowEnd(dayStart: dayStart, nowLocalMidnight: nowLocalMidnight, now: now)
+            let alias = strictCanonicalAlias && owner == Repository.whoopSource
+            guard (try? await store.legacyWhoop5RRWithheld(
+                deviceId: owner, from: readFrom, to: readTo,
+                unlabelledAliasOfWhoop5: alias)) == true else { continue }
+            snapshots[day.day] = LegacyScoreSnapshot(
+                avgHrv: oldHrv, recovery: old.recovery,
+                respRateBpm: old.respRateBpm, avgSdnn: old.avgSdnn,
+                recoverySource: try? await store.scoreInputSource(
+                    deviceId: computedId, day: day.day, key: "recovery"))
+        }
+        return snapshots
     }
 
     /// Re-score ONLY the recovery composite for a day against a (re-seeded) baseline. Every other field
@@ -3201,6 +3357,18 @@ final class IntelligenceEngine: ObservableObject {
 // is most easily dropped at (they respell every field by name), so StrandTests asserts them directly
 // rather than through a copy that could drift. Nothing outside this module can see them either way.
 extension DailyMetric {
+    /// Rebuild with the exact legacy R-R-derived snapshot while keeping every other freshly-scored cell.
+    func with(avgHrv hrv: Double, recovery r: Double?, respRateBpm resp: Double?,
+              avgSdnn sdnn: Double?) -> DailyMetric {
+        DailyMetric(day: day, totalSleepMin: totalSleepMin, efficiency: efficiency, deepMin: deepMin,
+                    remMin: remMin, lightMin: lightMin, disturbances: disturbances, restingHr: restingHr,
+                    avgHrv: hrv, recovery: r, strain: strain, exerciseCount: exerciseCount,
+                    spo2Pct: spo2Pct, skinTempDevC: skinTempDevC, respRateBpm: resp,
+                    steps: steps, activeKcalEst: activeKcalEst,
+                    spo2Red: spo2Red, spo2Ir: spo2Ir, avgSdnn: sdnn, skinTempC: skinTempC,
+                    sleepHrOnly: sleepHrOnly)
+    }
+
     /// Rebuild the immutable DailyMetric with a substituted recovery + skin-temp deviation
     /// (the struct has no `copy()`). (#78)
     func with(recovery r: Double?, skinTempDevC sd: Double?, skinTempC sa: Double?) -> DailyMetric {

@@ -38,11 +38,11 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import com.noop.R
+import com.noop.analytics.DaytimeStress
 import com.noop.ui.MainActivity
 import com.noop.ui.uiString
 import java.text.DateFormat
 import java.util.Date
-import java.util.Locale
 
 /**
  * Home-screen widget: today's stress as the intraday curve the Stress screen draws (#2040).
@@ -117,9 +117,6 @@ private const val STRESS_CHART_TARGET_DP = 92f
 private fun stressChartWidthDp(widthDp: Float): Float =
     (widthDp - STRESS_CARD_PADDING_DP - STRESS_SCALE_COLUMN_DP).coerceAtLeast(24f)
 
-/** One decimal, the same precision the screen prints a 0-3 score at. */
-private fun formatLevel(value: Double): String = String.format(Locale.getDefault(), "%.1f", value)
-
 @Composable
 private fun StressWidgetContent(snap: WidgetSnapshot, dark: Boolean) {
     val size = LocalSize.current
@@ -146,13 +143,26 @@ private fun StressWidgetContent(snap: WidgetSnapshot, dark: Boolean) {
         val stressLabel = uiString(R.string.l10n_stress_screen_stress_bad33342)
         val ofThree = uiString(R.string.l10n_stress_screen_of_3_46203495)
         val latest = snap.stressSeries.lastOrNull { it.level != null }?.level
+        // WHY there is no number, in words. A bare dash under a healthy-looking HR widget reads as a
+        // broken widget, and the two states behind it are different answers: outside the scored window
+        // nothing is coming until morning, whereas inside it the day simply has not produced a scorable
+        // hour yet. The Apple sheet already says "Calibrating" for the second; this says which is which.
+        // Built OUT here for the same reason `ofThree` is (#571).
+        val hourNow = java.time.LocalTime.now().hour
+        val outsideScoredWindow = !DaytimeStress.isWakingHourOfDay(hourNow)
+        val emptyReason = if (outsideScoredWindow) {
+            uiString(R.string.l10n_stress_glance_widget_resumes_in_the_morning_a640b49f)
+        } else {
+            uiString(R.string.score_state_title_calibrating)
+        }
         // Assembled by concatenation rather than as a template, so no English word is ever written
         // here: every part comes from a resource, and the separators carry no letters to translate.
-        val spoken = latest?.let { stressLabel + " " + formatLevel(it) + " " + ofThree } ?: stressLabel
+        val spoken = latest?.let { stressLabel + " " + StressTrace.formatLevel(it) + " " + ofThree }
+            ?: (stressLabel + " " + emptyReason)
 
         Row(verticalAlignment = Alignment.Vertical.Bottom) {
             Text(
-                text = latest?.let { formatLevel(it) } ?: "—",
+                text = latest?.let { StressTrace.formatLevel(it) } ?: "—",
                 style = TextStyle(
                     color = stressTextPrimary(dark), fontSize = 30.sp, fontWeight = FontWeight.Bold,
                 ),
@@ -164,6 +174,12 @@ private fun StressWidgetContent(snap: WidgetSnapshot, dark: Boolean) {
                     text = ofThree,
                     style = TextStyle(color = stressTextSecondary(dark), fontSize = 12.sp),
                 )
+            } else {
+                Spacer(GlanceModifier.width(6.dp))
+                Text(
+                    text = emptyReason,
+                    style = TextStyle(color = stressTextSecondary(dark), fontSize = 12.sp),
+                )
             }
             if (stats != null) {
                 Spacer(GlanceModifier.width(10.dp))
@@ -173,7 +189,7 @@ private fun StressWidgetContent(snap: WidgetSnapshot, dark: Boolean) {
                     .format(Date(stats.peak.ts * 1000))
                 Text(
                     text = uiString(R.string.trends_peak) +
-                        " ${formatLevel(stats.peak.level ?: 0.0)} · $peakTime",
+                        " ${StressTrace.formatLevel(stats.peak.level ?: 0.0)} · $peakTime",
                     style = TextStyle(color = stressTextPrimary(dark), fontSize = 11.sp),
                     modifier = GlanceModifier
                         .background(ColorProvider(stressTense(dark).copy(alpha = 0.18f)))
@@ -203,7 +219,7 @@ private fun StressWidgetContent(snap: WidgetSnapshot, dark: Boolean) {
                 Text(
                     text = if (stats != null) {
                         uiString(R.string.l10n_stress_screen_avg_a178769d) +
-                            " ${formatLevel(stats.mean)} · " +
+                            " ${StressTrace.formatLevel(stats.mean)} · " +
                             uiString(R.string.l10n_hr_glance_widget_updated_time_1b5feedb, time)
                     } else {
                         uiString(R.string.l10n_hr_glance_widget_updated_time_1b5feedb, time)
@@ -246,7 +262,7 @@ private fun StressTraceImage(
     val bmp = runCatching {
         StressTraceRenderer.render(
             segments = StressTrace.segments(snap.stressSeries, wPx.toFloat(), hPx.toFloat()),
-            movingMarks = StressTrace.movingMarks(snap.stressSeries, wPx.toFloat()),
+            movingSpans = StressTrace.movingSpans(snap.stressSeries, wPx.toFloat()),
             highPoints = StressTrace.highPoints(snap.stressSeries, wPx.toFloat(), hPx.toFloat()),
             widthPx = wPx,
             heightPx = hPx,
@@ -306,7 +322,8 @@ private fun StressTraceImage(
 }
 
 /**
- * The time labels under the curve: first, middle and last SCORED hour (see [StressTrace.timeTicks]).
+ * The time labels under the curve: first, middle and last instant of the SERIES (see
+ * [StressTrace.timeTicks]), which is the span the trace above is drawn across.
  *
  * Spread with weighted spacers rather than fixed gaps, so the middle label sits over the middle of the
  * chart whatever width the launcher gave the widget. Formatted through the locale's short time format,
@@ -315,7 +332,7 @@ private fun StressTraceImage(
 @Composable
 private fun StressTimeAxis(snap: WidgetSnapshot, dark: Boolean) {
     val ticks = StressTrace.timeTicks(snap.stressSeries)
-    // One scored hour names one instant, and a single label pinned to the left edge reads as a stray
+    // One instant names one instant, and a single label pinned to the left edge reads as a stray
     // rather than an axis, so the axis only appears once there is a span to label.
     if (ticks.size < 2) return
     val fmt = DateFormat.getTimeInstance(DateFormat.SHORT)

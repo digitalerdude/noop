@@ -49,6 +49,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoGraph
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.platform.LocalContext
+import android.content.ClipData
+import android.content.ClipboardManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -502,12 +507,39 @@ internal fun AutoSizeValue(
         textAlign = textAlign,
         modifier = modifier,
         onTextLayout = { result ->
-            if (result.didOverflowWidth && scale > minScale) {
+            // `lineCount > 0` before asking: isLineEllipsized carries a range precondition, and this
+            // composable is reached from every StatTile on every screen with a computed value, so the
+            // cost of a layout that reports no lines would be an app-wide crash rather than a wrong font
+            // size. One comparison buys the question away.
+            val ellipsized = result.lineCount > 0 && result.isLineEllipsized(0)
+            if (shouldShrinkValue(result.didOverflowWidth, ellipsized, scale, minScale)) {
                 scale = maxOf(minScale, scale - 0.08f)
             }
         },
     )
 }
+
+/**
+ * Whether a value laid out like this should take another step down. Pure, so the rule is testable
+ * away from Compose: the composable above cannot be laid out by the plain-JVM suite, and the source
+ * grep that stood here instead would have passed just as happily with the condition inverted.
+ *
+ * Either signal means the value did not fit. [didOverflowWidth] is what the loop originally keyed on
+ * alone, and it goes false under `TextOverflow.Ellipsis` because Compose constrains the laid-out
+ * paragraph to the width it was given: the ellipsis removes the evidence of the overflow it is
+ * reporting. [lineEllipsized] carries that case. Keeping both means the overflow modes that DO report
+ * an unconstrained width still drive the loop. (#2171, @kavemang)
+ *
+ * The floor is strict on purpose. At exactly [minScale] the answer is no, so a value that still does
+ * not fit at 0.6x truncates rather than stepping below the size the Swift tile's minimumScaleFactor
+ * pins, and the loop terminates instead of resizing on every layout pass.
+ */
+internal fun shouldShrinkValue(
+    didOverflowWidth: Boolean,
+    lineEllipsized: Boolean,
+    scale: Float,
+    minScale: Float,
+): Boolean = (didOverflowWidth || lineEllipsized) && scale > minScale
 
 @Composable
 fun StatTile(
@@ -523,6 +555,12 @@ fun StatTile(
     // intrinsic size. Used by narrow two-column tiles where a wide chip (e.g. "1234 kcal" or
     // "+10 vs base") would otherwise starve the reading column and clip its value. The default
     // keeps callers that have enough width exactly as they were.
+    //
+    // NO CALLER PASSES TRUE ANY MORE, and reach for a shorter chip before reaching for this (#2145).
+    // It splits the row evenly, which starves BOTH sides once the chip is wide: the value is weighted
+    // with fill = true, so it is held to exactly its share however little the chip turns out to need.
+    // The stress marker tiles clipped their reading AND their chip this way. The workouts feed went
+    // full width, the stress tiles shortened the chip; both then wanted the natural-width path.
     compactDelta: Boolean = false,
 ) {
     // Each tile borrows its accent as a faint card wash, so a metric reads as part of its
@@ -1481,3 +1519,44 @@ private fun Modifier.clickableNoRipple(onClick: () -> Unit): Modifier =
         interactionSource = remember { MutableInteractionSource() },
         onClick = onClick,
     )
+
+// MARK: - Backup / restore failure
+
+/**
+ * The dialog a failed backup, restore or export ends on.
+ *
+ * These messages run to several sentences and each one finishes with the part the reader can act on,
+ * so a Toast was the wrong container: the reported case clipped at "SQLite reports: *** in d..." and
+ * threw away BOTH the diagnosis and the "your current data is untouched" that followed it. What
+ * survived was the one fragment that helps nobody. A dialog shows the sentence whole.
+ *
+ * [Copy] puts it on the clipboard, so a corruption report carries SQLite's own words rather than a
+ * fragment retyped off a screenshot. Apple has shown these in an alert all along; this is Android
+ * catching up to it.
+ */
+@Composable
+fun BackupFailureDialog(message: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.surfaceOverlay,
+        text = { Text(message, style = NoopType.subhead, color = Palette.textSecondary) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(uiString(R.string.l10n_components_close_bbfa773e), color = Palette.accent)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = {
+                val clip = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                clip?.setPrimaryClip(ClipData.newPlainText("NOOP backup error", message))
+                // Dismiss on copy. Android 13+ shows its own clipboard confirmation, but minSdk here is
+                // 26, and on everything below that a Copy that left the dialog sitting there gave no
+                // sign it had done anything. Dialog buttons conventionally dismiss anyway.
+                onDismiss()
+            }) {
+                Text(uiString(R.string.l10n_components_copy_af74f7c5), color = Palette.textSecondary)
+            }
+        },
+    )
+}
